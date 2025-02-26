@@ -1,0 +1,1308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>理财计算器</title>
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --hover-color: #45a049;
+            --background-color: #f5f5f5;
+            --border-color: #ddd;
+            --text-color: #333;
+            --card-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            padding: 16px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 24px;
+        }
+
+        .header h1 {
+            font-size: 1.8em;
+            color: var(--text-color);
+            margin-bottom: 8px;
+        }
+
+        .calculator-types {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+            padding: 4px;
+            scroll-snap-type: x mandatory;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .type-button {
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            color: var(--text-color);
+            cursor: pointer;
+            white-space: nowrap;
+            scroll-snap-align: start;
+            transition: all 0.3s ease;
+        }
+
+        .type-button.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 16px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .input-group {
+            margin-bottom: 16px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .input-field {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            outline: none;
+            transition: border-color 0.3s ease;
+            /* 移除上下微调按钮 */
+            -webkit-appearance: none;
+            -moz-appearance: textfield;
+        }
+
+        .input-field::-webkit-outer-spin-button,
+        .input-field::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .input-field:focus {
+            border-color: var(--primary-color);
+        }
+
+        .input-addon {
+            position: relative;
+        }
+
+        .input-addon input {
+            padding-right: 40px;
+        }
+
+        .input-addon::after {
+            content: attr(data-unit);
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #666;
+            font-size: 0.9em;
+        }
+
+        .calculate-button {
+            width: 100%;
+            padding: 12px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .calculate-button:hover {
+            background: var(--hover-color);
+        }
+
+        .result-card {
+            display: none;
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .result-label {
+            color: #666;
+        }
+
+        .result-value {
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+
+        .calculator-section {
+            display: none;
+        }
+
+        .calculator-section.active {
+            display: block;
+        }
+
+        .yearly-details {
+            margin-top: 24px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 20px;
+        }
+
+        .yearly-details h3 {
+            margin-bottom: 16px;
+            color: #333;
+            font-size: 1.1em;
+        }
+
+        .table-container {
+            overflow-x: auto;
+            margin: 0 -20px;
+            padding: 0 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: right;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        th:first-child, td:first-child {
+            text-align: left;
+        }
+
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #666;
+        }
+
+        td {
+            color: #333;
+        }
+
+        tr:last-child td {
+            font-weight: 500;
+            color: var(--primary-color);
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 12px;
+            }
+
+            .header h1 {
+                font-size: 1.5em;
+            }
+
+            .card {
+                padding: 16px;
+            }
+
+            .input-field {
+                font-size: 16px; /* 防止iOS缩放 */
+            }
+
+            .table-container {
+                margin: 0 -16px;
+                padding: 0 16px;
+            }
+
+            th, td {
+                padding: 8px;
+                font-size: 0.85em;
+            }
+        }
+
+        /* 投资周期选择器样式 */
+        .select-group {
+            position: relative;
+        }
+
+        .select-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            outline: none;
+            transition: border-color 0.3s ease;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background: #fff url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24'%3E%3Cpath fill='%23666' d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") no-repeat right 10px center;
+        }
+
+        .period-selector {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            overflow-x: auto;
+            padding: 4px 0;
+        }
+
+        .period-button {
+            padding: 8px 16px;
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            background: white;
+            color: #666;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.3s ease;
+        }
+
+        .period-button.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .period-input-group {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .period-input-group input {
+            flex: 1;
+            padding-right: 50px;
+        }
+
+        .period-input-group span {
+            position: absolute;
+            right: 12px;
+            color: #666;
+        }
+
+        /* 添加/修改以下移动端样式 */
+        .calculator-types {
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 8px 4px;
+            gap: 8px;
+            scroll-snap-type: none;
+            overflow-x: visible;
+        }
+
+        .type-button {
+            flex: 0 1 calc(50% - 8px); /* 每行显示两个按钮 */
+            text-align: center;
+            padding: 12px 8px;
+            font-size: 0.9em;
+        }
+
+        /* 修改表格布局 */
+        .table-container {
+            margin: 0;
+            padding: 0;
+            overflow-x: auto;
+        }
+
+        .table-wrapper {
+            position: relative;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        table {
+            min-width: 100%;
+            font-size: 0.85em;
+        }
+
+        /* 固定第一列 */
+        table th:first-child,
+        table td:first-child {
+            position: sticky;
+            left: 0;
+            background: white;
+            z-index: 1;
+            box-shadow: 2px 0 4px rgba(0,0,0,0.1);
+        }
+
+        /* 响应式表格布局 */
+        @media (max-width: 480px) {
+            .result-card {
+                padding: 12px;
+            }
+            
+            table {
+                font-size: 0.8em;
+            }
+            
+            th, td {
+                padding: 8px 6px;
+                white-space: nowrap;
+            }
+            
+            /* 添加横向滚动提示 */
+            .table-scroll-hint {
+                display: block;
+                text-align: center;
+                color: #666;
+                font-size: 0.8em;
+                margin: 8px 0;
+            }
+            
+            /* 优化期间选择器 */
+            .period-selector {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+            
+            .period-button {
+                flex: 1 1 auto;
+                min-width: calc(33.33% - 8px);
+                text-align: center;
+                padding: 8px 4px;
+                font-size: 0.85em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>理财计算器</h1>
+        </header>
+
+        <div class="calculator-types">
+            <button class="type-button active" onclick="switchCalculator('compound')">复利计算</button>
+            <button class="type-button" onclick="switchCalculator('loan')">贷款计算</button>
+            <button class="type-button" onclick="switchCalculator('investment')">定投收益</button>
+            <button class="type-button" onclick="switchCalculator('target')">目标规划</button>
+            <button class="type-button" onclick="switchCalculator('creditCard')">信用卡免息</button>
+        </div>
+
+        <!-- 复利计算器 -->
+        <div id="compound" class="calculator-section active">
+            <div class="card">
+                <div class="input-group">
+                    <label>初始金额</label>
+                    <div class="input-addon" data-unit="元">
+                        <input type="number" id="compoundPrincipal" class="input-field" placeholder="请输入初始投资金额">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>年化收益率</label>
+                    <div class="input-addon" data-unit="%">
+                        <input type="number" id="compoundRate" class="input-field" placeholder="请输入年化收益率">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>投资年限</label>
+                    <div class="input-addon" data-unit="年">
+                        <input type="number" id="compoundYears" class="input-field" placeholder="请输入投资年限">
+                    </div>
+                </div>
+                <button class="calculate-button" onclick="calculateCompound()">计算收益</button>
+            </div>
+            <div id="compoundResult" class="result-card">
+                <div class="result-item">
+                    <span class="result-label">本金</span>
+                    <span class="result-value" id="compoundPrincipalResult">0元</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">总收益</span>
+                    <span class="result-value" id="compoundInterestResult">0元</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">最终金额</span>
+                    <span class="result-value" id="compoundTotalResult">0元</span>
+                </div>
+                
+                <div class="yearly-details">
+                    <h3>年度收益明细</h3>
+                    <div class="table-container">
+                        <table id="yearlyTable">
+                            <thead>
+                                <tr>
+                                    <th>年度</th>
+                                    <th>年初金额</th>
+                                    <th>年度收益</th>
+                                    <th>年末金额</th>
+                                    <th>累计收益率</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 贷款计算器 -->
+        <div id="loan" class="calculator-section">
+            <div class="card">
+                <div class="input-group">
+                    <label>贷款金额</label>
+                    <div class="input-addon" data-unit="元">
+                        <input type="number" id="loanAmount" class="input-field" placeholder="请输入贷款金额">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>年利率</label>
+                    <div class="input-addon" data-unit="%">
+                        <input type="number" id="loanRate" class="input-field" placeholder="请输入年利率">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>贷款年限</label>
+                    <div class="input-addon" data-unit="年">
+                        <input type="number" id="loanYears" class="input-field" placeholder="请输入贷款年限">
+                    </div>
+                </div>
+                <button class="calculate-button" onclick="calculateLoan()">计算还款</button>
+            </div>
+            <div id="loanResult" class="result-card">
+                <div class="result-item">
+                    <span class="result-label">每月还款</span>
+                    <span class="result-value" id="monthlyPaymentResult">0元</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">总还款额</span>
+                    <span class="result-value" id="totalPaymentResult">0元</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">总利息</span>
+                    <span class="result-value" id="totalInterestResult">0元</span>
+                </div>
+                
+                <div class="yearly-details">
+                    <h3>还款计划明细</h3>
+                    <div class="table-container">
+                        <table id="loanTable">
+                            <thead>
+                                <tr>
+                                    <th>期数</th>
+                                    <th>月供金额</th>
+                                    <th>月供本金</th>
+                                    <th>月供利息</th>
+                                    <th>剩余本金</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 定投收益计算器 -->
+        <div id="investment" class="calculator-section">
+            <div class="card">
+                <div class="input-group">
+                    <label>定投金额</label>
+                    <div class="input-addon" data-unit="元">
+                        <input type="number" id="investmentAmount" class="input-field" placeholder="请输入每期定投金额">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>投资周期</label>
+                    <div class="select-group">
+                        <select id="investmentPeriod" class="input-field">
+                            <option value="week">每周</option>
+                            <option value="month" selected>每月</option>
+                            <option value="quarter">每季度</option>
+                            <option value="year">每年</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>年化收益率</label>
+                    <div class="input-addon" data-unit="%">
+                        <input type="number" id="investmentRate" class="input-field" placeholder="请输入年化收益率">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>投资年限</label>
+                    <div class="input-addon" data-unit="年">
+                        <input type="number" id="investmentYears" class="input-field" placeholder="请输入投资年��">
+                    </div>
+                </div>
+                <button class="calculate-button" onclick="calculateInvestment()">计算收益</button>
+            </div>
+            <div id="investmentResult" class="result-card">
+                <div class="result-item">
+                    <span class="result-label">投入本金</span>
+                    <span class="result-value" id="totalInvestmentResult">0元</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">收益金额</span>
+                    <span class="result-value" id="investmentInterestResult">0元</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">最终金额</span>
+                    <span class="result-value" id="investmentTotalResult">0元</span>
+                </div>
+                
+                <div class="yearly-details">
+                    <div class="period-selector">
+                        <button class="period-button active" onclick="switchInvestmentView('year')">年度明细</button>
+                        <button class="period-button" onclick="switchInvestmentView('quarter')">季度明细</button>
+                        <button class="period-button" onclick="switchInvestmentView('month')">月度明细</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="investmentTable">
+                            <thead>
+                                <tr>
+                                    <th>时间</th>
+                                    <th>期初金额</th>
+                                    <th>投入金额</th>
+                                    <th>当期收益</th>
+                                    <th>期末金额</th>
+                                    <th>累计收益率</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 目标规划计算器 -->
+        <div id="target" class="calculator-section">
+            <div class="card">
+                <div class="input-group">
+                    <label>目标金额</label>
+                    <div class="input-addon" data-unit="元">
+                        <input type="number" id="targetAmount" class="input-field" placeholder="请输入目标金额">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>计划周期</label>
+                    <div class="select-group">
+                        <select id="targetPeriod" class="input-field" onchange="updatePeriodInput()">
+                            <option value="day">按天</option>
+                            <option value="week">按周</option>
+                            <option value="month" selected>按月</option>
+                            <option value="quarter">按季度</option>
+                            <option value="year">按年</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>计划时长</label>
+                    <div class="period-input-group">
+                        <input type="number" id="targetDuration" class="input-field" placeholder="请输入计划时长">
+                        <span id="periodUnit">月</span>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>预期年化收益率</label>
+                    <div class="input-addon" data-unit="%">
+                        <input type="number" id="targetRate" class="input-field" placeholder="请输入预期年化收益率">
+                    </div>
+                </div>
+                <button class="calculate-button" onclick="calculateTarget()">计算投资计划</button>
+            </div>
+            <div id="targetResult" class="result-card">
+                <div class="result-item">
+                    <span class="result-label">每期需投入</span>
+                    <span class="result-value" id="periodRequiredResult">0元</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">总投入金额</span>
+                    <span class="result-value" id="totalRequiredResult">0元</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">预期收益</span>
+                    <span class="result-value" id="targetInterestResult">0元</span>
+                </div>
+                
+                <div class="yearly-details">
+                    <div class="period-selector">
+                        <button class="period-button active" onclick="switchTargetView('year')">年度明细</button>
+                        <button class="period-button" onclick="switchTargetView('quarter')">季度明细</button>
+                        <button class="period-button" onclick="switchTargetView('month')">月度明细</button>
+                        <button class="period-button" onclick="switchTargetView('week')">周明细</button>
+                    </div>
+                    <div class="table-container">
+                        <table id="targetTable">
+                            <thead>
+                                <tr>
+                                    <th>时间</th>
+                                    <th>期初金额</th>
+                                    <th>投入金额</th>
+                                    <th>当期收益</th>
+                                    <th>期末金额</th>
+                                    <th>完成进度</th>
+                                    <th>距离目标</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 信用卡免息收益计算器 -->
+        <div id="creditCard" class="calculator-section">
+            <div class="card">
+                <div class="input-group">
+                    <label>消费本金</label>
+                    <div class="input-addon" data-unit="元">
+                        <input type="number" id="creditAmount" class="input-field" placeholder="请输入消费本金">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>免息期数</label>
+                    <div class="input-addon" data-unit="期">
+                        <input type="number" id="creditPeriods" class="input-field" placeholder="请输入免息期数">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>资金年化收益率</label>
+                    <div class="input-addon" data-unit="%">
+                        <input type="number" id="creditRate" class="input-field" placeholder="请输入预期年化收益率">
+                    </div>
+                </div>
+                <button class="calculate-button" onclick="calculateCreditCard()">计算免息收益</button>
+            </div>
+            <div id="creditResult" class="result-card">
+                <div class="result-item">
+                    <span class="result-label">每期应还</span>
+                    <span class="result-value" id="creditMonthlyPayment">0元</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">总收益</span>
+                    <span class="result-value" id="creditTotalInterest">0元</span>
+                </div>
+                <div class="result-item">
+                    <span class="result-label">年化收益率</span>
+                    <span class="result-value" id="creditEffectiveRate">0%</span>
+                </div>
+                
+                <div class="yearly-details">
+                    <h3>还款计划与收益明细</h3>
+                    <div class="table-container">
+                        <table id="creditTable">
+                            <thead>
+                                <tr>
+                                    <th>期数</th>
+                                    <th>期初本金</th>
+                                    <th>本期还款</th>
+                                    <th>剩余本金</th>
+                                    <th>当期收益</th>
+                                    <th>累计收益</th>
+                                    <th>资金使用率</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function switchCalculator(type) {
+            // 隐藏所有计算器
+            document.querySelectorAll('.calculator-section').forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // 显示选中的计算器
+            document.getElementById(type).classList.add('active');
+            
+            // 更新按钮状态
+            document.querySelectorAll('.type-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+
+        function formatMoney(number) {
+            return new Intl.NumberFormat('zh-CN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(number);
+        }
+
+        // 复利计算
+        function calculateCompound() {
+            const principal = parseFloat(document.getElementById('compoundPrincipal').value) || 0;
+            const rate = parseFloat(document.getElementById('compoundRate').value) || 0;
+            const years = parseFloat(document.getElementById('compoundYears').value) || 0;
+
+            const yearlyData = [];
+            let currentAmount = principal;
+            
+            // 计算每年的数据
+            for (let year = 1; year <= years; year++) {
+                const yearStartAmount = currentAmount;
+                const yearEndAmount = yearStartAmount * (1 + rate/100);
+                const yearlyInterest = yearEndAmount - yearStartAmount;
+                const totalReturn = ((yearEndAmount - principal) / principal * 100);
+                
+                yearlyData.push({
+                    year: year,
+                    yearStartAmount: yearStartAmount,
+                    yearlyInterest: yearlyInterest,
+                    yearEndAmount: yearEndAmount,
+                    totalReturn: totalReturn
+                });
+                
+                currentAmount = yearEndAmount;
+            }
+
+            // 更新总体结果
+            document.getElementById('compoundResult').style.display = 'block';
+            document.getElementById('compoundPrincipalResult').textContent = formatMoney(principal) + '元';
+            document.getElementById('compoundInterestResult').textContent = formatMoney(currentAmount - principal) + '元';
+            document.getElementById('compoundTotalResult').textContent = formatMoney(currentAmount) + '元';
+
+            // 更新年度明细表格
+            const tbody = document.getElementById('yearlyTable').getElementsByTagName('tbody')[0];
+            tbody.innerHTML = '';
+            
+            yearlyData.forEach(data => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>第${data.year}年</td>
+                    <td>${formatMoney(data.yearStartAmount)}元</td>
+                    <td>${formatMoney(data.yearlyInterest)}元</td>
+                    <td>${formatMoney(data.yearEndAmount)}元</td>
+                    <td>${data.totalReturn.toFixed(2)}%</td>
+                `;
+            });
+        }
+
+        // 贷款计算
+        function calculateLoan() {
+            const amount = parseFloat(document.getElementById('loanAmount').value) || 0;
+            const rate = parseFloat(document.getElementById('loanRate').value) || 0;
+            const years = parseFloat(document.getElementById('loanYears').value) || 0;
+
+            const monthlyRate = rate / 100 / 12;
+            const totalMonths = years * 12;
+            
+            const monthlyPayment = amount * monthlyRate * Math.pow(1 + monthlyRate, totalMonths) 
+                                / (Math.pow(1 + monthlyRate, totalMonths) - 1);
+            const totalPayment = monthlyPayment * totalMonths;
+            const totalInterest = totalPayment - amount;
+
+            // 更新总体结果
+            document.getElementById('loanResult').style.display = 'block';
+            document.getElementById('monthlyPaymentResult').textContent = formatMoney(monthlyPayment) + '元';
+            document.getElementById('totalPaymentResult').textContent = formatMoney(totalPayment) + '元';
+            document.getElementById('totalInterestResult').textContent = formatMoney(totalInterest) + '元';
+
+            // 生成还款计划明细
+            const tbody = document.getElementById('loanTable').getElementsByTagName('tbody')[0];
+            tbody.innerHTML = '';
+            
+            let remainingPrincipal = amount;
+            for (let month = 1; month <= totalMonths; month++) {
+                const monthlyInterest = remainingPrincipal * monthlyRate;
+                const monthlyPrincipal = monthlyPayment - monthlyInterest;
+                remainingPrincipal -= monthlyPrincipal;
+
+                if (month % 12 === 1 || month === totalMonths) { // 只显示每年第一个月和最后一个月
+                    const row = tbody.insertRow();
+                    row.innerHTML = `
+                        <td>第${month}期</td>
+                        <td>${formatMoney(monthlyPayment)}元</td>
+                        <td>${formatMoney(monthlyPrincipal)}元</td>
+                        <td>${formatMoney(monthlyInterest)}元</td>
+                        <td>${formatMoney(Math.max(0, remainingPrincipal))}元</td>
+                    `;
+                }
+            }
+        }
+
+        // 定投收益计算
+        function calculateInvestment() {
+            const amount = parseFloat(document.getElementById('investmentAmount').value) || 0;
+            const period = document.getElementById('investmentPeriod').value;
+            const rate = parseFloat(document.getElementById('investmentRate').value) || 0;
+            const years = parseFloat(document.getElementById('investmentYears').value) || 0;
+
+            // 计算不同周期的参数
+            const periodsPerYear = {
+                'week': 52,
+                'month': 12,
+                'quarter': 4,
+                'year': 1
+            }[period];
+
+            const periodRate = rate / 100 / periodsPerYear;
+            const totalPeriods = years * periodsPerYear;
+            
+            // 生成所有投资期间的数据
+            let periodData = [];
+            let currentAmount = 0;
+            let totalInvestment = 0;
+            
+            for (let p = 1; p <= totalPeriods; p++) {
+                const periodStartAmount = currentAmount;
+                totalInvestment += amount;
+                
+                currentAmount = (currentAmount + amount) * (1 + periodRate);
+                const periodInterest = currentAmount - periodStartAmount - amount;
+                const totalReturn = ((currentAmount - totalInvestment) / totalInvestment * 100);
+                
+                periodData.push({
+                    period: p,
+                    startAmount: periodStartAmount,
+                    investment: amount,
+                    interest: periodInterest,
+                    endAmount: currentAmount,
+                    totalReturn: totalReturn
+                });
+            }
+
+            // 更新总体结果
+            document.getElementById('investmentResult').style.display = 'block';
+            document.getElementById('totalInvestmentResult').textContent = formatMoney(totalInvestment) + '元';
+            document.getElementById('investmentInterestResult').textContent = formatMoney(currentAmount - totalInvestment) + '元';
+            document.getElementById('investmentTotalResult').textContent = formatMoney(currentAmount) + '元';
+
+            // 保存数据用于切换视图
+            window.investmentData = {
+                periodData: periodData,
+                periodsPerYear: periodsPerYear,
+                period: period
+            };
+
+            // 默认显示年度视图
+            switchInvestmentView('year');
+        }
+
+        // 切换投资明细视图
+        function switchInvestmentView(viewType) {
+            if (!window.investmentData) return;
+
+            // 更新按钮状态
+            document.querySelectorAll('.period-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            const { periodData, periodsPerYear, period } = window.investmentData;
+            const tbody = document.getElementById('investmentTable').getElementsByTagName('tbody')[0];
+            tbody.innerHTML = '';
+
+            let displayData = [];
+            
+            if (viewType === 'year') {
+                // 按年汇总数据
+                for (let year = 0; year < periodData.length / periodsPerYear; year++) {
+                    const yearStart = year * periodsPerYear;
+                    const yearEnd = Math.min((year + 1) * periodsPerYear, periodData.length);
+                    const yearData = periodData.slice(yearStart, yearEnd);
+                    
+                    const startAmount = yearData[0].startAmount;
+                    const investment = yearData.reduce((sum, d) => sum + d.investment, 0);
+                    const interest = yearData.reduce((sum, d) => sum + d.interest, 0);
+                    const endAmount = yearData[yearData.length - 1].endAmount;
+                    const totalReturn = yearData[yearData.length - 1].totalReturn;
+
+                    displayData.push({
+                        label: `第${year + 1}年`,
+                        startAmount,
+                        investment,
+                        interest,
+                        endAmount,
+                        totalReturn
+                    });
+                }
+            } else if (viewType === 'quarter') {
+                // 按季度汇总数据
+                const periodsPerQuarter = periodsPerYear / 4;
+                for (let q = 0; q < periodData.length / periodsPerQuarter; q++) {
+                    const quarterStart = q * periodsPerQuarter;
+                    const quarterEnd = Math.min((q + 1) * periodsPerQuarter, periodData.length);
+                    const quarterData = periodData.slice(quarterStart, quarterEnd);
+                    
+                    const year = Math.floor(q / 4) + 1;
+                    const quarter = (q % 4) + 1;
+                    const startAmount = quarterData[0].startAmount;
+                    const investment = quarterData.reduce((sum, d) => sum + d.investment, 0);
+                    const interest = quarterData.reduce((sum, d) => sum + d.interest, 0);
+                    const endAmount = quarterData[quarterData.length - 1].endAmount;
+                    const totalReturn = quarterData[quarterData.length - 1].totalReturn;
+
+                    displayData.push({
+                        label: `第${year}年Q${quarter}`,
+                        startAmount,
+                        investment,
+                        interest,
+                        endAmount,
+                        totalReturn
+                    });
+                }
+            } else if (viewType === 'month') {
+                // 显示月度数据（仅当期数不太多时）
+                if (periodData.length <= 120) { // 最多显示10年的月度数据
+                    periodData.forEach((data, index) => {
+                        const year = Math.floor(index / 12) + 1;
+                        const month = (index % 12) + 1;
+                        displayData.push({
+                            label: `第${year}年${month}月`,
+                            startAmount: data.startAmount,
+                            investment: data.investment,
+                            interest: data.interest,
+                            endAmount: data.endAmount,
+                            totalReturn: data.totalReturn
+                        });
+                    });
+                } else {
+                    alert('数据过多，请选择年度或季度视图');
+                    return;
+                }
+            }
+
+            // 渲染数据
+            displayData.forEach(data => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${data.label}</td>
+                    <td>${formatMoney(data.startAmount)}元</td>
+                    <td>${formatMoney(data.investment)}元</td>
+                    <td>${formatMoney(data.interest)}元</td>
+                    <td>${formatMoney(data.endAmount)}元</td>
+                    <td>${data.totalReturn.toFixed(2)}%</td>
+                `;
+            });
+        }
+
+        // 目标规划计算
+        function calculateTarget() {
+            const target = parseFloat(document.getElementById('targetAmount').value) || 0;
+            const period = document.getElementById('targetPeriod').value;
+            const duration = parseFloat(document.getElementById('targetDuration').value) || 0;
+            const rate = parseFloat(document.getElementById('targetRate').value) || 0;
+
+            // 计算不同周期的参数
+            const periodsPerYear = {
+                'day': 365,
+                'week': 52,
+                'month': 12,
+                'quarter': 4,
+                'year': 1
+            }[period];
+
+            // 转换为年数
+            const years = duration / periodsPerYear;
+            const periodRate = rate / 100 / periodsPerYear;
+            const totalPeriods = Math.floor(duration);
+            
+            // 计算达到目标所需的每期投入金额
+            const periodRequired = target / ((Math.pow(1 + periodRate, totalPeriods) - 1) / periodRate);
+            const totalRequired = periodRequired * totalPeriods;
+            const totalInterest = target - totalRequired;
+
+            // 生成每期计划明细
+            let periodData = [];
+            let currentAmount = 0;
+            let totalInvestment = 0;
+            
+            for (let p = 1; p <= totalPeriods; p++) {
+                const periodStartAmount = currentAmount;
+                totalInvestment += periodRequired;
+                
+                currentAmount = (currentAmount + periodRequired) * (1 + periodRate);
+                const periodInterest = currentAmount - periodStartAmount - periodRequired;
+                const progress = (currentAmount / target * 100);
+                const remainingToTarget = Math.max(0, target - currentAmount);
+                
+                periodData.push({
+                    period: p,
+                    startAmount: periodStartAmount,
+                    investment: periodRequired,
+                    interest: periodInterest,
+                    endAmount: currentAmount,
+                    progress: progress,
+                    remaining: remainingToTarget
+                });
+            }
+
+            // 更新总体结果
+            document.getElementById('targetResult').style.display = 'block';
+            document.getElementById('periodRequiredResult').textContent = `${formatMoney(periodRequired)}元/${period}`;
+            document.getElementById('totalRequiredResult').textContent = formatMoney(totalRequired) + '元';
+            document.getElementById('targetInterestResult').textContent = formatMoney(totalInterest) + '元';
+
+            // 保存数据用于切换视图
+            window.targetData = {
+                periodData: periodData,
+                periodsPerYear: periodsPerYear,
+                period: period,
+                target: target
+            };
+
+            // 默认显示年度视图
+            switchTargetView('year');
+        }
+
+        // 切换目标规划明细视图
+        function switchTargetView(viewType) {
+            if (!window.targetData) return;
+
+            // 更新按钮状态
+            document.querySelectorAll('.period-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+
+            const { periodData, periodsPerYear, period, target } = window.targetData;
+            const tbody = document.getElementById('targetTable').getElementsByTagName('tbody')[0];
+            tbody.innerHTML = '';
+
+            let displayData = [];
+            const periodsPerView = {
+                'year': periodsPerYear,
+                'quarter': periodsPerYear / 4,
+                'month': periodsPerYear / 12,
+                'week': periodsPerYear / 52
+            }[viewType];
+
+            // 根据视图类型聚合数据
+            if (periodData.length > periodsPerView) {
+                for (let i = 0; i < periodData.length / periodsPerView; i++) {
+                    const periodStart = i * periodsPerView;
+                    const periodEnd = Math.min((i + 1) * periodsPerView, periodData.length);
+                    const periodSlice = periodData.slice(periodStart, periodEnd);
+                    
+                    const startAmount = periodSlice[0].startAmount;
+                    const investment = periodSlice.reduce((sum, d) => sum + d.investment, 0);
+                    const interest = periodSlice.reduce((sum, d) => sum + d.interest, 0);
+                    const endAmount = periodSlice[periodSlice.length - 1].endAmount;
+                    const progress = (endAmount / target * 100);
+                    const remaining = Math.max(0, target - endAmount);
+
+                    let label = '';
+                    switch(viewType) {
+                        case 'year':
+                            label = `第${i + 1}年`;
+                            break;
+                        case 'quarter':
+                            label = `第${Math.floor(i/4) + 1}年Q${(i%4) + 1}`;
+                            break;
+                        case 'month':
+                            label = `第${Math.floor(i/12) + 1}年${(i%12) + 1}月`;
+                            break;
+                        case 'week':
+                            label = `第${Math.floor(i/52) + 1}年第${(i%52) + 1}周`;
+                            break;
+                    }
+
+                    displayData.push({
+                        label,
+                        startAmount,
+                        investment,
+                        interest,
+                        endAmount,
+                        progress,
+                        remaining
+                    });
+                }
+            } else {
+                // 如果周期数较少，直接显示原始数据
+                displayData = periodData.map((data, index) => ({
+                    label: `第${index + 1}${period}`,
+                    ...data
+                }));
+            }
+
+            // 渲染数据
+            displayData.forEach(data => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${data.label}</td>
+                    <td>${formatMoney(data.startAmount)}元</td>
+                    <td>${formatMoney(data.investment)}元</td>
+                    <td>${formatMoney(data.interest)}元</td>
+                    <td>${formatMoney(data.endAmount)}元</td>
+                    <td>${data.progress.toFixed(2)}%</td>
+                    <td>${formatMoney(data.remaining)}元</td>
+                `;
+            });
+        }
+
+        // 信用卡免息收益计算
+        function calculateCreditCard() {
+            const principal = parseFloat(document.getElementById('creditAmount').value) || 0;
+            const periods = parseFloat(document.getElementById('creditPeriods').value) || 0;
+            const annualRate = parseFloat(document.getElementById('creditRate').value) || 0;
+            
+            // 计算每期还款金额
+            const monthlyPayment = principal / periods;
+            const monthlyRate = annualRate / 100 / 12;
+            
+            let remainingPrincipal = principal;
+            let totalInterest = 0;
+            let periodData = [];
+            
+            // 计算每期收益
+            for (let period = 1; period <= periods; period++) {
+                const startPrincipal = remainingPrincipal;
+                const payment = monthlyPayment;
+                
+                // 当期收益：期初剩余本金 * 月化收益率
+                const periodInterest = remainingPrincipal * monthlyRate;
+                totalInterest += periodInterest;
+                
+                // 更新剩余本金
+                remainingPrincipal -= payment;
+                
+                // 计算资金使用率
+                const utilizationRate = (remainingPrincipal / principal) * 100;
+                
+                periodData.push({
+                    period: period,
+                    startPrincipal: startPrincipal,
+                    payment: payment,
+                    remainingPrincipal: remainingPrincipal,
+                    periodInterest: periodInterest,
+                    totalInterest: totalInterest,
+                    utilizationRate: utilizationRate
+                });
+            }
+            
+            // 计算实际年化收益率
+            const effectiveRate = (totalInterest / principal) * (12 / periods) * 100;
+            
+            // 更新结果显示
+            document.getElementById('creditResult').style.display = 'block';
+            document.getElementById('creditMonthlyPayment').textContent = formatMoney(monthlyPayment) + '元';
+            document.getElementById('creditTotalInterest').textContent = formatMoney(totalInterest) + '元';
+            document.getElementById('creditEffectiveRate').textContent = effectiveRate.toFixed(2) + '%';
+            
+            // 更新明细表格
+            const tbody = document.getElementById('creditTable').getElementsByTagName('tbody')[0];
+            tbody.innerHTML = '';
+            
+            periodData.forEach(data => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>第${data.period}期</td>
+                    <td>${formatMoney(data.startPrincipal)}元</td>
+                    <td>${formatMoney(data.payment)}元</td>
+                    <td>${formatMoney(data.remainingPrincipal)}元</td>
+                    <td>${formatMoney(data.periodInterest)}元</td>
+                    <td>${formatMoney(data.totalInterest)}元</td>
+                    <td>${data.utilizationRate.toFixed(2)}%</td>
+                `;
+            });
+        }
+
+        // 更新周期单位显示
+        function updatePeriodInput() {
+            const period = document.getElementById('targetPeriod').value;
+            const unitMap = {
+                'day': '天',
+                'week': '周',
+                'month': '月',
+                'quarter': '季度',
+                'year': '年'
+            };
+            document.getElementById('periodUnit').textContent = unitMap[period];
+        }
+
+        // 保存输入值到localStorage
+        function saveInputs() {
+            const inputs = document.querySelectorAll('input[type="number"]');
+            inputs.forEach(input => {
+                input.addEventListener('change', function() {
+                    localStorage.setItem(input.id, input.value);
+                });
+            });
+        }
+
+        // 从localStorage加载输入值
+        function loadInputs() {
+            const inputs = document.querySelectorAll('input[type="number"]');
+            inputs.forEach(input => {
+                const savedValue = localStorage.getItem(input.id);
+                if (savedValue) {
+                    input.value = savedValue;
+                }
+            });
+        }
+
+        // 页面加载时初始化
+        window.onload = function() {
+            loadInputs();
+            saveInputs();
+        }
+
+        // 添加表格横向滚动处理
+        function handleTableScroll() {
+            const tableWrappers = document.querySelectorAll('.table-wrapper');
+            tableWrappers.forEach(wrapper => {
+                const hint = wrapper.previousElementSibling;
+                if (wrapper.scrollWidth > wrapper.clientWidth) {
+                    hint.style.display = 'block';
+                } else {
+                    hint.style.display = 'none';
+                }
+            });
+        }
+
+        // 页面加载和窗口调整时检查表格是否需要滚动
+        window.addEventListener('load', handleTableScroll);
+        window.addEventListener('resize', handleTableScroll);
+    </script>
+</body>
+</html>
