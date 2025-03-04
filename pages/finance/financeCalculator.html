@@ -570,7 +570,7 @@
                 <div class="input-group">
                     <label>投资年限</label>
                     <div class="input-addon" data-unit="年">
-                        <input type="number" id="investmentYears" class="input-field" placeholder="请输入投资年��">
+                        <input type="number" id="investmentYears" class="input-field" placeholder="请输入投资年限">
                     </div>
                 </div>
                 <button class="calculate-button" onclick="calculateInvestment()">计算收益</button>
@@ -783,48 +783,44 @@
             const principal = parseFloat(document.getElementById('compoundPrincipal').value) || 0;
             const rate = parseFloat(document.getElementById('compoundRate').value) || 0;
             const years = parseFloat(document.getElementById('compoundYears').value) || 0;
-
-            const yearlyData = [];
-            let currentAmount = principal;
             
-            // 计算每年的数据
-            for (let year = 1; year <= years; year++) {
-                const yearStartAmount = currentAmount;
-                const yearEndAmount = yearStartAmount * (1 + rate/100);
-                const yearlyInterest = yearEndAmount - yearStartAmount;
-                const totalReturn = ((yearEndAmount - principal) / principal * 100);
-                
-                yearlyData.push({
-                    year: year,
-                    yearStartAmount: yearStartAmount,
-                    yearlyInterest: yearlyInterest,
-                    yearEndAmount: yearEndAmount,
-                    totalReturn: totalReturn
-                });
-                
-                currentAmount = yearEndAmount;
+            // 验证输入
+            if (principal <= 0 || years <= 0) {
+                alert('请输入有效的本金和投资年限');
+                return;
             }
-
+            
+            // 计算最终金额，使用精确的指数计算
+            const annualRate = rate / 100;
+            const total = parseFloat((principal * Math.pow(1 + annualRate, years)).toFixed(2));
+            const interest = parseFloat((total - principal).toFixed(2));
+            
             // 更新总体结果
             document.getElementById('compoundResult').style.display = 'block';
             document.getElementById('compoundPrincipalResult').textContent = formatMoney(principal) + '元';
-            document.getElementById('compoundInterestResult').textContent = formatMoney(currentAmount - principal) + '元';
-            document.getElementById('compoundTotalResult').textContent = formatMoney(currentAmount) + '元';
-
-            // 更新年度明细表格
-            const tbody = document.getElementById('yearlyTable').getElementsByTagName('tbody')[0];
+            document.getElementById('compoundInterestResult').textContent = formatMoney(interest) + '元';
+            document.getElementById('compoundTotalResult').textContent = formatMoney(total) + '元';
+            
+            // 生成年度明细
+            const tbody = document.getElementById('yearlyTable').querySelector('tbody');
             tbody.innerHTML = '';
             
-            yearlyData.forEach(data => {
+            let currentPrincipal = principal;
+            for (let year = 1; year <= years; year++) {
+                const yearStartAmount = currentPrincipal;
+                const yearlyInterest = parseFloat((yearStartAmount * annualRate).toFixed(2));
+                currentPrincipal = parseFloat((yearStartAmount + yearlyInterest).toFixed(2));
+                const cumulativeRate = parseFloat(((currentPrincipal / principal - 1) * 100).toFixed(2));
+                
                 const row = tbody.insertRow();
                 row.innerHTML = `
-                    <td>第${data.year}年</td>
-                    <td>${formatMoney(data.yearStartAmount)}元</td>
-                    <td>${formatMoney(data.yearlyInterest)}元</td>
-                    <td>${formatMoney(data.yearEndAmount)}元</td>
-                    <td>${data.totalReturn.toFixed(2)}%</td>
+                    <td>${year}</td>
+                    <td>${formatMoney(yearStartAmount)}元</td>
+                    <td>${formatMoney(yearlyInterest)}元</td>
+                    <td>${formatMoney(currentPrincipal)}元</td>
+                    <td>${cumulativeRate}%</td>
                 `;
-            });
+            }
         }
 
         // 贷款计算
@@ -1026,12 +1022,18 @@
             });
         }
 
-        // 目标规划计算
+        // 修复目标规划计算功能
         function calculateTarget() {
             const target = parseFloat(document.getElementById('targetAmount').value) || 0;
             const period = document.getElementById('targetPeriod').value;
             const duration = parseFloat(document.getElementById('targetDuration').value) || 0;
             const rate = parseFloat(document.getElementById('targetRate').value) || 0;
+            
+            // 验证输入
+            if (target <= 0 || duration <= 0) {
+                alert('请输入有效的目标金额和时间');
+                return;
+            }
 
             // 计算不同周期的参数
             const periodsPerYear = {
@@ -1042,13 +1044,21 @@
                 'year': 1
             }[period];
 
-            // 转换为年数
-            const years = duration / periodsPerYear;
-            const periodRate = rate / 100 / periodsPerYear;
+            // 转换年化利率为相应周期的利率
+            const periodRate = Math.pow(1 + rate / 100, 1 / periodsPerYear) - 1;
             const totalPeriods = Math.floor(duration);
             
-            // 计算达到目标所需的每期投入金额
-            const periodRequired = target / ((Math.pow(1 + periodRate, totalPeriods) - 1) / periodRate);
+            // 使用更准确的财务公式计算每期所需投入
+            // PMT = FV * r / ((1 + r)^n - 1)，其中FV是未来值，r是周期利率，n是周期数
+            let periodRequired = 0;
+            if (periodRate > 0) {
+                periodRequired = target * periodRate / (Math.pow(1 + periodRate, totalPeriods) - 1);
+            } else {
+                periodRequired = target / totalPeriods; // 如果利率为0，简单平均
+            }
+            
+            // 避免精度问题
+            periodRequired = parseFloat(periodRequired.toFixed(2));
             const totalRequired = periodRequired * totalPeriods;
             const totalInterest = target - totalRequired;
 
@@ -1061,10 +1071,11 @@
                 const periodStartAmount = currentAmount;
                 totalInvestment += periodRequired;
                 
-                currentAmount = (currentAmount + periodRequired) * (1 + periodRate);
-                const periodInterest = currentAmount - periodStartAmount - periodRequired;
-                const progress = (currentAmount / target * 100);
-                const remainingToTarget = Math.max(0, target - currentAmount);
+                const periodInterest = parseFloat((currentAmount * periodRate).toFixed(2));
+                currentAmount = parseFloat((currentAmount + periodRequired + periodInterest).toFixed(2));
+                
+                const progress = parseFloat((currentAmount / target * 100).toFixed(2));
+                const remainingToTarget = Math.max(0, parseFloat((target - currentAmount).toFixed(2)));
                 
                 periodData.push({
                     period: p,
@@ -1180,71 +1191,53 @@
             });
         }
 
-        // 信用卡免息收益计算
+        // 添加信用卡免息期计算
         function calculateCreditCard() {
-            const principal = parseFloat(document.getElementById('creditAmount').value) || 0;
-            const periods = parseFloat(document.getElementById('creditPeriods').value) || 0;
-            const annualRate = parseFloat(document.getElementById('creditRate').value) || 0;
+            const amount = parseFloat(document.getElementById('creditAmount').value) || 0;
+            const purchaseDate = new Date(document.getElementById('purchaseDate').value);
+            const billingDay = parseInt(document.getElementById('billingDay').value) || 1;
+            const repaymentDay = parseInt(document.getElementById('repaymentDay').value) || 1;
+            const interestRate = parseFloat(document.getElementById('creditRate').value) || 0;
             
-            // 计算每期还款金额
-            const monthlyPayment = principal / periods;
-            const monthlyRate = annualRate / 100 / 12;
-            
-            let remainingPrincipal = principal;
-            let totalInterest = 0;
-            let periodData = [];
-            
-            // 计算每期收益
-            for (let period = 1; period <= periods; period++) {
-                const startPrincipal = remainingPrincipal;
-                const payment = monthlyPayment;
-                
-                // 当期收益：期初剩余本金 * 月化收益率
-                const periodInterest = remainingPrincipal * monthlyRate;
-                totalInterest += periodInterest;
-                
-                // 更新剩余本金
-                remainingPrincipal -= payment;
-                
-                // 计算资金使用率
-                const utilizationRate = (remainingPrincipal / principal) * 100;
-                
-                periodData.push({
-                    period: period,
-                    startPrincipal: startPrincipal,
-                    payment: payment,
-                    remainingPrincipal: remainingPrincipal,
-                    periodInterest: periodInterest,
-                    totalInterest: totalInterest,
-                    utilizationRate: utilizationRate
-                });
+            // 验证输入
+            if (amount <= 0 || isNaN(purchaseDate.getTime())) {
+                alert('请输入有效的消费金额和日期');
+                return;
             }
             
-            // 计算实际年化收益率
-            const effectiveRate = (totalInterest / principal) * (12 / periods) * 100;
+            // 计算账单日
+            let billingDate = new Date(purchaseDate);
+            billingDate.setDate(billingDay);
+            // 如果购买日期在本月账单日之后，账单日要到下个月
+            if (purchaseDate.getDate() > billingDay) {
+                billingDate.setMonth(billingDate.getMonth() + 1);
+            }
             
-            // 更新结果显示
+            // 计算还款日
+            let repaymentDate = new Date(billingDate);
+            repaymentDate.setDate(repaymentDay);
+            // 如果账单日在本月还款日之后，还款日要到下个月
+            if (billingDate.getDate() > repaymentDay) {
+                repaymentDate.setMonth(repaymentDate.getMonth() + 1);
+            }
+            
+            // 计算免息天数
+            const daysBetween = Math.round((repaymentDate - purchaseDate) / (1000 * 60 * 60 * 24));
+            
+            // 计算节省的利息（按日利率计算）
+            const dailyRate = interestRate / 100 / 365;
+            const savedInterest = parseFloat((amount * dailyRate * daysBetween).toFixed(2));
+            
+            // 更新结果
             document.getElementById('creditResult').style.display = 'block';
-            document.getElementById('creditMonthlyPayment').textContent = formatMoney(monthlyPayment) + '元';
-            document.getElementById('creditTotalInterest').textContent = formatMoney(totalInterest) + '元';
-            document.getElementById('creditEffectiveRate').textContent = effectiveRate.toFixed(2) + '%';
-            
-            // 更新明细表格
-            const tbody = document.getElementById('creditTable').getElementsByTagName('tbody')[0];
-            tbody.innerHTML = '';
-            
-            periodData.forEach(data => {
-                const row = tbody.insertRow();
-                row.innerHTML = `
-                    <td>第${data.period}期</td>
-                    <td>${formatMoney(data.startPrincipal)}元</td>
-                    <td>${formatMoney(data.payment)}元</td>
-                    <td>${formatMoney(data.remainingPrincipal)}元</td>
-                    <td>${formatMoney(data.periodInterest)}元</td>
-                    <td>${formatMoney(data.totalInterest)}元</td>
-                    <td>${data.utilizationRate.toFixed(2)}%</td>
-                `;
-            });
+            document.getElementById('billingDateResult').textContent = formatDate(billingDate);
+            document.getElementById('repaymentDateResult').textContent = formatDate(repaymentDate);
+            document.getElementById('freeDaysResult').textContent = daysBetween + '天';
+            document.getElementById('savedInterestResult').textContent = formatMoney(savedInterest) + '元';
+        }
+        
+        function formatDate(date) {
+            return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
         }
 
         // 更新周期单位显示

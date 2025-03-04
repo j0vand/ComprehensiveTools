@@ -76,7 +76,6 @@
         .meal-content {
             font-size: 14px;
             line-height: 1.5;
-            margin-right: 80px;
         }
 
         .meal-number {
@@ -97,86 +96,6 @@
         .clear-button {
             background: #ff4444;
             margin-top: 8px;
-        }
-
-        .action-buttons {
-            position: absolute;
-            right: 12px;
-            top: 50%;
-            transform: translateY(-50%);
-            display: flex;
-            gap: 8px;
-        }
-
-        .edit-button, .delete-button {
-            padding: 6px 12px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 12px;
-            color: white;
-        }
-
-        .edit-button {
-            background: #2196F3;
-        }
-
-        .delete-button {
-            background: #ff4444;
-        }
-
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 1000;
-        }
-
-        .modal-content {
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            padding: 20px;
-            border-radius: 12px;
-            width: 90%;
-            max-width: 500px;
-        }
-
-        .modal input {
-            width: 100%;
-            padding: 8px;
-            margin: 8px 0;
-            border: 1px solid var(--border-color);
-            border-radius: 4px;
-        }
-
-        .modal-buttons {
-            display: flex;
-            gap: 8px;
-            margin-top: 16px;
-        }
-
-        .modal-buttons button {
-            flex: 1;
-            padding: 8px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            color: white;
-        }
-
-        .save-button {
-            background: var(--primary-color);
-        }
-
-        .cancel-button {
-            background: #9e9e9e;
         }
 
         .today-date {
@@ -223,10 +142,6 @@
                 </label>
             </div>
             <button class="button" onclick="processMealData()">保存记录</button>
-            <div style="display: flex; gap: 8px; margin-top: 12px;">
-                <button class="button" style="background: #2196F3;" onclick="exportData()">导出数据</button>
-                <button class="button" style="background: #ff9800;" onclick="importData()">导入数据</button>
-            </div>
             <button class="button clear-button" onclick="clearData()">清除所有记录</button>
         </div>
 
@@ -235,24 +150,6 @@
             <div id="mealHistory"></div>
         </div>
     </div>
-
-    <!-- 编辑弹窗 -->
-    <div id="editModal" class="modal">
-        <div class="modal-content">
-            <h3>修改记录</h3>
-            <input type="text" id="editDate" placeholder="日期">
-            <input type="text" id="editMealTime" placeholder="餐次">
-            <input type="text" id="editNumber" placeholder="序号">
-            <input type="text" id="editContent" placeholder="内容">
-            <div class="modal-buttons">
-                <button class="save-button" onclick="saveEdit()">保存</button>
-                <button class="cancel-button" onclick="closeModal()">取消</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- 添加这段隐藏的导入文件输入框 -->
-    <input type="file" id="importFile" style="display: none" accept=".json">
 
     <script>
         // 数据结构
@@ -266,7 +163,8 @@
             }
         }
 
-        let currentEditId = null;
+        const weekDayMap = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 0};
+        const reverseWeekDayMap = ['日', '一', '二', '三', '四', '五', '六'];
 
         // HTML内容安全转义函数
         function escapeHtml(str) {
@@ -279,8 +177,24 @@
                 .replace(/'/g, "&#039;");
         }
 
+        // 获取今天的日期格式化字符串
+        function getTodayFormats() {
+            const now = new Date();
+            const weekDay = reverseWeekDayMap[now.getDay()];
+            return {
+                date: now,
+                fullDate: `${now.getMonth() + 1}月${now.getDate()}日`,
+                weekDay: `周${weekDay}`,
+                fullWeekDay: `星期${weekDay}`,
+                formats: [`${now.getMonth() + 1}月${now.getDate()}日`, `周${weekDay}`, `星期${weekDay}`],
+                timeStr: `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`
+            };
+        }
+
         // 日期格式验证函数
         function isValidDateFormat(dateStr) {
+            if (!dateStr) return false;
+            
             // 检查"X月X日"格式
             const dateMatch = dateStr.match(/(\d+)月(\d+)日/);
             if (dateMatch) {
@@ -289,25 +203,28 @@
                 return month >= 1 && month <= 12 && day >= 1 && day <= 31;
             }
             
-            // 检查"周X"格式
-            const weekDayMatch = dateStr.match(/周([一二三四五六日])/);
+            // 检查"周X"或"星期X"格式
+            const weekDayMatch = dateStr.match(/[周星期]([一二三四五六日])/);
             if (weekDayMatch) {
                 return true;
             }
             
-            // 检查"星期X"格式
-            const weekDayMatch2 = dateStr.match(/星期([一二三四五六日])/);
-            if (weekDayMatch2) {
+            // 检查特殊格式如"X月X日-周X"
+            const combinedMatch = dateStr.match(/\d+月\d+日-周[一二三四五六日]/);
+            if (combinedMatch) {
                 return true;
             }
             
             return false;
         }
 
-        // 解析日期字符串为Date对象
+        // 统一的日期解析函数
         function parseDateString(dateStr) {
+            if (!dateStr) return null;
+            
             const now = new Date();
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const currentDay = now.getDay(); // 使用标准的0-6表示
             
             // 尝试匹配"X月X日"格式
             const dateMatch = dateStr.match(/(\d+)月(\d+)日/);
@@ -335,19 +252,28 @@
             const weekDayMatch = dateStr.match(/[周星期]([一二三四五六日])/);
             if (weekDayMatch) {
                 const weekDay = weekDayMatch[1];
-                const weekDayMap = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 0};
                 const targetDay = weekDayMap[weekDay];
                 
-                // 计算本周对应星期几的日期
-                const currentDay = today.getDay() || 7; // 将周日的0转换为7
+                // 计算当周对应星期几的日期
                 let diff = targetDay - currentDay;
                 
-                // 调整为当周日期
-                if (diff < 0) diff += 7; // 如果是过去的日期，调整为下周
+                // 如果是过去的日期，当作本周的对应天数
+                if (diff < 0) diff = 0;
                 
                 const targetDate = new Date(today);
                 targetDate.setDate(today.getDate() + diff);
+                
                 return targetDate;
+            }
+            
+            // 尝试匹配组合格式如"X月X日-周X"
+            const combinedMatch = dateStr.match(/(\d+)月(\d+)日-周([一二三四五六日])/);
+            if (combinedMatch) {
+                const month = parseInt(combinedMatch[1]);
+                const day = parseInt(combinedMatch[2]);
+                
+                let dateObj = new Date(today.getFullYear(), month - 1, day);
+                return dateObj;
             }
             
             return null;
@@ -372,7 +298,9 @@
                         if (dateMatch && i + 1 < lines.length) {
                             let date = dateMatch[1];
                             const nextLine = lines[i + 1];
-                            const numberMatch = nextLine.match(/[午晚]餐(\d+):/);
+                            
+                            // 改进正则表达式增强匹配能力
+                            const numberMatch = nextLine.match(/[午晚]餐(\d+)[:\s]/);
                             const mealTime = nextLine.includes('午餐') ? '午餐' : '晚餐';
                             
                             if (numberMatch) {
@@ -385,22 +313,29 @@
                                         dateObj.setDate(dateObj.getDate() + 7);
                                         
                                         // 格式化为"X月X日-周X"格式
-                                        const weekDayMap = ['日', '一', '二', '三', '四', '五', '六'];
-                                        const weekDay = weekDayMap[dateObj.getDay()];
+                                        const weekDay = reverseWeekDayMap[dateObj.getDay()];
                                         date = `${dateObj.getMonth() + 1}月${dateObj.getDate()}日-周${weekDay}`;
                                     } else {
                                         console.warn('无法解析日期格式:', date);
+                                        continue;
                                     }
                                 }
                                 
                                 // 验证日期格式
-                                if (!isValidDateFormat(date) && !date.includes('-周')) {
+                                if (!isValidDateFormat(date)) {
                                     console.warn('日期格式不正确:', date);
                                     continue;
                                 }
                                 
                                 const number = numberMatch[1];
-                                const content = nextLine.split(':')[1].trim();
+                                // 安全获取内容，即使没有冒号也能处理
+                                const contentParts = nextLine.split(/[:\s]/).slice(1);
+                                const content = contentParts.join(' ').trim();
+                                
+                                if (!content) {
+                                    console.warn('无法解析餐点内容:', nextLine);
+                                    continue;
+                                }
                                 
                                 // 检查是否存在相同的记录
                                 const existingRecords = JSON.parse(localStorage.getItem('mealRecords') || '[]');
@@ -434,9 +369,13 @@
                 // 合并新记录
                 const allRecords = [...existingRecords, ...meals];
                 
-                // 保存到本地存储
+                // 检查数据大小，避免超出localStorage限制
                 try {
-                    localStorage.setItem('mealRecords', JSON.stringify(allRecords));
+                    const dataString = JSON.stringify(allRecords);
+                    if (dataString.length > 4000000) { // 设置安全限制
+                        throw new Error("数据量过大，请清理部分历史记录");
+                    }
+                    localStorage.setItem('mealRecords', dataString);
                     
                     // 清空输入和复选框
                     document.getElementById('mealInput').value = '';
@@ -448,34 +387,13 @@
                     
                     alert(`成功添加了 ${meals.length} 条记录`);
                 } catch (e) {
-                    alert('保存失败，可能是存储空间不足：' + e.message);
+                    alert('保存失败: ' + e.message);
                     console.error('保存记录失败', e);
                 }
             } catch (e) {
                 alert('处理点餐数据时出错：' + e.message);
                 console.error('处理点餐数据出错', e);
             }
-        }
-
-        // 获取下周对应星期几的日期
-        function getNextWeekDate(weekDay) {
-            const weekDayMap = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 0};
-            const today = new Date();
-            const targetDay = weekDayMap[weekDay];
-            
-            if (targetDay === undefined) {
-                console.warn('无效的星期表示:', weekDay);
-                return today;
-            }
-            
-            const currentDay = today.getDay() || 7; // 将周日的0转换为7
-            
-            // 计算到下周目标日期需要加的天数
-            let daysToAdd = targetDay - currentDay + 7;
-            
-            const nextWeekDate = new Date(today);
-            nextWeekDate.setDate(today.getDate() + daysToAdd);
-            return nextWeekDate;
         }
 
         // 删除过期记录
@@ -485,11 +403,14 @@
             const currentTime = now.getHours() * 60 + now.getMinutes();
             const lunchEndTime = 13 * 60; // 13:00
             const dinnerEndTime = 19 * 60 + 20; // 19:20
-
+            
+            // 获取今天是周几
+            const currentDay = now.getDay(); // 0-6，0表示周日
+            
             return records.filter(record => {
                 try {
                     // 尝试解析日期字符串
-                    const dateObj = parseDateString(record.date);
+                    let dateObj = parseDateString(record.date);
                     
                     // 如果无法解析日期，保留记录并记录警告
                     if (!dateObj) {
@@ -497,8 +418,25 @@
                         return true;
                     }
                     
+                    // 特殊处理"周X"格式的记录
+                    if (record.date.match(/[周星期][一二三四五六日]/)) {
+                        const weekDayMatch = record.date.match(/[周星期]([一二三四五六日])/);
+                        if (weekDayMatch) {
+                            const weekDay = weekDayMatch[1];
+                            const targetDay = weekDayMap[weekDay];
+                            
+                            // 修复周日处理逻辑
+                            // 如果今天是周日(0)，则只保留周日的记录
+                            // 如果今天不是周日，则过滤掉已经过去的天数
+                            if (currentDay === 0) {
+                                return targetDay === 0; // 周日只保留周日记录
+                            } else {
+                                return targetDay >= currentDay; // 其他日子保留当天和未来的记录
+                            }
+                        }
+                    } 
                     // 如果是过去的日期，删除
-                    if (dateObj < today) {
+                    else if (dateObj < today) {
                         return false;
                     }
                     
@@ -520,16 +458,49 @@
             });
         }
 
-        // 显示所有餐点记录
+        // 显示所有餐点记录，确保隐藏过期记录
         function displayMeals() {
             try {
                 let records = JSON.parse(localStorage.getItem('mealRecords') || '[]');
                 
                 // 删除过期记录
-                records = removeExpiredRecords(records);
+                const filteredRecords = removeExpiredRecords(records);
                 
-                // 保存清理后的记录
-                localStorage.setItem('mealRecords', JSON.stringify(records));
+                // 如果有记录被过滤掉，保存更新后的记录
+                if (filteredRecords.length !== records.length) {
+                    localStorage.setItem('mealRecords', JSON.stringify(filteredRecords));
+                    console.log(`已从历史记录中清理 ${records.length - filteredRecords.length} 条过期记录`);
+                }
+                
+                // 使用过滤后的记录
+                records = filteredRecords;
+                
+                // 过滤掉今天的记录，因为它们已经在"今日餐点"部分显示了
+                const todayInfo = getTodayFormats();
+                
+                records = records.filter(record => {
+                    // 判断记录是否为今天
+                    if (record.date.match(/[周星期][一二三四五六日]/)) {
+                        const recordWeekDayMatch = record.date.match(/[周星期]([一二三四五六日])/);
+                        const currentWeekDay = reverseWeekDayMap[todayInfo.date.getDay()];
+                        if (recordWeekDayMatch && recordWeekDayMatch[1] === currentWeekDay) {
+                            return false; // 排除今天的记录
+                        }
+                    }
+                    
+                    // 尝试解析日期
+                    const dateObj = parseDateString(record.date);
+                    if (dateObj && dateObj.getTime() === todayInfo.date.setHours(0,0,0,0)) {
+                        return false; // 排除今天的日期
+                    }
+                    
+                    // 字符串匹配检查
+                    if (todayInfo.formats.some(format => record.date.includes(format))) {
+                        return false; // 排除包含今天日期格式的记录
+                    }
+                    
+                    return true; // 保留其他记录
+                });
                 
                 // 按日期和时间排序
                 records.sort((a, b) => {
@@ -553,28 +524,8 @@
                     return a.mealTime === '午餐' ? -1 : 1;
                 });
 
-                const historyDiv = document.getElementById('mealHistory');
-                historyDiv.innerHTML = '';
-
-                records.forEach(record => {
-                    const mealDiv = document.createElement('div');
-                    mealDiv.className = 'meal-card';
-                    mealDiv.innerHTML = `
-                        <div class="meal-date">${escapeHtml(record.date)}</div>
-                        <div class="meal-content">
-                            ${escapeHtml(record.mealTime)}<span class="meal-number">${escapeHtml(record.number)}</span>号: ${escapeHtml(record.content)}
-                        </div>
-                        <div class="action-buttons">
-                            <button class="edit-button" onclick="editRecord('${record.id}')">修改</button>
-                            <button class="delete-button" onclick="deleteRecord('${record.id}')">删除</button>
-                        </div>
-                    `;
-                    historyDiv.appendChild(mealDiv);
-                });
-                
-                if (records.length === 0) {
-                    historyDiv.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">暂无记录</div>';
-                }
+                // 渲染历史记录
+                renderHistoryMeals(records);
             } catch (e) {
                 console.error('显示记录时出错:', e);
                 document.getElementById('mealHistory').innerHTML = 
@@ -584,34 +535,38 @@
             }
         }
 
+        // 渲染历史记录
+        function renderHistoryMeals(records) {
+            const historyDiv = document.getElementById('mealHistory');
+            historyDiv.innerHTML = '';
+
+            if (records.length === 0) {
+                historyDiv.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">暂无记录</div>';
+                return;
+            }
+
+            records.forEach(record => {
+                const mealDiv = document.createElement('div');
+                mealDiv.className = 'meal-card';
+                mealDiv.innerHTML = `
+                    <div class="meal-date">${escapeHtml(record.date)}</div>
+                    <div class="meal-content">
+                        ${escapeHtml(record.mealTime)}<span class="meal-number">${escapeHtml(record.number)}</span>号: ${escapeHtml(record.content)}
+                    </div>
+                `;
+                historyDiv.appendChild(mealDiv);
+            });
+        }
+
         // 显示今日餐点
         function displayTodayMeals() {
             try {
                 const records = JSON.parse(localStorage.getItem('mealRecords') || '[]');
-                const now = new Date();
-                const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                const weekDayMap = {
-                    0: '日',
-                    1: '一',
-                    2: '二',
-                    3: '三',
-                    4: '四',
-                    5: '五',
-                    6: '六'
-                };
-                const weekDay = weekDayMap[now.getDay()];
-                
-                // 构建多种可能的日期格式
-                const dateFormats = [
-                    `${now.getMonth() + 1}月${now.getDate()}日`,
-                    `周${weekDay}`,
-                    `星期${weekDay}`
-                ];
+                const todayInfo = getTodayFormats();
                 
                 // 获取当前时间
-                const hours = now.getHours();
-                const minutes = now.getMinutes();
-                const currentTime = hours * 60 + minutes; // 转换为分钟计数
+                const now = new Date();
+                const currentTime = now.getHours() * 60 + now.getMinutes(); // 转换为分钟计数
                 
                 // 定义时间限制
                 const lunchEndTime = 13 * 60; // 13:00
@@ -619,8 +574,25 @@
                 
                 // 过滤今日餐点，并根据时间判断是否显示
                 const todayMeals = records.filter(record => {
+                    // 先检查是否为"周X"格式，并且是今天的周几
+                    if (record.date.match(/[周星期][一二三四五六日]/)) {
+                        const recordWeekDayMatch = record.date.match(/[周星期]([一二三四五六日])/);
+                        const currentWeekDay = reverseWeekDayMap[todayInfo.date.getDay()];
+                        if (recordWeekDayMatch && recordWeekDayMatch[1] === currentWeekDay) {
+                            // 是今天的记录，再根据时间判断是否显示
+                            if (record.mealTime === '午餐') {
+                                return currentTime <= lunchEndTime;
+                            } else if (record.mealTime === '晚餐') {
+                                return currentTime <= dinnerEndTime;
+                            }
+                            return true;
+                        }
+                        return false; // 不是今天的周几
+                    }
+                    
                     // 尝试解析日期
                     const dateObj = parseDateString(record.date);
+                    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                     
                     // 如果可以解析为日期，比较是否为今天
                     if (dateObj && dateObj.getTime() === today.getTime()) {
@@ -630,10 +602,11 @@
                         } else if (record.mealTime === '晚餐') {
                             return currentTime <= dinnerEndTime;
                         }
+                        return true;
                     }
                     
                     // 如果无法解析日期，使用包含关系判断
-                    const isToday = dateFormats.some(format => record.date.includes(format));
+                    const isToday = todayInfo.formats.some(format => record.date.includes(format));
                     if (!isToday) return false;
                     
                     // 根据时间判断是否显示
@@ -646,50 +619,51 @@
                     return false;
                 });
                 
-                const todayDiv = document.getElementById('todayMeals');
-                
-                if (todayMeals.length > 0) {
-                    const todayStr = `${now.getMonth() + 1}月${now.getDate()}日 周${weekDay}`;
-                    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-                    
-                    todayDiv.innerHTML = `
-                        <div class="today-date">
-                            ${todayStr}
-                            <span style="font-size: 14px; color: #666; margin-left: 8px;">${timeStr}</span>
-                        </div>
-                        ${todayMeals.map(meal => `
-                            <div class="meal-item" style="margin: 12px 0;">
-                                <div style="color: #666; font-size: 14px;">
-                                    ${escapeHtml(meal.mealTime)}
-                                    ${meal.mealTime === '午餐' ? 
-                                        '<span style="color: #999; font-size: 12px; margin-left: 8px;">13:00后隐藏</span>' : 
-                                        '<span style="color: #999; font-size: 12px; margin-left: 8px;">19:20后隐藏</span>'}
-                                </div>
-                                <div style="font-size: 18px; margin: 4px 0;">
-                                    <span class="meal-number" style="font-size: 20px;">${escapeHtml(meal.number)}</span>号
-                                </div>
-                                <div style="color: #333;">${escapeHtml(meal.content)}</div>
-                            </div>
-                        `).join('')}
-                    `;
-                } else {
-                    const todayStr = `${now.getMonth() + 1}月${now.getDate()}日 周${weekDay}`;
-                    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
-                    
-                    todayDiv.innerHTML = `
-                        <div class="today-date">
-                            ${todayStr}
-                            <span style="font-size: 14px; color: #666; margin-left: 8px;">${timeStr}</span>
-                        </div>
-                        <div style="color: #666; margin-top: 8px;">今日暂无点餐记录</div>
-                    `;
-                }
+                renderTodayMeals(todayMeals, todayInfo);
             } catch (e) {
                 console.error('显示今日餐点时出错:', e);
                 document.getElementById('todayMeals').innerHTML = 
                     `<div style="color: red; text-align: center; padding: 20px;">
                         显示今日餐点时出错: ${escapeHtml(e.message)}
                     </div>`;
+            }
+        }
+
+        // 渲染今日餐点
+        function renderTodayMeals(todayMeals, todayInfo) {
+            const todayDiv = document.getElementById('todayMeals');
+            const timeStr = todayInfo.timeStr;
+            const todayStr = `${todayInfo.fullDate} ${todayInfo.weekDay}`;
+            
+            if (todayMeals.length > 0) {
+                todayDiv.innerHTML = `
+                    <div class="today-date">
+                        ${todayStr}
+                        <span style="font-size: 14px; color: #666; margin-left: 8px;">${timeStr}</span>
+                    </div>
+                    ${todayMeals.map(meal => `
+                        <div class="meal-item" style="margin: 12px 0;">
+                            <div style="color: #666; font-size: 14px;">
+                                ${escapeHtml(meal.mealTime)}
+                                ${meal.mealTime === '午餐' ? 
+                                    '<span style="color: #999; font-size: 12px; margin-left: 8px;">13:00后隐藏</span>' : 
+                                    '<span style="color: #999; font-size: 12px; margin-left: 8px;">19:20后隐藏</span>'}
+                            </div>
+                            <div style="font-size: 18px; margin: 4px 0;">
+                                <span class="meal-number" style="font-size: 20px;">${escapeHtml(meal.number)}</span>号
+                            </div>
+                            <div style="color: #333;">${escapeHtml(meal.content)}</div>
+                        </div>
+                    `).join('')}
+                `;
+            } else {
+                todayDiv.innerHTML = `
+                    <div class="today-date">
+                        ${todayStr}
+                        <span style="font-size: 14px; color: #666; margin-left: 8px;">${timeStr}</span>
+                    </div>
+                    <div style="color: #666; margin-top: 8px;">今日暂无点餐记录</div>
+                `;
             }
         }
 
@@ -701,104 +675,14 @@
             }, 60000); // 60000毫秒 = 1分钟
         }
 
-        // 编辑记录
-        function editRecord(id) {
-            try {
-                const records = JSON.parse(localStorage.getItem('mealRecords') || '[]');
-                const record = records.find(r => r.id === id);
-                if (record) {
-                    currentEditId = id;
-                    document.getElementById('editDate').value = record.date;
-                    document.getElementById('editMealTime').value = record.mealTime;
-                    document.getElementById('editNumber').value = record.number;
-                    document.getElementById('editContent').value = record.content;
-                    document.getElementById('editModal').style.display = 'block';
-                }
-            } catch (e) {
-                alert('加载记录时出错: ' + e.message);
-                console.error('编辑记录时出错:', e);
-            }
-        }
-
-        // 保存编辑
-        function saveEdit() {
-            try {
-                const date = document.getElementById('editDate').value.trim();
-                const mealTime = document.getElementById('editMealTime').value.trim();
-                const number = document.getElementById('editNumber').value.trim();
-                const content = document.getElementById('editContent').value.trim();
-                
-                // 验证输入
-                if (!date || !mealTime || !number || !content) {
-                    alert('所有字段都必须填写');
-                    return;
-                }
-                
-                if (!isValidDateFormat(date) && !date.includes('-周')) {
-                    alert('日期格式不正确，请使用"X月X日"或"周X"格式');
-                    return;
-                }
-                
-                if (mealTime !== '午餐' && mealTime !== '晚餐') {
-                    alert('餐次必须是"午餐"或"晚餐"');
-                    return;
-                }
-                
-                if (!/^\d+$/.test(number)) {
-                    alert('序号必须是数字');
-                    return;
-                }
-                
-                const records = JSON.parse(localStorage.getItem('mealRecords') || '[]');
-                const index = records.findIndex(r => r.id === currentEditId);
-                if (index !== -1) {
-                    records[index] = {
-                        ...records[index],
-                        date: date,
-                        mealTime: mealTime,
-                        number: number,
-                        content: content
-                    };
-                    localStorage.setItem('mealRecords', JSON.stringify(records));
-                    closeModal();
-                    displayMeals();
-                    displayTodayMeals();
-                }
-            } catch (e) {
-                alert('保存编辑时出错: ' + e.message);
-                console.error('保存编辑时出错:', e);
-            }
-        }
-
-        // 删除记录
-        function deleteRecord(id) {
-            try {
-                if (confirm('确定要删除这条记录吗？')) {
-                    const records = JSON.parse(localStorage.getItem('mealRecords') || '[]');
-                    const newRecords = records.filter(r => r.id !== id);
-                    localStorage.setItem('mealRecords', JSON.stringify(newRecords));
-                    displayMeals();
-                    displayTodayMeals();
-                }
-            } catch (e) {
-                alert('删除记录时出错: ' + e.message);
-                console.error('删除记录时出错:', e);
-            }
-        }
-
-        // 关闭弹窗
-        function closeModal() {
-            document.getElementById('editModal').style.display = 'none';
-            currentEditId = null;
-        }
-
         // 清除所有数据
         function clearData() {
             try {
-                if (confirm('确定要清除所有记录吗？')) {
+                if (confirm('确定要清除所有记录吗？此操作不可恢复！')) {
                     localStorage.removeItem('mealRecords');
                     displayMeals();
                     displayTodayMeals();
+                    alert('已清除所有记录');
                 }
             } catch (e) {
                 alert('清除数据时出错: ' + e.message);
@@ -806,70 +690,12 @@
             }
         }
 
-        // 数据备份与恢复功能
-        function exportData() {
-            try {
-                const records = localStorage.getItem('mealRecords') || '[]';
-                const blob = new Blob([records], {type: 'application/json'});
-                const a = document.createElement('a');
-                a.href = URL.createObjectURL(blob);
-                a.download = `meal-records-${new Date().toISOString().slice(0, 10)}.json`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            } catch (e) {
-                alert('导出数据时出错: ' + e.message);
-                console.error('导出数据时出错:', e);
-            }
-        }
-
-        function importData() {
-            document.getElementById('importFile').click();
-        }
-
-        function handleFileImport(event) {
-            try {
-                const file = event.target.files[0];
-                if (!file) return;
-                
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    try {
-                        const data = JSON.parse(e.target.result);
-                        if (confirm(`确定要导入${data.length}条记录吗？这将覆盖现有记录。`)) {
-                            localStorage.setItem('mealRecords', JSON.stringify(data));
-                            displayMeals();
-                            displayTodayMeals();
-                            alert('数据导入成功');
-                        }
-                    } catch (e) {
-                        alert('无效的数据格式: ' + e.message);
-                    }
-                };
-                reader.readAsText(file);
-            } catch (e) {
-                alert('导入数据时出错: ' + e.message);
-                console.error('导入数据时出错:', e);
-            }
-        }
-
-        // 修改页面加载函数
+        // 页面加载初始化
         window.onload = function() {
             displayMeals();
             displayTodayMeals();
             startAutoRefresh(); // 启动自动刷新
-            
-            // 绑定导入文件事件
-            document.getElementById('importFile').addEventListener('change', handleFileImport);
         };
-
-        // 点击模态框外部关闭
-        window.onclick = function(event) {
-            const modal = document.getElementById('editModal');
-            if (event.target === modal) {
-                closeModal();
-            }
-        }
     </script>
 </body>
 </html> 

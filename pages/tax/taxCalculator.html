@@ -1509,11 +1509,160 @@
         .bonus-row .tax-rate-item span:first-child {
             color: #ff4444; /* 保持奖金行的金额为红色 */
         }
+
+        /* 添加帮助按钮和面板样式 */
+        .help-button {
+            position: fixed;
+            bottom: 70px;
+            right: 20px;
+            width: 36px;
+            height: 36px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            cursor: pointer;
+            z-index: 100;
+            font-weight: bold;
+        }
+
+        .help-panel {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 320px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            z-index: 1000;
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .help-header {
+            background: var(--primary-color);
+            color: white;
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .help-header h3 {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .close-help {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        .help-content {
+            padding: 15px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .help-content p {
+            margin: 8px 0;
+            font-size: 14px;
+        }
+
+        /* 添加输入提示样式 */
+        .input-hint {
+            color: #666;
+            font-size: 11px;
+            margin-top: 4px;
+            position: absolute;
+            bottom: -18px;
+            left: 0;
+        }
+
+        /* 优化输入框布局以容纳提示 */
+        .bonus-card {
+            position: relative;
+            margin-bottom: 10px;
+            padding-bottom: 10px !important;
+        }
+
+        /* 添加工具提示样式 */
+        .tooltip {
+            cursor: help;
+            color: #666;
+            font-size: 12px;
+        }
+
+        /* 二次按钮样式 */
+        .secondary-button {
+            background: #f0f0f0;
+            color: #333;
+            border: 1px solid #ddd;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .secondary-button:hover {
+            background: #e6e6e6;
+        }
+
+        /* 结果概要图表容器 */
+        .chart-container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        /* 优化表单标签 */
+        .select-label {
+            color: #666;
+            font-size: 14px;
+            margin-right: 8px;
+            white-space: nowrap;
+        }
+
+        /* 调整输入和标签间距 */
+        .month-label {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
     </style>
 </head>
 
 <body>
     <h1>个税计算器</h1>
+
+    <!-- 添加帮助提示按钮和帮助面板 -->
+    <div class="help-button" id="helpButton" aria-label="帮助说明">
+        <i class="help-icon">?</i>
+    </div>
+
+    <div class="help-panel" id="helpPanel" style="display: none;">
+        <div class="help-header">
+            <h3>个税计算器使用说明</h3>
+            <button class="close-help" id="closeHelp">×</button>
+        </div>
+        <div class="help-content">
+            <p><strong>基础工资：</strong>每月税前工资收入</p>
+            <p><strong>专项扣除：</strong>包括"三险一金"之外的专项附加扣除，如子女教育、住房贷款利息等</p>
+            <p><strong>社保基数：</strong>缴纳社保的基数，通常以本地平均工资为参考</p>
+            <p><strong>公积金基数：</strong>缴纳公积金的基数，一般为税前工资，可能有上限</p>
+            <p><strong>奖金单独计税：</strong>年终奖可选择单独计税，适用于年终奖等一次性奖金</p>
+        </div>
+    </div>
 
     <div class="card">
         <div class="input-section">
@@ -1523,58 +1672,68 @@
                     <div class="month-label salary-label">基础工资</div>
                     <div class="bonus-field">
                         <input type="number" class="bonus-input salary-input" id="inputSalary"
-                            onchange="saveInput('inputSalary')" placeholder="">
+                            onchange="saveInput('inputSalary')" placeholder="月工资"
+                            aria-label="基础工资" min="0" max="1000000">
                         <span class="unit salary-unit">元</span>
+                        <div class="input-hint">输入月税前工资</div>
                     </div>
                 </div>
 
                 <!-- 专项扣除 -->
                 <div class="bonus-card">
-                    <div class="month-label">专项扣除</div>
+                    <div class="month-label">专项扣除 <span class="tooltip" title="包括子女教育、住房贷款利息、大病医疗等专项附加扣除">ⓘ</span></div>
                     <div class="bonus-field">
                         <input type="number" class="bonus-input" id="taxDeduction" onchange="saveInput('taxDeduction')"
-                            placeholder="1500">
+                            placeholder="1500" aria-label="专项扣除" min="0" max="100000">
                         <span class="unit">元</span>
+                        <div class="input-hint">默认: 1500元</div>
                     </div>
                 </div>
 
                 <!-- 社保基数 -->
                 <div class="bonus-card">
-                    <div class="month-label">社保基数</div>
+                    <div class="month-label">社保基数 <span class="tooltip" title="缴纳社保的工资基数，通常有上下限">ⓘ</span></div>
                     <div class="bonus-field">
                         <input type="number" class="bonus-input" id="socialSecurityBase"
-                            onchange="saveInput('socialSecurityBase')" placeholder="5000">
+                            onchange="saveInput('socialSecurityBase')" placeholder="5000"
+                            aria-label="社保基数" min="0" max="100000">
                         <span class="unit">元</span>
+                        <div class="input-hint">默认: 5000元</div>
                     </div>
                 </div>
 
                 <!-- 公积金基数 -->
                 <div class="bonus-card">
-                    <div class="month-label">公积金基数</div>
+                    <div class="month-label">公积金基数 <span class="tooltip" title="缴纳公积金的工资基数，留空则使用实际工资">ⓘ</span></div>
                     <div class="bonus-field">
                         <input type="number" class="bonus-input" id="housingFundBase"
-                            onchange="saveInput('housingFundBase')" placeholder="全额">
+                            onchange="saveInput('housingFundBase')" placeholder="与工资相同"
+                            aria-label="公积金基数" min="0" max="100000">
                         <span class="unit">元</span>
+                        <div class="input-hint">留空则使用工资</div>
                     </div>
                 </div>
 
                 <!-- 公积金比例 -->
                 <div class="bonus-card">
-                    <div class="month-label">公积金比例</div>
+                    <div class="month-label">公积金比例 <span class="tooltip" title="个人缴纳的公积金比例，通常为5-12%">ⓘ</span></div>
                     <div class="bonus-field">
                         <input type="number" class="bonus-input" id="housingFundRate"
-                            onchange="saveInput('housingFundRate')" placeholder="5">
+                            onchange="saveInput('housingFundRate')" placeholder="5"
+                            aria-label="公积金比例" min="0" max="20" step="0.1">
                         <span class="unit">%</span>
+                        <div class="input-hint">默认: 5%</div>
                     </div>
                 </div>
 
                 <!-- 年度总收入 -->
                 <div class="bonus-card" style="grid-column: span 2;">
-                    <div class="month-label">年度总收（可选）</div>
+                    <div class="month-label">年度总收入（可选）<span class="tooltip" title="直接计算年度总税，不按月拆分">ⓘ</span></div>
                     <div class="bonus-field">
                         <input type="number" class="bonus-input" id="annualIncome" onchange="saveInput('annualIncome')"
-                            placeholder="可选填">
+                            placeholder="可选填" aria-label="年度总收入" min="0" max="10000000">
                         <span class="unit">元</span>
+                        <div class="input-hint">填写则直接计算年度总税</div>
                     </div>
                 </div>
             </div>
@@ -1591,8 +1750,8 @@
             </div>
             <div class="bonus-actions">
                 <div class="select-wrapper">
-                    <label for="singleBonusMonth">单独计税月份：</label>
-                    <select id="singleBonusMonth" onchange="saveInput('singleBonusMonth')">
+                    <label for="singleBonusMonth" class="select-label">单独计税月份：<span class="tooltip" title="选择将哪个月份的奖金单独计税，通常用于年终奖">ⓘ</span></label>
+                    <select id="singleBonusMonth" onchange="saveInput('singleBonusMonth')" aria-label="单独计税月份">
                         <option value="">不单独计税</option>
                         <option value="1">1月</option>
                         <option value="2">2月</option>
@@ -1608,15 +1767,22 @@
                         <option value="12">12月</option>
                     </select>
                 </div>
+                <button class="secondary-button" onclick="clearAllBonuses()" id="clearBonusButton">
+                    清空所有奖金
+                </button>
             </div>
         </div>
     </div>
 
-    <button class="button primary-button" onclick="calculate()">开始计算</button>
+    <button class="button primary-button" onclick="calculate()" id="calculateButton">开始计算</button>
 
-    <div id="result">
+    <!-- 移除结果摘要图表容器 -->
+    <div class="result-container" id="result">
+        <h2>计算结果</h2>
         <div class="table-container">
-            <div id="resultTable"></div>
+            <div id="resultTable">
+                <!-- 计算结果将显示在这里 -->
+            </div>
         </div>
     </div>
 
@@ -1656,7 +1822,27 @@
             loadInputs(['inputSalary', 'taxDeduction', 'socialSecurityBase', 'housingFundBase', 'housingFundRate', 'singleBonusMonth', 'annualIncome']);
             updateBonusMonthOptions();
             adjustScale();
+            
+            // 设置默认值（如果用户未输入）
+            setDefaultValues();
         };
+
+        // 添加设置默认值的函数
+        function setDefaultValues() {
+            const defaultValues = [
+                { id: 'taxDeduction', value: 1500 },
+                { id: 'socialSecurityBase', value: 5000 },
+                { id: 'housingFundRate', value: 5 }
+            ];
+            
+            defaultValues.forEach(item => {
+                const element = document.getElementById(item.id);
+                if (element && element.value.trim() === '') {
+                    element.value = item.value;
+                    localStorage.setItem(item.id, item.value);
+                }
+            });
+        }
 
         let resizeTimeout;
         window.addEventListener('resize', function () {
@@ -1681,11 +1867,29 @@
         }
 
         function loadInputs(ids) {
+            const defaultValues = {
+                'taxDeduction': 1500,
+                'socialSecurityBase': 5000,
+                'housingFundBase': 0,
+                'housingFundRate': 5
+            };
+
             ids.forEach(id => {
+                const element = document.getElementById(id);
+                if (!element) return;
+                
+                // 获取保存的值，如果没有则使用默认值
                 const savedValue = localStorage.getItem(id);
-                if (savedValue !== null) document.getElementById(id).value = savedValue;
+                
+                if (savedValue !== null && savedValue !== '') {
+                    element.value = savedValue;
+                } else if (defaultValues[id] !== undefined) {
+                    // 如果没有保存的值，但有默认值，则使用默认值
+                    element.value = defaultValues[id];
+                }
             });
 
+            // 加载奖金数据
             for (let month = 1; month <= 12; month++) {
                 const bonusInput = document.getElementById(`bonusM${month}`);
                 const savedBonus = localStorage.getItem(`bonusM${month}`);
@@ -1801,6 +2005,29 @@
             }
         }
 
+        // 添加更新下拉选项的函数
+        function updateBonusMonthOptions() {
+            const select = document.getElementById('singleBonusMonth');
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">不单独计税</option>';
+            
+            // 遍历所有月份，只添加有奖金的月份
+            for (let month = 1; month <= 12; month++) {
+                const bonusValue = localStorage.getItem(`bonusM${month}`);
+                if (bonusValue && parseFloat(bonusValue) > 0) {
+                    const option = document.createElement('option');
+                    option.value = month;
+                    option.textContent = `${month}月`;
+                    select.appendChild(option);
+                }
+            }
+            
+            // 如果之前选中的月份仍然有效，则保持选中
+            if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
+                select.value = currentValue;
+            }
+        }
+
         function calculateMonthlyTax(cumulativeIncome) {
             let tax = 0;
             for (let i = taxBrackets.length - 1; i >= 0; i--) {
@@ -1824,7 +2051,11 @@
         }
 
         function calculate() {
-            const getValue = (id, defaultValue) => parseFloat(document.getElementById(id)?.value) || defaultValue;
+            // 添加输入验证
+            if (!validateInputs()) {
+                return;
+            }
+            
             const annualIncome = getValue('annualIncome', 0);
             if (annualIncome > 0) {
                 calculateAnnualTax(annualIncome);
@@ -1838,10 +2069,16 @@
             }
 
             const taxDeduction = getValue('taxDeduction', 1500);
+            // 修正社保计算逻辑，使用更准确的计算方式
             const socialSecurityBase = getValue('socialSecurityBase', 5000);
-            const socialSecurity = socialSecurityBase * (520 / 5000);
-            const housingFundBase = getValue('housingFundBase', monthlySalary);
-            const housingFund = housingFundBase * getValue('housingFundRate', 5) / 100;
+            // 假设社保比例为10.5%（这里可以根据实际情况调整）
+            const socialSecurityRate = 0.105;
+            const socialSecurity = Math.round(socialSecurityBase * socialSecurityRate * 100) / 100;
+            
+            // 修正公积金基数处理
+            const housingFundBase = getValue('housingFundBase', 0) || monthlySalary;
+            const housingFundRate = getValue('housingFundRate', 5);
+            const housingFund = Math.round(housingFundBase * housingFundRate / 100 * 100) / 100;
 
             // 计算年度总收入（包含奖金）
             const totalBonus = Array.from({ length: 12 }, (_, i) => getValue(`bonusM${i + 1}`, 0))
@@ -1905,20 +2142,26 @@
             // 月度计算循环
             for (let month = 1; month <= 12; month++) {
                 // 当月收入（包含非单独计税的奖金）
-                let salary = monthlySalary + (month === singleBonusMonth ? 0 : bonuses[month - 1]);
+                let currentMonthBonus = month === singleBonusMonth ? 0 : bonuses[month - 1];
+                let salary = monthlySalary + currentMonthBonus;
+                // 修正应纳税所得额计算
                 let incomeAfterDeductions = Math.max(salary - socialSecurity - housingFund - taxDeduction - 5000, 0);
 
                 let previousCumulativeTaxableIncome = cumulativeTaxableIncome;
                 cumulativeTaxableIncome += incomeAfterDeductions;
 
-                let currentTax = calculateMonthlyTax(cumulativeTaxableIncome);
-                let currentMonthTax = currentTax - previousCumulativeTax;
+                // 使用累进税率计算累计税额
+                let currentTax = calculateCumulativeTax(cumulativeTaxableIncome);
+                // 本月应纳税额 = 累计应纳税额 - 截止上月累计已纳税额
+                let currentMonthTax = Math.max(0, currentTax - previousCumulativeTax);
                 previousCumulativeTax = currentTax;
 
+                // 计算实发工资
                 const actualIncome = salary - socialSecurity - housingFund - currentMonthTax;
                 totalActualIncome += actualIncome;
                 totalTax += currentMonthTax;
 
+                // 获取适用税率区间
                 const applicableRates = getApplicableRates(previousCumulativeTaxableIncome, cumulativeTaxableIncome);
 
                 resultHTML += `
@@ -1936,20 +2179,22 @@
                 if (month === singleBonusMonth && bonuses[month - 1] > 0) {
                     const bonusAmount = bonuses[month - 1];
                     
-                    // 计算月均收入，仅用于确定税率
+                    // 计算奖金除以12后适用的税率
                     const monthlyAverage = bonusAmount / 12;
                     
-                    // 确定适用税率
+                    // 确定适用税率和速算扣除数
                     let applicableRate = 0;
-                    for (let i = taxBrackets.length - 1; i >= 0; i--) {
+                    let quickDeduction = 0;
+                    for (let i = 0; i < taxBrackets.length; i++) {
                         if (monthlyAverage > taxBrackets[i].threshold / 12) {
                             applicableRate = taxBrackets[i].rate;
-                            break;
+                            quickDeduction = taxBrackets[i].quickDeduction / 12; // 修正：使用月度化速算扣除数
                         }
                     }
                     
-                    // 计算奖金税额（不使用速算扣除数）
-                    const bonusTax = bonusAmount * applicableRate;
+                    // 修正：奖金的个税计算需要使用速算扣除数
+                    // 单独计税奖金 = 奖金金额 × 适用税率 - 速算扣除数
+                    const bonusTax = bonusAmount * applicableRate - quickDeduction * 12;
                     const bonusActualIncome = bonusAmount - bonusTax;
                     totalTax += bonusTax;
                     totalActualIncome += bonusActualIncome;
@@ -1978,7 +2223,7 @@
                                     </div>
                                 </div>
                             </td>
-                            <td style="color: #ff4444;">${formatNumber(bonusTax)}</td>
+                            <td style="color: #ff4444;">${formatNumber(Math.max(0, bonusTax))}</td>
                             <td style="color: #ff4444;">${formatNumber(totalTax)}</td>
                             <td style="color: #ff4444;">${formatNumber(bonusActualIncome)}</td>
                             <td style="color: #ff4444;">${formatNumber(totalActualIncome)}</td>
@@ -1988,7 +2233,7 @@
             }
 
             resultHTML += `</table>`;
-            resultTable.innerHTML = resultHTML;
+            document.getElementById('resultTable').innerHTML = resultHTML;
             saveInput('singleBonusMonth');
             adjustScale();
 
@@ -2002,23 +2247,66 @@
                     }
                 }
             }
+            
+            // 添加结果可视化图表
+            // renderResultChart(totalActualIncome, totalTax);
+            
+            // 显示结果区域并滚动到结果
+            document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
         }
 
         function calculateAnnualTax(annualIncome) {
             const taxDeduction = getValue('taxDeduction', 1500) * 12;
             const socialSecurityBase = getValue('socialSecurityBase', 5000);
-            const socialSecurity = socialSecurityBase * (520 / 5000) * 12;
-            const housingFundBase = getValue('housingFundBase', annualIncome / 12);
-            const housingFund = housingFundBase * getValue('housingFundRate', 5) / 100 * 12;
+            // 使用更准确的社保计算比例
+            const socialSecurityRate = 0.105;
+            const socialSecurity = Math.round(socialSecurityBase * socialSecurityRate * 12 * 100) / 100;
+            
+            // 修正公积金基数处理
+            const housingFundBase = getValue('housingFundBase', 0) || (annualIncome / 12);
+            const housingFundRate = getValue('housingFundRate', 5);
+            const housingFund = Math.round(housingFundBase * housingFundRate / 100 * 12 * 100) / 100;
 
+            // 计算应纳税所得额
             const taxableIncome = Math.max(annualIncome - socialSecurity - housingFund - taxDeduction - 60000, 0);
             const tax = calculateCumulativeTax(taxableIncome);
             const actualIncome = annualIncome - socialSecurity - housingFund - tax;
 
             let resultHTML = `
-                <p>全年税前总: ${formatNumber(annualIncome)}</p>
-                <p>社保金额: ${formatNumber(socialSecurity)}</p>
-                <p>公积金金额: ${formatNumber(housingFund)}年度总和: ${formatNumber(housingFund * 2)}）</p>
+                <div class="bonus-grid">
+                    <div class="bonus-card">
+                        <div class="month-label">全年税前总</div>
+                        <div class="bonus-field">
+                            <input type="text" class="bonus-input" value="${formatNumber(annualIncome)}" readonly>
+                            <span class="unit">元</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bonus-card">
+                        <div class="month-label">社保总额</div>
+                        <div class="bonus-field">
+                            <input type="text" class="bonus-input" value="${formatNumber(socialSecurity)}" readonly>
+                            <span class="unit">元</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bonus-card">
+                        <div class="month-label">公积金总额</div>
+                        <div class="bonus-field">
+                            <input type="text" class="bonus-input" value="${formatNumber(housingFund)}" readonly>
+                            <span class="unit">元</span>
+                        </div>
+                    </div>
+                    
+                    <div class="bonus-card">
+                        <div class="month-label">公积金年度总和</div>
+                        <div class="bonus-field">
+                            <input type="text" class="bonus-input" value="${formatNumber(housingFund * 2)}" readonly>
+                            <span class="unit">元</span>
+                        </div>
+                    </div>
+                </div>
+                
                 <table>
                     <tr>
                         <th>应纳税所得额</th>
@@ -2037,40 +2325,61 @@
 
             document.getElementById('resultTable').innerHTML = resultHTML;
             adjustScale();
+            
+            // 添加结果可视化图表
+            // renderResultChart(actualIncome, tax);
+            
+            // 显示结果区域并滚动到结果
+            document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
         }
 
         function getValue(id, defaultValue) {
-            return parseFloat(document.getElementById(id)?.value) || defaultValue;
+            const element = document.getElementById(id);
+            if (!element) return defaultValue;
+            
+            const value = element.value.trim();
+            if (value === '') return defaultValue;  // 如果用户没有输入，就使用默认值
+            
+            const numValue = parseFloat(value);
+            return isNaN(numValue) ? defaultValue : numValue;  // 如果输入不是有效数字，也使用默认值
         }
 
         function getApplicableRates(fromIncome, toIncome) {
             let ratesInfo = [];
-            let remainingIncome = toIncome - fromIncome;
+            
+            // 处理精度问题
+            fromIncome = parseFloat(fromIncome.toFixed(2));
+            toIncome = parseFloat(toIncome.toFixed(2));
+            
+            // 如果收入相同，返回空的税率信息
+            if (fromIncome >= toIncome) {
+                return '<div class="tax-rate"></div>';
+            }
 
+            // 从低到高遍历税率表
             for (let i = 0; i < taxBrackets.length; i++) {
-                // 如果收入超过当前区间的起点
-                if (remainingIncome > 0) {
-                    // 计算在当前税率区间的应税收入
-                    let taxableAtThisRate;
-                    if (i === taxBrackets.length - 1) {
-                        // 最高档
-                        taxableAtThisRate = remainingIncome;
-                    } else {
-                        // 计算当前区间可以征税的部分
-                        taxableAtThisRate = Math.min(
-                            remainingIncome,
-                            taxBrackets[i + 1].threshold - Math.max(fromIncome, taxBrackets[i].threshold)
-                        );
-                    }
-
-                    if (taxableAtThisRate > 0) {
+                const bracket = taxBrackets[i];
+                const nextThreshold = i < taxBrackets.length - 1 ? taxBrackets[i + 1].threshold : Infinity;
+                
+                // 如果当前收入超过了当前税率区间的起点
+                if (toIncome > bracket.threshold) {
+                    // 计算在当前税率区间中应纳税的收入部分
+                    const lowerBound = Math.max(fromIncome, bracket.threshold);
+                    const upperBound = Math.min(toIncome, nextThreshold);
+                    
+                    // 如果这个区间有应税收入
+                    if (upperBound > lowerBound) {
+                        const taxableAtThisRate = parseFloat((upperBound - lowerBound).toFixed(2));
+                        
+                        // 避免显示非常小的数值（由于浮点数精度问题）
+                        if (taxableAtThisRate > 0.01) {
                         ratesInfo.push(`
                             <div class="tax-rate-item">
                                 <span>${formatNumber(taxableAtThisRate)}</span>
-                                <span style="color: #ff4444;">${taxBrackets[i].rate * 100}%</span>
+                                    <span style="color: #ff4444;">${(bracket.rate * 100).toFixed(0)}%</span>
                             </div>
                         `);
-                        remainingIncome -= taxableAtThisRate;
+                        }
                     }
                 }
             }
@@ -2079,9 +2388,13 @@
         }
 
         function formatNumber(num) {
+            // 处理精度问题，避免JS浮点数计算误差
+            num = parseFloat(num.toFixed(2));
+            
+            // 对于整数显示为整数，小数保留两位
             return num % 1 === 0 ?
-                num.toFixed(0) :
-                parseFloat(num.toFixed(2));
+                num.toLocaleString('zh-CN') :
+                num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
         function adjustScale() {
@@ -2136,96 +2449,259 @@
             });
         });
 
-        // 优化滚动体验
-        let lastScrollPosition = 0;
-        window.addEventListener('scroll', () => {
-            const currentScroll = window.pageYOffset;
-            if (currentScroll > lastScrollPosition) {
-                // 向下动时隐藏标题
-                document.querySelector('h1').style.transform = 'translateY(-100%)';
-            } else {
-                // 向上滚动时显示标题
-                document.querySelector('h1').style.transform = 'translateY(0)';
-            }
-            lastScrollPosition = currentScroll;
-        }, { passive: true });
-
-        // 加载完成后的动画
-        window.addEventListener('load', () => {
-            document.body.style.opacity = '1';
-            document.body.style.transition = 'opacity 0.3s ease';
-        });
-
-        // 优化表格滚动体验
-        const tableContainer = document.querySelector('.table-container');
-        if (tableContainer) {
-            let startX, scrollLeft;
-
-            tableContainer.addEventListener('touchstart', (e) => {
-                startX = e.touches[0].pageX - tableContainer.offsetLeft;
-                scrollLeft = tableContainer.scrollLeft;
-            }, { passive: true });
-
-            tableContainer.addEventListener('touchmove', (e) => {
-                if (!startX) return;
-                const x = e.touches[0].pageX - tableContainer.offsetLeft;
-                const walk = (x - startX) * 2;
-                tableContainer.scrollLeft = scrollLeft - walk;
-            }, { passive: true });
-        }
-
-        // 添加页面刷新手势
-        let touchStartY = 0;
-        document.addEventListener('touchstart', (e) => {
-            touchStartY = e.touches[0].pageY;
-        }, { passive: true });
-
-        document.addEventListener('touchmove', (e) => {
-            const touchY = e.touches[0].pageY;
-            const scroll = window.pageYOffset;
-
-            if (scroll === 0 && touchY > touchStartY) {
-                // 下拉刷新逻辑
-                if (touchY - touchStartY > 100) {
-                    location.reload();
-                }
-            }
-        }, { passive: true });
-
-        // 优化键盘弹出时的布局
-        const originalHeight = window.innerHeight;
-        window.addEventListener('resize', () => {
-            if (window.innerHeight < originalHeight) {
-                // 键盘弹出
-                document.body.style.height = window.innerHeight + 'px';
-            } else {
-                // 键收起
-                document.body.style.height = '';
-            }
-        });
-
-        // 添加更新下拉选项的函数
-        function updateBonusMonthOptions() {
-            const select = document.getElementById('singleBonusMonth');
-            const currentValue = select.value;
-            select.innerHTML = '<option value="">不单独计税</option>';
-            
-            // 遍历所有月份，只添加有奖金的月份
+        // 添加清空所有奖金的功能
+        function clearAllBonuses() {
             for (let month = 1; month <= 12; month++) {
-                const bonusValue = localStorage.getItem(`bonusM${month}`);
-                if (bonusValue && parseFloat(bonusValue) > 0) {
-                    const option = document.createElement('option');
-                    option.value = month;
-                    option.textContent = `${month}月`;
-                    select.appendChild(option);
+                localStorage.removeItem(`bonusM${month}`);
+                const input = document.getElementById(`bonusM${month}`);
+                if (input) input.value = '';
+                
+                const monthElement = document.getElementById(`bonusMonth${month}`);
+                if (monthElement) {
+                    monthElement.style.display = 'none';
+                    const headerElement = monthElement.querySelector('.bonus-month-header');
+                    if (headerElement) {
+                        headerElement.innerHTML = `<div class="bonus-month-label">${month}月奖金</div>`;
+                    }
                 }
             }
             
-            // 如果之前选中的月份仍然有效，则保持选中
-            if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
-                select.value = currentValue;
-            }
+            // 更新单独计税月份选项
+            document.getElementById('singleBonusMonth').value = '';
+            localStorage.setItem('singleBonusMonth', '');
+            updateBonusMonthOptions();
+            
+            // 提供反馈
+            showToast('已清空所有奖金设置');
         }
+
+        // 添加输入验证函数
+        function validateInputs() {
+            const salary = getValue('inputSalary', 0);
+            if (salary <= 0) {
+                showToast('请输入有效的月工资数值');
+                document.getElementById('inputSalary').focus();
+                return false;
+            }
+            
+            // 验证所有数字输入是否为正数，先应用默认值再验证
+            const inputs = [
+                { id: 'taxDeduction', defaultValue: 1500, label: '专项附加扣除' },
+                { id: 'socialSecurityBase', defaultValue: 5000, label: '社保基数' },
+                { id: 'housingFundBase', defaultValue: 0, label: '公积金基数' },
+                { id: 'housingFundRate', defaultValue: 5, label: '公积金比例' }
+            ];
+            
+            for (const input of inputs) {
+                const element = document.getElementById(input.id);
+                if (element) {
+                    // 如果输入框为空，直接设置为默认值
+                    if (element.value.trim() === '') {
+                        element.value = input.defaultValue;
+                    } else {
+                        // 否则检查输入是否为有效数字
+                        const value = parseFloat(element.value);
+                        if (isNaN(value) || value < 0) {
+                            showToast(`${input.label}不能为负数`);
+                            element.focus();
+                            return false;
+                        }
+                    }
+                }
+            }
+            
+            return true;
+        }
+
+        // 添加提示消息功能
+        function showToast(message, duration = 3000) {
+            // 如果已有toast，先移除
+            const existingToast = document.getElementById('toast');
+            if (existingToast) {
+                document.body.removeChild(existingToast);
+            }
+            
+            // 创建新toast
+            const toast = document.createElement('div');
+            toast.id = 'toast';
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 70px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0,0,0,0.7);
+                color: white;
+                padding: 10px 20px;
+                border-radius: 20px;
+                font-size: 14px;
+                z-index: 1000;
+                animation: fadeIn 0.3s, fadeOut 0.3s ${duration-300}ms;
+            `;
+            
+            // 添加动画样式
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fadeIn {
+                    from { opacity: 0; transform: translate(-50%, 20px); }
+                    to { opacity: 1; transform: translate(-50%, 0); }
+                }
+                @keyframes fadeOut {
+                    from { opacity: 1; transform: translate(-50%, 0); }
+                    to { opacity: 0; transform: translate(-50%, -20px); }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                if (document.body.contains(toast)) {
+                    document.body.removeChild(toast);
+                }
+            }, duration);
+        }
+
+        // 添加结果图表渲染函数
+        // function renderResultChart(totalActualIncome, totalTax) {
+        //     const chartContainer = document.getElementById('resultSummary');
+            
+        //     // 如果已有图表实例，销毁它
+        //     if (window.resultChart) {
+        //         window.resultChart.dispose();
+        //     }
+            
+        //     // 创建新图表
+        //     window.resultChart = echarts.init(chartContainer);
+            
+        //     const option = {
+        //         tooltip: {
+        //             trigger: 'item',
+        //             formatter: '{b}: {c} ({d}%)'
+        //         },
+        //         color: ['#4CAF50', '#FF5252'],
+        //         legend: {
+        //             orient: 'vertical',
+        //             left: 10,
+        //             top: 'center',
+        //             data: ['实际到手', '个人所得税']
+        //         },
+        //         series: [
+        //             {
+        //                 name: '收入分配',
+        //                 type: 'pie',
+        //                 radius: ['50%', '70%'],
+        //                 avoidLabelOverlap: false,
+        //                 itemStyle: {
+        //                     borderRadius: 10,
+        //                     borderColor: '#fff',
+        //                     borderWidth: 2
+        //                 },
+        //                 label: {
+        //                     show: false,
+        //                     position: 'center'
+        //                 },
+        //                 emphasis: {
+        //                     label: {
+        //                         show: true,
+        //                         fontSize: '18',
+        //                         fontWeight: 'bold'
+        //                     }
+        //                 },
+        //                 labelLine: {
+        //                     show: false
+        //                 },
+        //                 data: [
+        //                     { value: totalActualIncome, name: '实际到手' },
+        //                     { value: totalTax, name: '个人所得税' }
+        //                 ]
+        //             }
+        //         ]
+        //     };
+            
+        //     window.resultChart.setOption(option);
+        // }
+
+        // 添加工具提示和帮助面板功能
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化工具提示
+            document.querySelectorAll('.tooltip').forEach(tooltip => {
+                tooltip.addEventListener('mouseenter', function(e) {
+                    const title = this.getAttribute('title');
+                    if (!title) return;
+                    
+                    // 移除title属性防止浏览器默认提示
+                    this.setAttribute('data-title', title);
+                    this.removeAttribute('title');
+                    
+                    // 创建自定义提示
+                    const tip = document.createElement('div');
+                    tip.className = 'custom-tooltip';
+                    tip.textContent = title;
+                    tip.style.cssText = `
+                        position: absolute;
+                        background: rgba(0,0,0,0.8);
+                        color: white;
+                        padding: 6px 10px;
+                        border-radius: 4px;
+                        font-size: 12px;
+                        z-index: 100;
+                        max-width: 200px;
+                        pointer-events: none;
+                    `;
+                    document.body.appendChild(tip);
+                    
+                    // 计算位置
+                    const rect = this.getBoundingClientRect();
+                    tip.style.left = rect.left + 'px';
+                    tip.style.top = (rect.bottom + 5) + 'px';
+                    
+                    this._tooltip = tip;
+                });
+                
+                tooltip.addEventListener('mouseleave', function() {
+                    if (this._tooltip) {
+                        document.body.removeChild(this._tooltip);
+                        this._tooltip = null;
+                        
+                        // 恢复title属性
+                        const title = this.getAttribute('data-title');
+                        if (title) {
+                            this.setAttribute('title', title);
+                            this.removeAttribute('data-title');
+                        }
+                    }
+                });
+            });
+            
+            // 设置帮助面板功能
+            const helpButton = document.getElementById('helpButton');
+            const helpPanel = document.getElementById('helpPanel');
+            const closeHelp = document.getElementById('closeHelp');
+            
+            helpButton.addEventListener('click', function() {
+                helpPanel.style.display = 'block';
+            });
+            
+            closeHelp.addEventListener('click', function() {
+                helpPanel.style.display = 'none';
+            });
+            
+            // 点击面板外部关闭
+            document.addEventListener('click', function(e) {
+                if (helpPanel.style.display === 'block' && 
+                    !helpPanel.contains(e.target) && 
+                    e.target !== helpButton) {
+                    helpPanel.style.display = 'none';
+                }
+            });
+            
+            // 移除图表相关的窗口大小调整监听
+            // window.addEventListener('resize', function() {
+            //     if (window.resultChart) {
+            //         window.resultChart.resize();
+            //     }
+            // });
+        });
     </script>
 </body>
 

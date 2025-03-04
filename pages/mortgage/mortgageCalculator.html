@@ -455,57 +455,146 @@
             return amount.toFixed(decimals).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
         }
 
-        // 计算还款明细
-        function calculateMortgage() {
+        // 修正月利率转换函数
+        function calculateMonthlyRate(yearRate) {
+            // 修正为正确的复利转换公式，而不是简单的除以12
+            return Math.pow(1 + yearRate / 100, 1/12) - 1;
+        }
+
+        // 修改计算函数
+        function calculate() {
+            const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+            let loanType = currentLoanType;
+            
+            // 清空结果和图表
+            document.getElementById('result').style.display = 'block';
+            
+            // 根据贷款类型获取输入参数
             let loanAmount = 0;
             let years = 0;
-            let rate = 0;
-
-            // 获取输入值
-            switch (currentLoanType) {
-                case 'commercial':
-                    loanAmount = parseFloat(document.getElementById('commercialAmount').value) * 10000;
-                    years = parseFloat(document.getElementById('commercialYears').value);
-                    rate = parseFloat(document.getElementById('commercialRate').value) / 100;
-                    break;
-                case 'fund':
-                    loanAmount = parseFloat(document.getElementById('fundAmount').value) * 10000;
-                    years = parseFloat(document.getElementById('fundYears').value);
-                    rate = parseFloat(document.getElementById('fundRate').value) / 100;
-                    break;
-                case 'combined':
-                    const commercialAmount = parseFloat(document.getElementById('combinedCommercialAmount').value) * 10000;
-                    const fundAmount = parseFloat(document.getElementById('combinedFundAmount').value) * 10000;
-                    loanAmount = commercialAmount + fundAmount;
-                    years = parseFloat(document.getElementById('combinedYears').value);
-                    const commercialRate = parseFloat(document.getElementById('combinedCommercialRate').value) / 100;
-                    const fundRate = parseFloat(document.getElementById('combinedFundRate').value) / 100;
-                    // 使用加权平均利率
-                    rate = (commercialAmount * commercialRate + fundAmount * fundRate) / loanAmount;
-                    break;
+            let commercialRate = 0;
+            let fundRate = 0;
+            let commercialAmount = 0;
+            let fundAmount = 0;
+            
+            if (loanType === 'commercial') {
+                commercialAmount = parseFloat(document.getElementById('commercialAmount').value) * 10000 || 0;
+                years = parseInt(document.getElementById('commercialYears').value) || 30;
+                commercialRate = parseFloat(document.getElementById('commercialRate').value) || 4.9;
+                loanAmount = commercialAmount;
+            } else if (loanType === 'fund') {
+                fundAmount = parseFloat(document.getElementById('fundAmount').value) * 10000 || 0;
+                years = parseInt(document.getElementById('fundYears').value) || 30;
+                fundRate = parseFloat(document.getElementById('fundRate').value) || 3.25;
+                loanAmount = fundAmount;
+            } else if (loanType === 'combined') {
+                commercialAmount = parseFloat(document.getElementById('combinedCommercialAmount').value) * 10000 || 0;
+                fundAmount = parseFloat(document.getElementById('combinedFundAmount').value) * 10000 || 0;
+                years = parseInt(document.getElementById('combinedYears').value) || 30;
+                commercialRate = parseFloat(document.getElementById('combinedCommercialRate').value) || 4.9;
+                fundRate = parseFloat(document.getElementById('combinedFundRate').value) || 3.25;
+                loanAmount = commercialAmount + fundAmount;
             }
-
-            const months = years * 12;
-            const monthlyRate = rate / 12;
-            const repaymentMethod = document.getElementById('repaymentMethod').value;
-
+            
+            // 显示贷款类型
+            document.getElementById('displayLoanType').textContent = 
+                loanType === 'commercial' ? '商业贷款' : 
+                loanType === 'fund' ? '公积金贷款' : '组合贷款';
+            
+            // 显示还款方式
+            document.getElementById('displayPaymentMethod').textContent = 
+                paymentMethod === 'principal_interest' ? '等额本息' : '等额本金';
+            
+            // 计算月供和还款总额
             let schedule = [];
             let totalInterest = 0;
             let totalPayment = 0;
+            let monthlyPayment = 0;
+            const months = years * 12;
+            
+            if (loanType === 'combined') {
+                // 分开计算商业贷款和公积金贷款
+                const commercialMonthlyRate = calculateMonthlyRate(commercialRate);
+                const fundMonthlyRate = calculateMonthlyRate(fundRate);
+                
+                let commercialSchedule = calculateSchedule(commercialAmount, commercialMonthlyRate, months, paymentMethod);
+                let fundSchedule = calculateSchedule(fundAmount, fundMonthlyRate, months, paymentMethod);
+                
+                // 合并两种贷款的还款计划
+                for (let i = 0; i < months; i++) {
+                    const commercial = commercialSchedule[i];
+                    const fund = fundSchedule[i];
+                    
+                    schedule.push({
+                        month: i + 1,
+                        payment: commercial.payment + fund.payment,
+                        principal: commercial.principal + fund.principal,
+                        interest: commercial.interest + fund.interest,
+                        remaining: commercial.remaining + fund.remaining
+                    });
+                    
+                    totalInterest += commercial.interest + fund.interest;
+                    totalPayment += commercial.payment + fund.payment;
+                    
+                    if (i === 0) {
+                        monthlyPayment = commercial.payment + fund.payment;
+                    }
+                }
+            } else {
+                // 单一类型贷款计算
+                const rate = loanType === 'commercial' ? commercialRate : fundRate;
+                const monthlyRate = calculateMonthlyRate(rate);
+                
+                schedule = calculateSchedule(loanAmount, monthlyRate, months, paymentMethod);
+                totalInterest = schedule.reduce((sum, item) => sum + item.interest, 0);
+                totalPayment = schedule.reduce((sum, item) => sum + item.payment, 0);
+                monthlyPayment = schedule[0].payment;
+            }
+            
+            // 更新结果摘要
+            document.getElementById('totalLoan').textContent = formatMoney(loanAmount / 10000) + '万元';
+            document.getElementById('totalInterest').textContent = formatMoney(totalInterest / 10000) + '万元';
+            document.getElementById('totalPayment').textContent = formatMoney(totalPayment / 10000) + '万元';
+            document.getElementById('firstPayment').textContent = formatMoney(monthlyPayment) + '元';
+            
+            // 更新还款计划表格
+            const tbody = document.getElementById('repaymentSchedule');
+            tbody.innerHTML = '';
+            
+            // 为了减少渲染压力，只显示部分数据
+            const displaySchedule = getDisplaySchedule(schedule);
+            
+            displaySchedule.forEach(item => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>${item.month}</td>
+                    <td>${formatMoney(item.payment)}</td>
+                    <td>${formatMoney(item.principal)}</td>
+                    <td>${formatMoney(item.interest)}</td>
+                    <td>${formatMoney(Math.max(0, item.remaining))}</td>
+                `;
+            });
+            
+            // 更新图表
+            updateChart(schedule);
+        }
+        
+        // 提取计算还款计划的逻辑到单独的函数
+        function calculateSchedule(loanAmount, monthlyRate, months, paymentMethod) {
+            const schedule = [];
             let remainingPrincipal = loanAmount;
             let monthlyPayment = 0;
-
-            if (repaymentMethod === 'equal') {
+            
+            if (paymentMethod === 'principal_interest') {
                 // 等额本息
                 monthlyPayment = loanAmount * monthlyRate * Math.pow(1 + monthlyRate, months) / (Math.pow(1 + monthlyRate, months) - 1);
-
+                
                 for (let i = 1; i <= months; i++) {
                     const interest = remainingPrincipal * monthlyRate;
                     const principal = monthlyPayment - interest;
-                    remainingPrincipal -= principal;
-                    totalInterest += interest;
-                    totalPayment += monthlyPayment;
-
+                    // 使用toFixed避免浮点数精度问题
+                    remainingPrincipal = Math.max(0, parseFloat((remainingPrincipal - principal).toFixed(2)));
+                    
                     schedule.push({
                         month: i,
                         payment: monthlyPayment,
@@ -517,14 +606,13 @@
             } else {
                 // 等额本金
                 const monthlyPrincipal = loanAmount / months;
-
+                
                 for (let i = 1; i <= months; i++) {
                     const interest = remainingPrincipal * monthlyRate;
                     const payment = monthlyPrincipal + interest;
-                    remainingPrincipal -= monthlyPrincipal;
-                    totalInterest += interest;
-                    totalPayment += payment;
-
+                    // 使用toFixed避免浮点数精度问题
+                    remainingPrincipal = Math.max(0, parseFloat((remainingPrincipal - monthlyPrincipal).toFixed(2)));
+                    
                     schedule.push({
                         month: i,
                         payment: payment,
@@ -532,35 +620,40 @@
                         interest: interest,
                         remaining: remainingPrincipal
                     });
-
+                    
                     if (i === 1) {
                         monthlyPayment = payment;
                     }
                 }
             }
-
-            // 更新结果摘要
-            document.getElementById('totalLoan').textContent = formatMoney(loanAmount / 10000) + '万元';
-            document.getElementById('totalInterest').textContent = formatMoney(totalInterest / 10000) + '万元';
-            document.getElementById('totalPayment').textContent = formatMoney(totalPayment / 10000) + '万元';
-            document.getElementById('firstPayment').textContent = formatMoney(monthlyPayment) + '元';
-
-            // 更新还款计划表格
-            const tbody = document.getElementById('repaymentSchedule');
-            tbody.innerHTML = '';
-            schedule.forEach(item => {
-                const row = tbody.insertRow();
-                row.innerHTML = `
-                    <td>${item.month}</td>
-                    <td>${formatMoney(item.payment)}</td>
-                    <td>${formatMoney(item.principal)}</td>
-                    <td>${formatMoney(item.interest)}</td>
-                    <td>${formatMoney(item.remaining)}</td>
-                `;
-            });
-
-            // 更新图表
-            updateChart(schedule);
+            
+            return schedule;
+        }
+        
+        // 获取展示用的还款计划（减少数据量）
+        function getDisplaySchedule(schedule) {
+            const displaySchedule = [];
+            const totalMonths = schedule.length;
+            
+            // 始终显示第一年的每月数据
+            for (let i = 0; i < Math.min(12, totalMonths); i++) {
+                displaySchedule.push(schedule[i]);
+            }
+            
+            // 后续每年选择性显示
+            if (totalMonths > 12) {
+                // 每年的第一个月
+                for (let i = 12; i < totalMonths; i += 12) {
+                    displaySchedule.push(schedule[i]);
+                }
+                
+                // 始终显示最后一期
+                if (displaySchedule[displaySchedule.length - 1].month !== totalMonths) {
+                    displaySchedule.push(schedule[totalMonths - 1]);
+                }
+            }
+            
+            return displaySchedule;
         }
 
         // 更新图表
