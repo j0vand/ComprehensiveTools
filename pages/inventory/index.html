@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>库存管理系统</title>
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/modal.css">
+    <link rel="stylesheet" href="css/cards.css">
+    <link rel="stylesheet" href="css/responsive.css">
+    <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.18.2/dist/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+    <!-- 顶部导航栏 -->
+    <header class="app-header">
+        <div class="container">
+            <h1 class="app-title">库存管理系统</h1>
+            <div class="header-actions">
+                <button id="statsButton" class="header-button">
+                    <span class="icon">📊</span>
+                    <span class="text">统计</span>
+                </button>
+                <button id="themeToggle" class="header-button">
+                    <span class="icon">🌓</span>
+                    <span class="text">主题</span>
+                </button>
+                <button id="exportButton" class="header-button">
+                    <span class="icon">💾</span>
+                    <span class="text">导出</span>
+                </button>
+                <button id="importButton" class="header-button">
+                    <span class="icon">📤</span>
+                    <span class="text">导入</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主内容区域 -->
+    <main class="main-content container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="search-container">
+                <input type="text" id="searchInput" class="search-input" placeholder="搜索商品（支持拼音首字母）">
+                <div id="searchResults" class="search-results"></div>
+            </div>
+            
+            <button id="addItemButton" class="action-button primary-button">
+                <span class="icon">➕</span> 添加新商品
+            </button>
+            
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">筛选</h3>
+                <div class="filter-group">
+                    <div class="filter-label">状态</div>
+                    <div class="filter-options">
+                        <label class="filter-option">
+                            <input type="radio" name="statusFilter" value="all" checked>
+                            <span>全部</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="radio" name="statusFilter" value="in-stock">
+                            <span>在库</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="radio" name="statusFilter" value="low-stock">
+                            <span>低库存</span>
+                        </label>
+                        <label class="filter-option">
+                            <input type="radio" name="statusFilter" value="out-stock">
+                            <span>已用完</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="filter-group">
+                    <div class="filter-label">分类</div>
+                    <select id="categoryFilter" class="filter-select">
+                        <option value="">全部分类</option>
+                    </select>
+                    <button id="manageCategoryButton" class="small-button">管理分类</button>
+                </div>
+                
+                <div class="filter-group">
+                    <div class="filter-label">排序</div>
+                    <select id="sortOption" class="filter-select">
+                        <option value="name">名称</option>
+                        <option value="date-desc">最近添加</option>
+                        <option value="date-asc">最早添加</option>
+                        <option value="price-desc">价格 ↓</option>
+                        <option value="price-asc">价格 ↑</option>
+                        <option value="quantity-desc">数量 ↓</option>
+                        <option value="quantity-asc">数量 ↑</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <div class="filter-label">显示方式</div>
+                    <div class="view-switcher">
+                        <button id="cardViewButton" class="view-button active">
+                            <span class="icon">🗂️</span> 卡片
+                        </button>
+                        <button id="tableViewButton" class="view-button">
+                            <span class="icon">📋</span> 表格
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">库存状况</h3>
+                <div class="inventory-summary">
+                    <div class="summary-item">
+                        <div class="summary-label">商品总数</div>
+                        <div id="totalItemsCount" class="summary-value">0</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">批次总数</div>
+                        <div id="totalBatchesCount" class="summary-value">0</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-label">库存价值</div>
+                        <div id="totalValue" class="summary-value">¥0.00</div>
+                    </div>
+                </div>
+                <div class="summary-chart-container">
+                    <canvas id="inventorySummaryChart" height="150"></canvas>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 内容区域 -->
+        <section class="content-area">
+            <div class="content-header">
+                <h2 class="content-title">库存列表</h2>
+                <div class="content-actions">
+                    <button id="advancedFilterButton" class="action-button">
+                        <span class="icon">🔍</span> 高级筛选
+                    </button>
+                    <button id="refreshButton" class="action-button">
+                        <span class="icon">🔄</span> 刷新
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 提示信息展示区域 -->
+            <div id="alertContainer" class="alert-container"></div>
+            
+            <!-- 卡片视图 -->
+            <div id="cardView" class="inventory-cards"></div>
+            
+            <!-- 表格视图 -->
+            <div id="tableView" class="inventory-table-container" style="display: none;">
+                <table class="inventory-table">
+                    <thead>
+                        <tr>
+                            <th>商品名称</th>
+                            <th>分类</th>
+                            <th>规格</th>
+                            <th>数量</th>
+                            <th>价格</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+            
+            <!-- 无数据提示 -->
+            <div id="emptyState" class="empty-state">
+                <div class="empty-icon">📦</div>
+                <h3>暂无库存数据</h3>
+                <p>点击"添加新商品"开始记录您的库存</p>
+            </div>
+            
+            <!-- 分页控制 -->
+            <div id="paginationControls" class="pagination-controls"></div>
+        </section>
+    </main>
+
+    <!-- 所有模态窗 -->
+    <div id="modalContainer"></div>
+    
+    <!-- 导入模板，将在JS中加载 -->
+    <template id="addItemModalTemplate">
+        <div class="modal" id="addItemModal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 class="modal-title">添加新商品</h2>
+                    <button class="close-button" data-close-modal>&times;</button>
+                </div>
+                <form id="addItemForm" class="form">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="itemName">商品名称 <span class="required">*</span></label>
+                            <input type="text" id="itemName" class="form-control" required autocomplete="off">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="itemCategory">分类 <span class="required">*</span></label>
+                            <div class="select-container">
+                                <select id="itemCategory" class="form-control" required>
+                                    <option value="">选择分类</option>
+                                </select>
+                                <span class="arrow-down"></span>
+                            </div>
+                            <div id="categorySuggestions" class="suggestions"></div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="itemBrand">品牌</label>
+                            <div class="autocomplete-container">
+                                <input type="text" id="itemBrand" class="form-control" autocomplete="off">
+                                <div id="brandSuggestions" class="suggestions"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="itemSpec">规格 <span class="required">*</span></label>
+                            <input type="text" id="itemSpec" class="form-control" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="itemPrice">价格</label>
+                            <div class="input-with-addon">
+                                <span class="input-addon">¥</span>
+                                <input type="number" id="itemPrice" class="form-control" min="0" step="0.01">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="itemQuantity">数量 <span class="required">*</span></label>
+                            <input type="number" id="itemQuantity" class="form-control" min="0" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="itemLowStockThreshold">低库存阈值</label>
+                            <input type="number" id="itemLowStockThreshold" class="form-control" min="0" value="2">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="itemPurchaseDate">购买日期</label>
+                            <input type="date" id="itemPurchaseDate" class="form-control">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="itemExpiryDate">过期日期</label>
+                            <input type="date" id="itemExpiryDate" class="form-control">
+                            <small id="expiryWarning" class="form-text"></small>
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label for="itemStorage">存放位置</label>
+                            <input type="text" id="itemStorage" class="form-control">
+                        </div>
+                        
+                        <div class="form-group full-width">
+                            <label for="itemRemark">备注</label>
+                            <textarea id="itemRemark" class="form-control" rows="3"></textarea>
+                        </div>
+                    </div>
+                    
+                    <div class="form-actions">
+                        <button type="button" class="secondary-button" data-close-modal>取消</button>
+                        <button type="submit" class="primary-button">保存</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </template>
+
+    <!-- 引入JavaScript文件 -->
+    <script src="js/utils.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/modals.js"></script>
+    <script src="js/charts.js"></script>
+    <script src="js/export.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html> 

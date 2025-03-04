@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="theme-color" content="#1e88e5">
+    <title>个人养老金计算器 - 退休规划工具</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>个人养老金计算器</h1>
+            <p class="subtitle">基于中国基本养老保险制度，为您提供专业的退休金估算</p>
+        </header>
+
+        <main>
+            <section class="calculator-section">
+                <div class="input-panel">
+                    <h2>基本信息</h2>
+                    
+                    <div class="form-group">
+                        <label for="gender">性别</label>
+                        <div class="radio-group">
+                            <label>
+                                <input type="radio" name="gender" value="male" checked>
+                                <span>男</span>
+                            </label>
+                            <label>
+                                <input type="radio" name="gender" value="female">
+                                <span>女</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="current-age">当前年龄</label>
+                        <input type="number" id="current-age" min="18" max="60" value="30" inputmode="numeric" pattern="[0-9]*">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="avg-salary">当地上年度在岗职工月平均工资(元)</label>
+                        <input type="number" id="avg-salary" min="2000" value="8000" inputmode="numeric" pattern="[0-9]*">
+                        <small class="form-helper">请输入您所在地区的平均工资</small>
+                    </div>
+
+                    <h2>缴费信息</h2>
+                    
+                    <div class="form-group">
+                        <label for="paid-years">已缴费年限(年)</label>
+                        <input type="number" id="paid-years" min="0" max="50" value="0" inputmode="numeric" pattern="[0-9]*">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="plan-to-pay-years">计划继续缴费年限(年)</label>
+                        <input type="number" id="plan-to-pay-years" min="0" max="50" value="15" inputmode="numeric" pattern="[0-9]*">
+                        <small class="form-helper" id="retirement-age-note"></small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="salary-base">月缴费基数(元)</label>
+                        <input type="number" id="salary-base" min="2000" value="5000" inputmode="numeric" pattern="[0-9]*">
+                        <small class="form-helper">通常为本人月工资</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="payment-ratio">个人缴费比例(%)</label>
+                        <input type="number" id="payment-ratio" min="0" max="100" value="8" step="0.1" inputmode="decimal" pattern="[0-9]*\.?[0-9]*">
+                        <small class="form-helper">一般为8%</small>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="avg-index">平均缴费指数</label>
+                        <input type="number" id="avg-index" min="0" max="3" value="1" step="0.01" inputmode="decimal" pattern="[0-9]*\.?[0-9]*">
+                        <small class="form-helper">个人缴费基数与社会平均工资之比的平均值</small>
+                    </div>
+
+                    <div class="button-group">
+                        <button id="calculate-btn" class="primary-btn">计算养老金</button>
+                        <button id="reset-btn" class="secondary-btn">重置</button>
+                    </div>
+                </div>
+
+                <div class="result-panel" id="result-panel">
+                    <h2>计算结果</h2>
+                    <div id="results" class="hidden">
+                        <div class="result-card">
+                            <h3>基本参数</h3>
+                            <table class="result-table">
+                                <tr>
+                                    <td>预计退休年龄</td>
+                                    <td id="retirement-age">--</td>
+                                </tr>
+                                <tr>
+                                    <td>退休时累计缴费年限</td>
+                                    <td id="total-paid-years">--</td>
+                                </tr>
+                                <tr>
+                                    <td>个人账户累计金额</td>
+                                    <td id="personal-account-total">--</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <div class="result-card">
+                            <h3>养老金计算明细</h3>
+                            <table class="result-table">
+                                <tr>
+                                    <td>基础养老金(元/月)</td>
+                                    <td id="basic-pension">--</td>
+                                </tr>
+                                <tr>
+                                    <td>个人账户养老金(元/月)</td>
+                                    <td id="personal-pension">--</td>
+                                </tr>
+                                <tr class="highlight">
+                                    <td>月养老金总额(元)</td>
+                                    <td id="total-pension">--</td>
+                                </tr>
+                                <tr>
+                                    <td>替代率(占平均工资)</td>
+                                    <td id="replacement-rate">--</td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <div class="calculation-notes">
+                            <h4>计算说明</h4>
+                            <p>此结果基于当前政策和您提供的信息估算，仅供参考。实际养老金领取金额以社保部门核定为准。</p>
+                            <p>计算公式：</p>
+                            <ul>
+                                <li>基础养老金 = 当地月平均工资 × (1 + 个人平均缴费指数) ÷ 2 × 缴费年限 × 1%</li>
+                                <li>个人账户养老金 = 个人账户累计金额 ÷ 计发月数</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div id="error-message" class="error-message hidden">
+                        请填写完整的信息并确保数据有效
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>此计算器仅供参考，最终养老金金额以社保部门实际核定为准。</p>
+            <p>© 2023 个人养老金计算器 - 基于最新养老保险政策</p>
+        </footer>
+    </div>
+
+    <script src="calculator.js"></script>
+</body>
+</html> 

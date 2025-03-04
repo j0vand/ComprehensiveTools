@@ -1,0 +1,272 @@
+/* 响应式样式 */
+/* 大屏幕设备 (大于等于 1200px) */
+@media (min-width: 1200px) {
+    .container {
+        max-width: 1140px;
+    }
+    
+    .inventory-cards {
+        grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    }
+}
+
+/* 桌面设备 (小于 1200px) */
+@media (max-width: 1199.98px) {
+    .container {
+        max-width: 960px;
+    }
+    
+    .inventory-cards {
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    }
+    
+    .item-details-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* 平板设备 (小于 992px) */
+@media (max-width: 991.98px) {
+    .container {
+        max-width: 720px;
+    }
+    
+    .main-content {
+        flex-direction: column;
+    }
+    
+    .sidebar {
+        width: 100%;
+        position: static;
+        max-height: none;
+        padding-right: 0;
+        margin-bottom: var(--spacing-lg);
+    }
+    
+    .inventory-summary {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    
+    .inventory-cards {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+    
+    .item-details-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* 大手机设备 (小于 768px) */
+@media (max-width: 767.98px) {
+    .container {
+        max-width: 540px;
+        padding: 0 var(--spacing-sm);
+    }
+    
+    .app-header {
+        height: auto;
+        padding: var(--spacing-sm) 0;
+    }
+    
+    .app-header .container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-sm);
+    }
+    
+    .header-actions {
+        width: 100%;
+        justify-content: space-between;
+    }
+    
+    .header-button .text {
+        display: none;
+    }
+    
+    .content-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: var(--spacing-md);
+    }
+    
+    .content-actions {
+        width: 100%;
+    }
+    
+    .inventory-cards {
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    }
+    
+    .form-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .full-width {
+        grid-column: 1;
+    }
+    
+    .modal-content {
+        width: 95%;
+        max-height: 95vh;
+    }
+    
+    .modal-body {
+        padding: var(--spacing-md);
+    }
+    
+    .item-details-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+        gap: var(--spacing-sm);
+    }
+    
+    .form-actions button {
+        width: 100%;
+    }
+    
+    .tab-header {
+        overflow-x: auto;
+        white-space: nowrap;
+        padding-bottom: var(--spacing-xs);
+    }
+    
+    .tab-button {
+        padding: var(--spacing-xs) var(--spacing-sm);
+    }
+}
+
+/* 小手机设备 (小于 576px) */
+@media (max-width: 575.98px) {
+    .inventory-cards {
+        grid-template-columns: 1fr;
+    }
+    
+    .inventory-summary {
+        grid-template-columns: 1fr 1fr;
+        gap: var(--spacing-sm);
+    }
+    
+    .header-actions {
+        flex-wrap: wrap;
+        gap: var(--spacing-xs);
+    }
+    
+    .header-button {
+        padding: var(--spacing-xs);
+        font-size: 1.25rem;
+    }
+    
+    .card-actions {
+        justify-content: space-between;
+    }
+    
+    .card-actions .card-action-button {
+        width: 32px;
+        height: 32px;
+    }
+    
+    .tab-container {
+        margin-top: var(--spacing-md);
+    }
+    
+    .tab-header {
+        margin-bottom: var(--spacing-sm);
+    }
+    
+    .action-button {
+        padding: var(--spacing-xs) var(--spacing-sm);
+        font-size: var(--font-size-small);
+    }
+    
+    .action-button .icon {
+        font-size: 1rem;
+    }
+    
+    .status-badge {
+        padding: 2px 6px;
+        font-size: 0.75rem;
+    }
+}
+
+/* 深色模式特定样式调整 */
+@media (prefers-color-scheme: dark) {
+    :root {
+        color-scheme: dark;
+    }
+    
+    body:not([data-theme="light"]) {
+        /* 深色模式默认变量覆盖 */
+        --primary-color: #81c784;
+        --primary-light: #b2fab4;
+        --primary-dark: #519657;
+        --secondary-color: #78909c;
+        --secondary-light: #a7c0cd;
+        --secondary-dark: #4b636e;
+        --text-on-primary: #212121;
+        --text-on-secondary: #212121;
+        
+        --text-primary: #e0e0e0;
+        --text-secondary: #b0b0b0;
+        --divider-color: #424242;
+        --background-color: #121212;
+        --card-color: #1e1e1e;
+        --hover-color: #2c332a;
+        
+        --success-color: #81c784;
+        --warning-color: #ffb74d;
+        --error-color: #e57373;
+        --info-color: #64b5f6;
+    }
+}
+
+/* 打印样式 */
+@media print {
+    .app-header,
+    .sidebar,
+    .card-actions,
+    .content-actions,
+    .search-container,
+    .pagination-controls,
+    #addItemButton,
+    button:not(.page-button) {
+        display: none !important;
+    }
+    
+    body {
+        background-color: white;
+        color: black;
+    }
+    
+    .main-content {
+        padding: 0;
+        display: block;
+    }
+    
+    .content-area {
+        width: 100%;
+    }
+    
+    .inventory-card,
+    .inventory-table {
+        break-inside: avoid;
+        page-break-inside: avoid;
+        box-shadow: none !important;
+        border: 1px solid #ddd;
+    }
+    
+    .inventory-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .content-title {
+        text-align: center;
+        margin-bottom: 1em;
+    }
+    
+    @page {
+        margin: 1.5cm;
+    }
+} 
