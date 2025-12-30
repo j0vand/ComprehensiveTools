@@ -9,12 +9,13 @@ const STORAGE_KEYS = {
     CATEGORIES: 'inventory-categories',
     BRANDS: 'inventory-brands',
     SETTINGS: 'inventory-settings',
-    HISTORY: 'inventory-history'
+    HISTORY: 'inventory-history',
+    SHOPPING_LIST: 'inventory-shopping-list'
 };
 
-// 默认分类
+// 默认分类（针对化妆品和护肤品）
 const DEFAULT_CATEGORIES = [
-    '日用品', '食品', '办公用品', '厨房用品', '电子产品', '药品', '清洁用品', '其他'
+    '彩妆', '护肤', '香水', '美发', '美甲', '工具', '其他'
 ];
 
 // 初始设置
@@ -37,6 +38,7 @@ class DataManager {
         this.brands = [];
         this.settings = { ...DEFAULT_SETTINGS };
         this.history = [];
+        this.shoppingList = [];
         
         this.loadAllData();
     }
@@ -50,6 +52,7 @@ class DataManager {
         this.loadBrands();
         this.loadSettings();
         this.loadHistory();
+        this.loadShoppingList();
     }
     
     /**
@@ -61,6 +64,7 @@ class DataManager {
         this.saveBrands();
         this.saveSettings();
         this.saveHistory();
+        this.saveShoppingList();
     }
     
     /**
@@ -165,6 +169,20 @@ class DataManager {
      */
     saveHistory() {
         Utils.setLocalStorageItem(STORAGE_KEYS.HISTORY, this.history);
+    }
+    
+    /**
+     * 加载购物清单数据
+     */
+    loadShoppingList() {
+        this.shoppingList = Utils.getLocalStorageItem(STORAGE_KEYS.SHOPPING_LIST, []);
+    }
+    
+    /**
+     * 保存购物清单数据
+     */
+    saveShoppingList() {
+        Utils.setLocalStorageItem(STORAGE_KEYS.SHOPPING_LIST, this.shoppingList);
     }
     
     /**
@@ -710,6 +728,26 @@ class DataManager {
                 results = results.filter(item => item.category === filters.category);
             }
             
+            // 品牌过滤
+            if (filters.brand) {
+                results = results.filter(item => item.brand === filters.brand);
+            }
+            
+            // 商品名称过滤（支持拼音匹配）
+            if (filters.name) {
+                results = results.filter(item => {
+                    return Utils.matchByPinyin(filters.name, item.name);
+                });
+            }
+            
+            // 存放位置过滤（支持拼音匹配）
+            if (filters.storage) {
+                results = results.filter(item => {
+                    if (!item.storage) return false;
+                    return Utils.matchByPinyin(filters.storage, item.storage);
+                });
+            }
+            
             // 库存状态过滤
             if (filters.status) {
                 const { lowStockThreshold } = this.settings;
@@ -919,6 +957,192 @@ class DataManager {
     updateSettings(newSettings) {
         this.settings = { ...this.settings, ...newSettings };
         this.saveSettings();
+    }
+    
+    /**
+     * 获取购物清单
+     * @returns {Array} 购物清单
+     */
+    getShoppingList() {
+        return Utils.deepClone(this.shoppingList);
+    }
+    
+    /**
+     * 添加商品到购物清单
+     * @param {string} itemId - 商品ID
+     * @param {string} reason - 添加原因
+     * @returns {boolean} 是否成功
+     */
+    addToShoppingList(itemId, reason = '低库存') {
+        const item = this.items.find(i => i.id === itemId);
+        if (!item) return false;
+        
+        // 检查是否已在购物清单中
+        if (this.shoppingList.some(entry => entry.itemId === itemId && !entry.purchased)) {
+            return false;
+        }
+        
+        const entry = {
+            id: Utils.generateUUID(),
+            itemId: itemId,
+            itemName: item.name,
+            reason: reason,
+            addedAt: new Date().toISOString(),
+            purchased: false
+        };
+        
+        this.shoppingList.push(entry);
+        this.saveShoppingList();
+        return true;
+    }
+    
+    /**
+     * 从购物清单移除商品
+     * @param {string} entryId - 购物清单条目ID
+     * @returns {boolean} 是否成功
+     */
+    removeFromShoppingList(entryId) {
+        const index = this.shoppingList.findIndex(entry => entry.id === entryId);
+        if (index === -1) return false;
+        
+        this.shoppingList.splice(index, 1);
+        this.saveShoppingList();
+        return true;
+    }
+    
+    /**
+     * 标记购物清单项为已购买
+     * @param {string} entryId - 购物清单条目ID
+     * @returns {boolean} 是否成功
+     */
+    markShoppingListItemPurchased(entryId) {
+        const entry = this.shoppingList.find(e => e.id === entryId);
+        if (!entry) return false;
+        
+        entry.purchased = true;
+        entry.purchasedAt = new Date().toISOString();
+        this.saveShoppingList();
+        return true;
+    }
+    
+    /**
+     * 自动生成购物清单（低库存和已用完的商品）
+     * @returns {Array} 需要购买的商品列表
+     */
+    generateShoppingList() {
+        const { lowStockThreshold } = this.settings;
+        const needToBuy = [];
+        
+        this.items.forEach(item => {
+            const status = Utils.getItemStatus(item.quantity, lowStockThreshold);
+            
+            if (status === 'out-stock') {
+                needToBuy.push({
+                    itemId: item.id,
+                    itemName: item.name,
+                    reason: '已用完',
+                    priority: 'high'
+                });
+            } else if (status === 'low-stock') {
+                needToBuy.push({
+                    itemId: item.id,
+                    itemName: item.name,
+                    reason: '低库存',
+                    priority: 'medium'
+                });
+            }
+        });
+        
+        return needToBuy;
+    }
+    
+    /**
+     * 获取提醒信息
+     * @returns {Object} 提醒统计
+     */
+    getReminders() {
+        const today = new Date();
+        const warningDays = this.settings.expiryWarningDays || 30;
+        const { lowStockThreshold } = this.settings;
+        
+        const reminders = {
+            expiringSoon: [], // 即将过期
+            lowStock: [], // 低库存
+            outOfStock: [], // 已用完
+            needToBuy: [] // 需要购买
+        };
+        
+        this.items.forEach(item => {
+            const status = Utils.getItemStatus(item.quantity, lowStockThreshold);
+            
+            // 检查过期提醒
+            item.batches.forEach(batch => {
+                if (batch.expiryDate) {
+                    const expiryDate = new Date(batch.expiryDate);
+                    const daysToExpiry = Utils.daysBetween(today, expiryDate);
+                    
+                    if (daysToExpiry >= 0 && daysToExpiry <= warningDays) {
+                        if (!reminders.expiringSoon.find(r => r.itemId === item.id)) {
+                            reminders.expiringSoon.push({
+                                itemId: item.id,
+                                itemName: item.name,
+                                daysToExpiry: daysToExpiry,
+                                expiryDate: batch.expiryDate
+                            });
+                        }
+                    }
+                }
+            });
+            
+            // 库存状态提醒
+            if (status === 'out-stock') {
+                reminders.outOfStock.push({
+                    itemId: item.id,
+                    itemName: item.name
+                });
+                reminders.needToBuy.push({
+                    itemId: item.id,
+                    itemName: item.name,
+                    reason: '已用完'
+                });
+            } else if (status === 'low-stock') {
+                reminders.lowStock.push({
+                    itemId: item.id,
+                    itemName: item.name,
+                    quantity: item.quantity
+                });
+                reminders.needToBuy.push({
+                    itemId: item.id,
+                    itemName: item.name,
+                    reason: '低库存'
+                });
+            }
+        });
+        
+        return reminders;
+    }
+    
+    /**
+     * 获取快速概览统计
+     * @returns {Object} 概览统计
+     */
+    getQuickOverview() {
+        const reminders = this.getReminders();
+        const stats = this.getInventoryStats();
+        
+        // 最近添加的商品（7天内）
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        const recentItems = this.items.filter(item => {
+            return new Date(item.createdAt) >= sevenDaysAgo;
+        }).length;
+        
+        return {
+            totalItems: stats.totalItems,
+            needToBuyCount: reminders.needToBuy.length,
+            expiringSoonCount: reminders.expiringSoon.length,
+            recentItemsCount: recentItems
+        };
     }
 }
 

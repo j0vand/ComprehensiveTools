@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>点餐记录查看器</title>
+    <title>订餐安排查看器</title>
     <style>
         :root {
             --primary-color: #4CAF50;
@@ -133,8 +133,20 @@
         </div>
 
         <div class="card">
-            <h2>录入点餐记录</h2>
-            <textarea class="meal-input" id="mealInput" placeholder="粘贴点餐记录..."></textarea>
+            <h2>录入订餐安排</h2>
+            <div class="owner-options" style="margin-bottom: 12px;">
+                <span style="font-weight: bold; color: #333; margin-right: 8px;">记录归属:</span>
+                <label style="margin-right: 16px;"><input type="radio" name="mealOwner" value="mine" checked> 我的</label>
+                <label><input type="radio" name="mealOwner" value="others"> 他人</label>
+            </div>
+            <textarea class="meal-input" id="mealInput" placeholder="粘贴订餐安排..."></textarea>
+            
+            <div class="quick-add-section" style="margin-top: 16px; margin-bottom: 16px;">
+                <label for="quickMealNumbers" style="display: block; font-weight: bold; color: #333; margin-bottom: 8px;">快捷录入序号 (仅晚餐)</label>
+                <input type="text" id="quickMealNumbers" class="meal-input" style="height: auto; padding: 10px;" placeholder="输入序号，用空格或逗号分隔...">
+                <div style="font-size: 12px; color: #666; margin-top: 4px;">将从明天(或下周一)开始，按天自动分配为“他人”的晚餐。</div>
+            </div>
+
             <div class="save-options" style="margin-bottom: 12px;">
                 <label style="display: flex; align-items: center; gap: 8px; color: #666;">
                     <input type="checkbox" id="saveForNextWeek">
@@ -146,24 +158,25 @@
                     - 选择"保存为下周记录"时，日期将统一调整为下周对应日期（而非下下周）
                 </div>
             </div>
-            <button class="button" onclick="processMealData()">保存记录</button>
-            <button class="button clear-button" onclick="clearData()">清除所有记录</button>
+            <button class="button" onclick="processMealData()">保存安排</button>
+            <button class="button clear-button" onclick="clearData()">清除所有安排</button>
         </div>
 
         <div class="card">
-            <h2>历史记录</h2>
+            <h2>订餐安排</h2>
             <div id="mealHistory"></div>
         </div>
     </div>
 
     <script>
         // 数据结构
-        class MealRecord {
-            constructor(date, mealTime, number, content) {
+        class MealArrangement {
+            constructor(date, mealTime, number, content, owner) {
                 this.date = date;
                 this.mealTime = mealTime;
                 this.number = number;
                 this.content = content;
+                this.owner = owner; // 记录归属：'mine' 或 'others'
                 this.id = Date.now() + Math.random().toString(36).substr(2, 9); // 添加唯一ID
                 
                 // 添加原始日期字符串和解析后的日期对象
@@ -174,6 +187,14 @@
 
         const weekDayMap = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 0};
         const reverseWeekDayMap = ['日', '一', '二', '三', '四', '五', '六'];
+
+        // 格式化日期对象为 "M月D日-周X" 字符串
+        function formatDate(dateObj) {
+            const month = dateObj.getMonth() + 1;
+            const day = dateObj.getDate();
+            const weekDayChar = reverseWeekDayMap[dateObj.getDay()];
+            return `${month}月${day}日-周${weekDayChar}`;
+        }
 
         // HTML内容安全转义函数
         function escapeHtml(str) {
@@ -375,93 +396,117 @@
             return null;
         }
 
-        // 处理输入的点餐数据
+        // 处理输入的订餐数据
         function processMealData() {
             try {
                 const input = document.getElementById('mealInput').value;
-                if (!input.trim()) {
-                    showToast('请输入点餐记录', 'error');
+                const quickNumbersInput = document.getElementById('quickMealNumbers').value;
+
+                if (!input.trim() && !quickNumbersInput.trim()) {
+                    showToast('请输入订餐内容或快捷序号', 'error');
                     return;
                 }
                 
+                const owner = document.querySelector('input[name="mealOwner"]:checked').value;
                 const saveForNextWeek = document.getElementById('saveForNextWeek').checked;
                 const lines = input.split('\n').filter(line => line.trim());
                 const meals = [];
                 
-                for (let i = 0; i < lines.length; i++) {
-                    if (lines[i].includes('【') && lines[i].includes('】')) {
-                        const dateMatch = lines[i].match(/【(.+?)】/);
-                        if (dateMatch && i + 1 < lines.length) {
-                            let originalDate = dateMatch[1];
-                            const nextLine = lines[i + 1];
-                            
-                            // 改进正则表达式增强匹配能力
-                            const numberMatch = nextLine.match(/[午晚]餐(\d+)[:\s]/);
-                            const mealTime = nextLine.includes('午餐') ? '午餐' : '晚餐';
-                            
-                            if (numberMatch) {
-                                // 使用新的标准化日期函数
-                                const standardizedDate = standardizeDate(originalDate, saveForNextWeek);
+                // 1. 处理详细输入框
+                if (input.trim()) {
+                    for (let i = 0; i < lines.length; i++) {
+                        if (lines[i].includes('【') && lines[i].includes('】')) {
+                            const dateMatch = lines[i].match(/【(.+?)】/);
+                            if (dateMatch && i + 1 < lines.length) {
+                                let originalDate = dateMatch[1];
+                                const nextLine = lines[i + 1];
                                 
-                                // 验证日期格式
-                                if (!isValidDateFormat(standardizedDate)) {
-                                    console.warn('标准化后的日期格式不正确:', standardizedDate);
-                                    continue;
+                                // 改进正则表达式增强匹配能力
+                                const numberMatch = nextLine.match(/[午晚]餐(\d+)[:\s]/);
+                                const mealTime = nextLine.includes('午餐') ? '午餐' : '晚餐';
+
+                                if (owner === 'others' && mealTime === '午餐') {
+                                    continue; // 跳过他人的午餐安排
                                 }
                                 
-                                const number = numberMatch[1];
-                                // 安全获取内容，即使没有冒号也能处理
-                                const contentParts = nextLine.split(/[:\s]/).slice(1);
-                                const content = contentParts.join(' ').trim();
-                                
-                                if (!content) {
-                                    console.warn('无法解析餐点内容:', nextLine);
-                                    continue;
+                                if (numberMatch) {
+                                    // 使用新的标准化日期函数
+                                    const standardizedDate = standardizeDate(originalDate, saveForNextWeek);
+                                    
+                                    // 验证日期格式
+                                    if (!isValidDateFormat(standardizedDate)) {
+                                        console.warn('标准化后的日期格式不正确:', standardizedDate);
+                                        continue;
+                                    }
+                                    
+                                    const number = numberMatch[1];
+                                    // 安全获取内容，即使没有冒号也能处理
+                                    const contentParts = nextLine.split(/[:\s]/).slice(1);
+                                    const content = contentParts.join(' ').trim();
+                                    
+                                    if (!content) {
+                                        console.warn('无法解析餐点内容:', nextLine);
+                                        continue;
+                                    }
+                                    
+                                    // 注意：这里的重复检查只针对详细录入的内容
+                                    
+                                    meals.push(new MealArrangement(standardizedDate, mealTime, number, content, owner));
                                 }
-                                
-                                // 检查是否存在相同的记录
-                                const existingRecords = JSON.parse(localStorage.getItem('mealRecords') || '[]');
-                                const isDuplicate = existingRecords.some(record => 
-                                    record.date === standardizedDate && 
-                                    record.mealTime === mealTime && 
-                                    record.number === number
-                                );
-                                
-                                // 移除二级确认弹窗，直接添加记录（即使是重复的）
-                                // if (isDuplicate) {
-                                //     if (!confirm(`已存在相同的记录(${standardizedDate} ${mealTime}${number}号)，是否继续添加？`)) {
-                                //         continue;
-                                //     }
-                                // }
-                                
-                                meals.push(new MealRecord(standardizedDate, mealTime, number, content));
                             }
+                        }
+                    }
+                }
+
+                // 2. 处理快捷录入序号
+                if (quickNumbersInput.trim()) {
+                    const numbers = quickNumbersInput.match(/\d+/g);
+                    if (numbers && numbers.length > 0) {
+                        let startDate = new Date();
+                        startDate.setHours(0, 0, 0, 0);
+
+                        if (saveForNextWeek) {
+                            const dayOfWeek = startDate.getDay(); // 0=Sun, 1=Mon, ...
+                            const daysUntilNextMonday = (dayOfWeek === 0) ? 1 : (8 - dayOfWeek);
+                            startDate.setDate(startDate.getDate() + daysUntilNextMonday);
+                        } else {
+                            startDate.setDate(startDate.getDate() + 1); // 默认从明天开始
+                        }
+
+                        for (let i = 0; i < numbers.length; i++) {
+                            const targetDate = new Date(startDate);
+                            targetDate.setDate(startDate.getDate() + i);
+                            const formattedDate = formatDate(targetDate);
+                            const number = numbers[i];
+                            meals.push(new MealArrangement(formattedDate, '晚餐', number, '快捷录入', 'others'));
                         }
                     }
                 }
                 
                 if (meals.length === 0) {
-                    showToast('未能识别任何有效的点餐记录，请检查格式', 'error');
+                    showToast('未能识别任何有效的订餐安排，请检查格式', 'error');
                     return;
                 }
 
-                // 获取现有记录并删除过期记录
-                let existingRecords = JSON.parse(localStorage.getItem('mealRecords') || '[]');
-                existingRecords = removeExpiredRecords(existingRecords);
+                // 获取现有安排并删除过期安排
+                let existingArrangements = JSON.parse(localStorage.getItem('mealArrangements') || '[]');
                 
-                // 合并新记录
-                const allRecords = [...existingRecords, ...meals];
-                
+                // 合并新旧安排
+                const allArrangements = [...existingArrangements, ...meals];
+
+                let finalArrangements = removeExpiredArrangements(allArrangements);
+
                 // 检查数据大小，避免超出localStorage限制
                 try {
-                    const dataString = JSON.stringify(allRecords);
+                    const dataString = JSON.stringify(finalArrangements);
                     if (dataString.length > 4000000) { // 设置安全限制
-                        throw new Error("数据量过大，请清理部分历史记录");
+                        throw new Error("数据量过大，请清理部分历史安排");
                     }
-                    localStorage.setItem('mealRecords', dataString);
+                    localStorage.setItem('mealArrangements', dataString);
                     
                     // 清空输入和复选框
                     document.getElementById('mealInput').value = '';
+                    document.getElementById('quickMealNumbers').value = '';
                     document.getElementById('saveForNextWeek').checked = false;
                     
                     // 刷新显示
@@ -469,33 +514,33 @@
                     displayTodayMeals();
                     
                     // 使用非阻塞方式显示成功消息
-                    showToast(`成功添加了 ${meals.length} 条记录`, 'success');
+                    showToast(`成功添加了 ${meals.length} 条安排`, 'success');
                 } catch (e) {
                     showToast('保存失败: ' + e.message, 'error');
-                    console.error('保存记录失败', e);
+                    console.error('保存安排失败', e);
                 }
             } catch (e) {
-                showToast('处理点餐数据时出错：' + e.message, 'error');
-                console.error('处理点餐数据出错', e);
+                showToast('处理订餐数据时出错：' + e.message, 'error');
+                console.error('处理订餐数据出错', e);
             }
         }
 
-        // 删除过期记录
-        function removeExpiredRecords(records) {
+        // 删除过期安排
+        function removeExpiredArrangements(arrangements) {
             const now = new Date();
             const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
             const currentTime = now.getHours() * 60 + now.getMinutes();
             const lunchEndTime = 13 * 60; // 13:00
             const dinnerEndTime = 19 * 60 + 20; // 19:20
             
-            return records.filter(record => {
+            return arrangements.filter(arrangement => {
                 try {
                     // 尝试解析日期字符串
-                    let dateObj = parseDateString(record.date);
+                    let dateObj = parseDateString(arrangement.date);
                     
-                    // 如果无法解析日期，保留记录并记录警告
+                    // 如果无法解析日期，保留安排并记录警告
                     if (!dateObj) {
-                        console.warn('无法解析日期格式:', record.date);
+                        console.warn('无法解析日期格式:', arrangement.date);
                         return true;
                     }
                     
@@ -504,47 +549,47 @@
                         return false;
                     }
                     
-                    // 如果是今天的记录，根据时间判断
+                    // 如果是今天的安排，根据时间判断
                     if (dateObj.getTime() === today.getTime()) {
-                        if (record.mealTime === '午餐' && currentTime > lunchEndTime) {
+                        if (arrangement.mealTime === '午餐' && currentTime > lunchEndTime) {
                             return false;
                         }
-                        if (record.mealTime === '晚餐' && currentTime > dinnerEndTime) {
+                        if (arrangement.mealTime === '晚餐' && currentTime > dinnerEndTime) {
                             return false;
                         }
                     }
                     
                     return true;
                 } catch (e) {
-                    console.error('处理记录时出错:', e, record);
-                    return true; // 出错时保留记录
+                    console.error('处理安排时出错:', e, arrangement);
+                    return true; // 出错时保留安排
                 }
             });
         }
 
-        // 显示所有餐点记录，确保隐藏过期记录
+        // 显示所有订餐安排，并隐藏过期安排
         function displayMeals() {
             try {
-                let records = JSON.parse(localStorage.getItem('mealRecords') || '[]');
+                let arrangements = JSON.parse(localStorage.getItem('mealArrangements') || '[]');
                 
-                // 删除过期记录
-                const filteredRecords = removeExpiredRecords(records);
+                // 删除过期安排
+                const filteredArrangements = removeExpiredArrangements(arrangements);
                 
-                // 如果有记录被过滤掉，保存更新后的记录
-                if (filteredRecords.length !== records.length) {
-                    localStorage.setItem('mealRecords', JSON.stringify(filteredRecords));
-                    console.log(`已从历史记录中清理 ${records.length - filteredRecords.length} 条过期记录`);
+                // 如果有安排被过滤掉，保存更新后的安排
+                if (filteredArrangements.length !== arrangements.length) {
+                    localStorage.setItem('mealArrangements', JSON.stringify(filteredArrangements));
+                    console.log(`已清理 ${arrangements.length - filteredArrangements.length} 条过期安排`);
                 }
                 
-                // 使用过滤后的记录
-                records = filteredRecords;
+                // 使用过滤后的安排
+                arrangements = filteredArrangements;
                 
-                // 过滤掉今天的记录，因为它们已经在"今日餐点"部分显示了
+                // 过滤掉今天的安排，因为它们已经在"今日餐点"部分显示了
                 const todayInfo = getTodayFormats();
                 
-                records = records.filter(record => {
+                arrangements = arrangements.filter(arrangement => {
                     // 尝试解析日期
-                    const dateObj = parseDateString(record.date);
+                    const dateObj = parseDateString(arrangement.date);
                     if (!dateObj) return true; // 如果无法解析，保留
                     
                     const today = new Date(todayInfo.date.getFullYear(), todayInfo.date.getMonth(), todayInfo.date.getDate());
@@ -554,7 +599,7 @@
                 });
                 
                 // 按日期和时间排序
-                records.sort((a, b) => {
+                arrangements.sort((a, b) => {
                     // 尝试解析日期
                     const dateA = parseDateString(a.date);
                     const dateB = parseDateString(b.date);
@@ -575,38 +620,38 @@
                     return a.mealTime === '午餐' ? -1 : 1;
                 });
 
-                // 渲染历史记录
-                renderHistoryMeals(records);
+                // 渲染订餐安排
+                renderArrangements(arrangements);
             } catch (e) {
-                console.error('显示记录时出错:', e);
+                console.error('显示安排时出错:', e);
                 document.getElementById('mealHistory').innerHTML = 
                     `<div style="color: red; text-align: center; padding: 20px;">
-                        显示记录时出错: ${escapeHtml(e.message)}
+                        显示安排时出错: ${escapeHtml(e.message)}
                     </div>`;
             }
         }
 
-        // 渲染历史记录
-        function renderHistoryMeals(records) {
+        // 渲染订餐安排
+        function renderArrangements(arrangements) {
             const historyDiv = document.getElementById('mealHistory');
             historyDiv.innerHTML = '';
 
-            if (records.length === 0) {
-                historyDiv.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">暂无记录</div>';
+            if (arrangements.length === 0) {
+                historyDiv.innerHTML = '<div style="color: #666; text-align: center; padding: 20px;">暂无安排</div>';
                 return;
             }
 
             // 按日期分组
-            const recordsByDate = {};
-            records.forEach(record => {
-                if (!recordsByDate[record.date]) {
-                    recordsByDate[record.date] = [];
+            const arrangementsByDate = {};
+            arrangements.forEach(arrangement => {
+                if (!arrangementsByDate[arrangement.date]) {
+                    arrangementsByDate[arrangement.date] = [];
                 }
-                recordsByDate[record.date].push(record);
+                arrangementsByDate[arrangement.date].push(arrangement);
             });
 
             // 遍历每个日期组
-            Object.keys(recordsByDate).sort((a, b) => {
+            Object.keys(arrangementsByDate).sort((a, b) => {
                 const dateA = parseDateString(a);
                 const dateB = parseDateString(b);
                 if (dateA && dateB) {
@@ -614,7 +659,7 @@
                 }
                 return a.localeCompare(b);
             }).forEach(date => {
-                const dateRecords = recordsByDate[date];
+                const dateArrangements = arrangementsByDate[date];
                 
                 // 创建日期标题
                 const dateDiv = document.createElement('div');
@@ -641,15 +686,17 @@
                 historyDiv.appendChild(dateDiv);
                 
                 // 按餐点时间排序（午餐在前，晚餐在后）
-                dateRecords.sort((a, b) => a.mealTime === '午餐' ? -1 : 1);
+                dateArrangements.sort((a, b) => a.mealTime === '午餐' ? -1 : 1);
                 
                 // 添加该日期的所有餐点
-                dateRecords.forEach(record => {
+                dateArrangements.forEach(arrangement => {
                     const mealDiv = document.createElement('div');
                     mealDiv.className = 'meal-card';
                     mealDiv.innerHTML = `
                         <div class="meal-content">
-                            ${escapeHtml(record.mealTime)}<span class="meal-number">${escapeHtml(record.number)}</span>号: ${escapeHtml(record.content)}
+                            ${escapeHtml(arrangement.mealTime)}
+                            ${arrangement.owner === 'others' ? `<span style="color: #28a745; font-weight: bold; margin: 0 4px;">[他人]</span>` : ''}
+                            <span class="meal-number">${escapeHtml(arrangement.number)}</span>号: ${escapeHtml(arrangement.content)}
                         </div>
                     `;
                     dateDiv.appendChild(mealDiv);
@@ -660,7 +707,7 @@
         // 显示今日餐点
         function displayTodayMeals() {
             try {
-                const records = JSON.parse(localStorage.getItem('mealRecords') || '[]');
+                const arrangements = JSON.parse(localStorage.getItem('mealArrangements') || '[]');
                 const todayInfo = getTodayFormats();
                 
                 // 获取当前时间
@@ -672,22 +719,22 @@
                 const dinnerEndTime = 19 * 60 + 20; // 19:20
                 
                 // 过滤今日餐点，并根据时间判断是否显示
-                const todayMeals = records.filter(record => {
+                const todayMeals = arrangements.filter(arrangement => {
                     // 尝试解析日期
-                    const dateObj = parseDateString(record.date);
+                    const dateObj = parseDateString(arrangement.date);
                     if (!dateObj) return false; // 如果无法解析，则不显示
                     
                     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
                     
-                    // 如果不是今天的记录，则不显示
+                    // 如果不是今天的安排，则不显示
                     if (dateObj.getTime() !== today.getTime()) {
                         return false;
                     }
                     
                     // 根据时间判断是否显示
-                    if (record.mealTime === '午餐') {
+                    if (arrangement.mealTime === '午餐') {
                         return currentTime <= lunchEndTime;
-                    } else if (record.mealTime === '晚餐') {
+                    } else if (arrangement.mealTime === '晚餐') {
                         return currentTime <= dinnerEndTime;
                     }
                     
@@ -726,6 +773,7 @@
                             </div>
                             <div style="font-size: 18px; margin: 4px 0;">
                                 <span class="meal-number" style="font-size: 20px;">${escapeHtml(meal.number)}</span>号
+                                ${meal.owner === 'others' ? `<span style="color: #28a745; font-weight: normal; font-size: 14px; vertical-align: middle; margin-left: 6px;">(他人)</span>` : ''}
                             </div>
                             <div style="color: #333;">${escapeHtml(meal.content)}</div>
                         </div>
@@ -737,7 +785,7 @@
                         ${todayStr}
                         <span style="font-size: 14px; color: #666; margin-left: 8px;">${timeStr}</span>
                     </div>
-                    <div style="color: #666; margin-top: 8px;">今日暂无点餐记录</div>
+                    <div style="color: #666; margin-top: 8px;">今日暂无订餐安排</div>
                 `;
             }
         }
@@ -754,11 +802,11 @@
         function clearData() {
             try {
                 // 移除确认对话框，直接执行清除操作
-                // if (confirm('确定要清除所有记录吗？此操作不可恢复！')) {
-                localStorage.removeItem('mealRecords');
+                // if (confirm('确定要清除所有安排吗？此操作不可恢复！')) {
+                localStorage.removeItem('mealArrangements');
                 displayMeals();
                 displayTodayMeals();
-                showToast('已清除所有记录', 'success');
+                showToast('已清除所有安排', 'success');
                 // }
             } catch (e) {
                 showToast('清除数据时出错: ' + e.message, 'error');

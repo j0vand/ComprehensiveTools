@@ -91,6 +91,68 @@
     }
 }
 
+/* 批次表单样式 */
+.batch-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+}
+
+.batches-container {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-md);
+    margin-bottom: var(--spacing-sm);
+}
+
+.batch-item-form {
+    border: 1px solid var(--divider-color);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+    background-color: rgba(0, 0, 0, 0.02);
+    position: relative;
+}
+
+.batch-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 1px solid var(--divider-color);
+}
+
+.batch-number {
+    font-weight: 600;
+    color: var(--primary-color);
+    font-size: var(--font-size-medium);
+}
+
+.batch-remove-btn {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background-color: rgba(244, 67, 54, 0.1);
+    color: var(--error-color);
+    border: 1px solid rgba(244, 67, 54, 0.3);
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: var(--font-size-small);
+    transition: all var(--transition-fast);
+}
+
+.batch-remove-btn:hover {
+    background-color: rgba(244, 67, 54, 0.2);
+    border-color: var(--error-color);
+}
+
+.batch-item-form:first-child .batch-remove-btn {
+    display: none !important;
+}
+
+.batch-item-form:only-child .batch-remove-btn {
+    display: none !important;
+}
+
 /* 表单样式 */
 .form {
     width: 100%;
