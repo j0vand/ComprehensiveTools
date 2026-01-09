@@ -1,0 +1,277 @@
+/* 全局样式 */
+:root {
+    --primary-color: #0d6efd;
+    --success-color: #198754;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --light-bg: #f8f9fa;
+    --border-color: #dee2e6;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background-color: var(--light-bg);
+    padding-bottom: 120px;
+}
+
+/* 底部固定操作区 */
+.fixed-bottom-actions {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    padding: 15px 0;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    z-index: 1000;
+}
+
+/* 训练执行界面样式 */
+.training-header {
+    background: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#exerciseName {
+    font-size: 1.8rem;
+    font-weight: bold;
+    color: #333;
+}
+
+.training-main {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+/* 计时器圆环样式 */
+.timer-circle {
+    width: 280px;
+    height: 280px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.progress-ring {
+    transform: rotate(-90deg);
+    display: block;
+}
+
+.progress-ring-bg {
+    fill: none;
+    stroke: rgba(255,255,255,0.2);
+    stroke-width: 12;
+}
+
+.progress-ring-circle {
+    fill: none;
+    stroke: white;
+    stroke-width: 12;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s linear;
+}
+
+.timer-text {
+    text-align: center;
+    pointer-events: none;
+}
+
+.timer-number {
+    font-size: 5rem;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.timer-unit {
+    font-size: 1.5rem;
+    opacity: 0.9;
+    margin-top: 0.5rem;
+}
+
+.status-text {
+    font-size: 1.5rem;
+    font-weight: 500;
+    opacity: 0.95;
+}
+
+/* 次数显示样式 */
+.reps-container {
+    padding: 2rem;
+}
+
+.reps-number {
+    font-size: 8rem;
+    font-weight: bold;
+    line-height: 1;
+}
+
+.reps-unit {
+    font-size: 2rem;
+    opacity: 0.9;
+    margin-top: 1rem;
+}
+
+.reps-status {
+    font-size: 1.3rem;
+    opacity: 0.9;
+}
+
+/* 动作说明 */
+.exercise-description {
+    background: white;
+    min-height: 60px;
+}
+
+.exercise-description p {
+    font-size: 1.1rem;
+    margin: 0;
+}
+
+/* 训练控制按钮 */
+.training-controls {
+    background: white;
+    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+}
+
+.training-controls .btn-lg {
+    padding: 1rem;
+    font-size: 1.2rem;
+}
+
+/* 响应式设计 */
+@media (max-width: 576px) {
+    body {
+        padding-bottom: 100px;
+    }
+
+    #exerciseName {
+        font-size: 1.5rem;
+    }
+    
+    .timer-circle {
+        width: 240px;
+        height: 240px;
+    }
+    
+    .progress-ring {
+        width: 240px;
+        height: 240px;
+    }
+    
+    .progress-ring-bg,
+    .progress-ring-circle {
+        cx: 120;
+        cy: 120;
+        r: 100;
+    }
+    
+    .timer-number {
+        font-size: 4rem;
+    }
+    
+    .reps-number {
+        font-size: 6rem;
+    }
+
+    .training-header h2 {
+        font-size: 1.5rem;
+    }
+
+    .training-header .text-muted {
+        font-size: 0.9rem;
+    }
+}
+
+@media (max-width: 380px) {
+    .timer-circle {
+        width: 200px;
+        height: 200px;
+    }
+    
+    .progress-ring {
+        width: 200px;
+        height: 200px;
+    }
+    
+    .progress-ring-bg,
+    .progress-ring-circle {
+        cx: 100;
+        cy: 100;
+        r: 85;
+    }
+    
+    .timer-number {
+        font-size: 3.5rem;
+    }
+    
+    .reps-number {
+        font-size: 5rem;
+    }
+}
+
+/* 按钮样式增强 */
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    /* 移动端优化 */
+    touch-action: manipulation; /* 禁用双击缩放 */
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1); /* 点击高亮 */
+    user-select: none; /* 防止文本选择 */
+    -webkit-user-select: none;
+    cursor: pointer;
+}
+
+.btn:active {
+    transform: scale(0.98);
+    opacity: 0.8;
+}
+
+/* 触摸友好 */
+@media (hover: none) and (pointer: coarse) {
+    .btn {
+        min-height: 44px;
+        padding: 0.75rem 1.25rem;
+    }
+    
+    /* 确保所有可点击元素都有足够大的触摸区域 */
+    button, a, select, input[type="file"] {
+        min-height: 44px;
+        touch-action: manipulation;
+    }
+}
+
+/* 移动端按钮点击反馈 */
+@media (max-width: 768px) {
+    .btn:active {
+        background-color: rgba(0, 0, 0, 0.1);
+    }
+    
+    /* 防止移动端双击缩放 */
+    * {
+        touch-action: manipulation;
+    }
+    
+    /* 确保模态框按钮可点击 */
+    .modal .btn {
+        min-height: 44px;
+    }
+}
+
+/* 加载动画 */
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.pulse {
+    animation: pulse 2s ease-in-out infinite;
+}

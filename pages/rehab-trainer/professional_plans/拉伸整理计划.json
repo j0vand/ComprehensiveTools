@@ -1,0 +1,41 @@
+{
+  "version": "1.0",
+  "exportTime": "2026-01-09T08:00:00.000Z",
+  "data": {
+    "plans": [
+      {
+        "id": "cooldown_stretch",
+        "name": "🧘 拉伸整理计划（训练后）",
+        "createdAt": "2026-01-09T08:00:00.000Z",
+        "exercises": [
+          {
+            "id": "cd_ex01",
+            "name": "猫牛式",
+            "type": "reps",
+            "reps": 10,
+            "sets": 1,
+            "setRest": 0,
+            "description": "四足跪姿。吸气塌腰抬头（牛式，看天花板），呼气拱背低头（猫式，看肚子）。温和地活动整个脊柱。\n\n【作用】帮助肌肉恢复弹性，缓解训练后的紧张。\n【要点】动作流畅配合呼吸，一呼一吸为1次。\n【感觉】应该感到脊柱被'按摩'，很舒服。",
+            "createdAt": "2026-01-09T08:00:00.000Z"
+          },
+          {
+            "id": "cd_ex02",
+            "name": "仰卧抱膝（双侧）",
+            "type": "duration",
+            "duration": 25,
+            "sets": 3,
+            "setRest": 20,
+            "description": "平躺，双腿弯曲，双手抱膝轻柔拉向胸口，感受下背部和臀部温和拉伸。\n\n【要点】拉伸应温和，感觉'有拉伸感'即可，不应疼痛。\n【呼吸】保持深长平稳的呼吸，呼气时可轻微加深拉伸。\n【作用】放松下背部，缓解训练后的紧张。\n【时机】训练后或感到腰部僵硬时。",
+            "createdAt": "2026-01-09T08:00:00.000Z"
+          }
+        ]
+      }
+    ],
+    "activePlanId": "cooldown_stretch",
+    "settings": {
+      "voiceRate": 1.0,
+      "voiceVolume": 1.0,
+      "prepareTime": 5
+    }
+  }
+}

@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
+    <title>腰突康复训练</title>
+    
+    <!-- 设置基础路径，确保相对路径正确解析 -->
+    <script>
+        (function() {
+            // 获取当前HTML文件的目录路径
+            var currentScript = document.currentScript;
+            var basePath = '';
+            
+            // 方法1: 从location.pathname获取
+            if (window.location.pathname) {
+                var pathParts = window.location.pathname.split('/');
+                pathParts.pop(); // 移除文件名
+                basePath = pathParts.join('/') + '/';
+            }
+            
+            // 方法2: 如果方法1失败，尝试从document.URL获取
+            if (!basePath || basePath === '/') {
+                try {
+                    var url = new URL(window.location.href);
+                    var pathname = url.pathname;
+                    var lastSlash = pathname.lastIndexOf('/');
+                    if (lastSlash !== -1) {
+                        basePath = pathname.substring(0, lastSlash + 1);
+                    }
+                } catch(e) {
+                    // file://协议可能不支持URL对象
+                    var href = window.location.href;
+                    var lastSlash = href.lastIndexOf('/');
+                    if (lastSlash !== -1) {
+                        basePath = href.substring(0, lastSlash + 1);
+                    }
+                }
+            }
+            
+            // 创建base标签
+            var baseTag = document.createElement('base');
+            baseTag.href = basePath || './';
+            document.head.insertBefore(baseTag, document.head.firstChild);
+            
+            console.log('[路径修复] 基础路径设置为:', baseTag.href);
+            console.log('[路径修复] 当前页面URL:', window.location.href);
+            console.log('[路径修复] 当前页面路径:', window.location.pathname);
+        })();
+    </script>
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/cards.css">
+    <link rel="stylesheet" href="css/modal.css">
+</head>
+<body>
+    <!-- 如果JavaScript被禁用，显示提示 -->
+    <noscript>
+        <div style="position: fixed; top: 0; left: 0; right: 0; background: #dc3545; color: white; padding: 20px; text-align: center; z-index: 99999; font-size: 16px;">
+            ⚠️ 此应用需要JavaScript才能运行！<br>
+            请启用浏览器的JavaScript功能。
+        </div>
+    </noscript>
+    
+    <!-- 主界面 -->
+    <div id="mainView" class="container py-4">
+        <!-- 顶部导航 -->
+        <header class="mb-4">
+            <h1 class="text-center mb-3">
+                <i class="bi bi-heart-pulse text-danger"></i>
+                腰突康复训练
+            </h1>
+        </header>
+
+        <!-- 计划选择区 -->
+        <div class="card mb-4">
+            <div class="card-body">
+                <div class="row align-items-center mb-3">
+                    <div class="col-8">
+                        <label for="planSelect" class="form-label mb-2">当前计划</label>
+                        <select id="planSelect" class="form-select">
+                            <option value="">请选择训练计划</option>
+                        </select>
+                    </div>
+                    <div class="col-4 text-end">
+                        <button id="newPlanBtn" class="btn btn-outline-primary btn-sm mt-4">
+                            <i class="bi bi-plus-circle"></i> 新建计划
+                        </button>
+                    </div>
+                </div>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <button id="exportBtn" class="btn btn-outline-success btn-sm w-100">
+                            <i class="bi bi-download"></i> 导出数据
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button id="importBtn" class="btn btn-outline-info btn-sm w-100">
+                            <i class="bi bi-upload"></i> 导入数据
+                        </button>
+                        <input type="file" id="importFile" accept=".json" style="display: none;">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 训练项列表 -->
+        <div id="exerciseList" class="mb-4">
+            <!-- 动态生成训练项卡片 -->
+        </div>
+
+        <!-- 空状态提示 -->
+        <div id="emptyState" class="text-center py-5" style="display: none;">
+            <i class="bi bi-inbox text-muted" style="font-size: 4rem;"></i>
+            <p class="text-muted mt-3">还没有训练项，点击下方按钮添加</p>
+        </div>
+
+        <!-- 底部操作按钮 -->
+        <div class="fixed-bottom-actions">
+            <div class="container">
+                <div class="row g-2">
+                    <div class="col-6">
+                        <button id="addExerciseBtn" class="btn btn-outline-primary w-100">
+                            <i class="bi bi-plus-lg"></i> 添加训练项
+                        </button>
+                    </div>
+                    <div class="col-6">
+                        <button id="startTrainingBtn" class="btn btn-success w-100" disabled>
+                            <i class="bi bi-play-fill"></i> 开始训练
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 训练执行界面 -->
+    <div id="trainingView" class="container-fluid vh-100 d-flex flex-column" style="display: none;">
+        <!-- 顶部进度信息 -->
+        <div class="training-header text-center py-3">
+            <h2 id="exerciseName" class="mb-2">平板支撑</h2>
+            <div class="text-muted">
+                <span id="exerciseProgress">第1个/共5个</span>
+                <span class="mx-2">|</span>
+                <span id="setProgress">第1组/共3组</span>
+            </div>
+        </div>
+
+        <!-- 中央显示区 -->
+        <div class="training-main flex-grow-1 d-flex flex-column align-items-center justify-content-center">
+            <!-- 持续时间型显示 -->
+            <div id="durationDisplay" style="display: none;">
+                <div class="timer-circle mb-3 position-relative">
+                    <svg class="progress-ring" width="280" height="280">
+                        <circle class="progress-ring-bg" cx="140" cy="140" r="120" />
+                        <circle id="progressCircle" class="progress-ring-circle" cx="140" cy="140" r="120" />
+                    </svg>
+                    <div class="timer-text position-absolute top-50 start-50 translate-middle">
+                        <div id="timerDisplay" class="timer-number">30</div>
+                        <div class="timer-unit">秒</div>
+                    </div>
+                </div>
+                <div id="statusText" class="status-text text-center">准备中</div>
+            </div>
+
+            <!-- 次数型显示 -->
+            <div id="repsDisplay" style="display: none;">
+                <div class="reps-container text-center">
+                    <div id="repsNumber" class="reps-number">10</div>
+                    <div class="reps-unit">次</div>
+                    <div id="repsStatus" class="reps-status mt-3">请按自己的节奏完成</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 动作说明 -->
+        <div class="exercise-description text-center px-4 py-3">
+            <p id="exerciseDescription" class="text-muted mb-0">保持身体成一条直线，收紧核心</p>
+        </div>
+
+        <!-- 底部控制按钮 -->
+        <div class="training-controls pb-4">
+            <div class="container">
+                <!-- 持续时间型按钮 -->
+                <div id="durationControls" style="display: none;">
+                    <div class="d-grid gap-2">
+                        <button id="pauseBtn" class="btn btn-warning btn-lg">
+                            <i class="bi bi-pause-fill"></i> 暂停
+                        </button>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <button id="skipBtn" class="btn btn-outline-secondary w-100">
+                                    <i class="bi bi-skip-forward"></i> 跳过
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button id="stopBtn" class="btn btn-outline-danger w-100">
+                                    <i class="bi bi-stop-fill"></i> 结束
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 次数型按钮 -->
+                <div id="repsControls" style="display: none;">
+                    <div class="d-grid gap-2">
+                        <button id="completeSetBtn" class="btn btn-success btn-lg">
+                            <i class="bi bi-check-circle-fill"></i> 完成一组
+                        </button>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <button id="skipRepsBtn" class="btn btn-outline-secondary w-100">
+                                    <i class="bi bi-skip-forward"></i> 跳过
+                                </button>
+                            </div>
+                            <div class="col-6">
+                                <button id="stopRepsBtn" class="btn btn-outline-danger w-100">
+                                    <i class="bi bi-stop-fill"></i> 结束
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新建/编辑计划弹窗 -->
+    <div class="modal fade" id="planModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="planModalTitle">新建训练计划</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="planForm">
+                        <div class="mb-3">
+                            <label for="planName" class="form-label">计划名称</label>
+                            <input type="text" class="form-control" id="planName" required placeholder="例如：第一阶段">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="savePlanBtn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑训练项弹窗 -->
+    <div class="modal fade" id="exerciseModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exerciseModalTitle">添加训练项</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="exerciseForm">
+                        <div class="mb-3">
+                            <label for="exerciseName" class="form-label">训练项名称</label>
+                            <input type="text" class="form-control" id="exerciseNameInput" required placeholder="例如：平板支撑">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">训练类型</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="exerciseType" id="typeDuration" value="duration" checked>
+                                <label class="btn btn-outline-primary" for="typeDuration">持续时间型</label>
+                                
+                                <input type="radio" class="btn-check" name="exerciseType" id="typeReps" value="reps">
+                                <label class="btn btn-outline-primary" for="typeReps">次数型</label>
+                            </div>
+                        </div>
+
+                        <!-- 持续时间型配置 -->
+                        <div id="durationConfig">
+                            <div class="mb-3">
+                                <label for="duration" class="form-label">坚持时间（秒）</label>
+                                <input type="number" class="form-control" id="duration" min="1" value="30">
+                            </div>
+                        </div>
+
+                        <!-- 次数型配置 -->
+                        <div id="repsConfig" style="display: none;">
+                            <div class="mb-3">
+                                <label for="reps" class="form-label">每组次数</label>
+                                <input type="number" class="form-control" id="reps" min="1" value="10">
+                            </div>
+                        </div>
+
+                        <!-- 共同配置 -->
+                        <div class="mb-3">
+                            <label for="sets" class="form-label">组数</label>
+                            <input type="number" class="form-control" id="sets" min="1" value="3">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="setRest" class="form-label">组间休息（秒）</label>
+                            <input type="number" class="form-control" id="setRest" min="0" value="60">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">动作说明</label>
+                            <textarea class="form-control" id="description" rows="3" placeholder="描述动作要领"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" id="saveExerciseBtn">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认删除弹窗 -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">确认删除</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="deleteMessage">确定要删除这个项目吗？</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">确定删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 调试面板 -->
+    <div id="debugPanel" style="display: none; position: fixed; top: 10px; left: 10px; right: 10px; bottom: 10px; background: rgba(0,0,0,0.95); color: white; padding: 15px; border-radius: 8px; z-index: 10000; font-size: 12px; font-family: monospace; overflow: hidden; display: flex; flex-direction: column;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-shrink: 0;">
+            <h6 style="margin: 0; color: #ffc107;">🔍 调试面板</h6>
+            <button id="closeDebugBtn" style="background: #dc3545; color: white; border: none; padding: 8px 15px; border-radius: 4px; cursor: pointer; min-height: 44px; touch-action: manipulation;">关闭</button>
+        </div>
+        <div id="debugContent" style="flex: 1; overflow-y: auto; margin-bottom: 10px; padding: 10px; background: rgba(255,255,255,0.1); border-radius: 4px;"></div>
+        <div style="display: flex; gap: 10px; flex-shrink: 0;">
+            <button id="testBtn" style="background: #28a745; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; min-height: 44px; touch-action: manipulation; flex: 1;">测试按钮</button>
+            <button id="clearDebugBtn" style="background: #6c757d; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; min-height: 44px; touch-action: manipulation; flex: 1;">清空日志</button>
+        </div>
+    </div>
+
+    <!-- 调试按钮（点击3次显示调试面板） -->
+    <div id="debugTrigger" style="position: fixed; bottom: 70px; left: 10px; width: 50px; height: 50px; background: rgba(0,0,0,0.7); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 24px; z-index: 9999; cursor: pointer; user-select: none; touch-action: manipulation; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">
+        🐛
+    </div>
+
+    <!-- 最基础的错误显示区域（不依赖JavaScript） -->
+    <div id="basicErrorDisplay" style="position: fixed; top: 0; left: 0; right: 0; background: #dc3545; color: white; padding: 15px; z-index: 99999; display: none; font-size: 14px; line-height: 1.5;">
+        <div style="font-weight: bold; margin-bottom: 5px;">⚠️ JavaScript加载错误</div>
+        <div id="basicErrorContent"></div>
+    </div>
+
+    <script>
+        // 立即执行的调试代码（不等待任何事件）
+        (function() {
+            try {
+                // 创建错误显示函数（立即可用）
+                window.showBasicError = function(message) {
+                    var errorDiv = document.getElementById('basicErrorDisplay');
+                    var errorContent = document.getElementById('basicErrorContent');
+                    if (errorDiv && errorContent) {
+                        errorContent.textContent = message;
+                        errorDiv.style.display = 'block';
+                    }
+                    // 同时尝试console输出
+                    try {
+                        console.error('[基础错误]', message);
+                    } catch(e) {}
+                };
+
+                // 立即显示页面已加载
+                window.showBasicError('页面HTML已加载，正在加载JavaScript...');
+                
+                // 记录开始时间
+                window.pageLoadStart = Date.now();
+                
+            } catch(e) {
+                // 如果连这个都执行不了，说明有严重问题
+                alert('页面初始化失败: ' + (e.message || '未知错误'));
+            }
+        })();
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 检测Bootstrap是否加载
+        (function() {
+            try {
+                if (typeof bootstrap === 'undefined') {
+                    window.showBasicError && window.showBasicError('Bootstrap未加载（可能是网络问题）');
+                } else {
+                    console.log('[调试] Bootstrap加载成功');
+                }
+            } catch(e) {
+                window.showBasicError && window.showBasicError('Bootstrap加载检测失败: ' + e.message);
+            }
+        })();
+
+        // 调试工具
+        window.debugLog = [];
+        window.addDebugLog = function(type, message, data) {
+            try {
+                const log = {
+                    time: new Date().toLocaleTimeString(),
+                    type: type, // 'info', 'error', 'success', 'warning'
+                    message: message,
+                    data: data
+                };
+                window.debugLog.push(log);
+                console.log(`[${log.time}] [${type.toUpperCase()}] ${message}`, data || '');
+                updateDebugPanel();
+            } catch(e) {
+                // 如果调试工具本身出错，至少显示基础错误
+                window.showBasicError && window.showBasicError('调试工具错误: ' + e.message);
+            }
+        };
+
+        function updateDebugPanel() {
+            const panel = document.getElementById('debugContent');
+            if (!panel) return;
+            
+            const logs = window.debugLog.slice(-50); // 只显示最近50条
+            panel.innerHTML = logs.map(log => {
+                const color = {
+                    'info': '#17a2b8',
+                    'error': '#dc3545',
+                    'success': '#28a745',
+                    'warning': '#ffc107'
+                }[log.type] || '#6c757d';
+                return `<div style="color: ${color}; margin-bottom: 5px;">
+                    <strong>[${log.time}]</strong> ${log.message}
+                    ${log.data ? '<br><span style="color: #999; font-size: 10px;">' + JSON.stringify(log.data, null, 2) + '</span>' : ''}
+                </div>`;
+            }).join('');
+            panel.scrollTop = panel.scrollHeight;
+        }
+
+        // 初始化调试面板
+        document.addEventListener('DOMContentLoaded', function() {
+            // 检测Bootstrap是否加载成功
+            window.addEventListener('load', function() {
+                if (typeof bootstrap === 'undefined') {
+                    window.addDebugLog('error', 'Bootstrap未加载，请检查网络连接');
+                    const errorDiv = document.createElement('div');
+                    errorDiv.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#dc3545;color:white;padding:10px;text-align:center;z-index:99999;';
+                    errorDiv.textContent = '⚠️ Bootstrap资源加载失败，部分功能可能无法使用。请检查网络连接或使用在线环境。';
+                    document.body.insertBefore(errorDiv, document.body.firstChild);
+                } else {
+                    window.addDebugLog('success', 'Bootstrap加载成功');
+                }
+            });
+
+            // 调试面板控制
+            const debugTrigger = document.getElementById('debugTrigger');
+            const debugPanel = document.getElementById('debugPanel');
+            const closeDebugBtn = document.getElementById('closeDebugBtn');
+            const testBtn = document.getElementById('testBtn');
+            const clearDebugBtn = document.getElementById('clearDebugBtn');
+
+            // 点击3次显示调试面板
+            let clickCount = 0;
+            let clickTimer = null;
+
+            function handleDebugTrigger() {
+                clickCount++;
+                window.addDebugLog && window.addDebugLog('info', `调试按钮被点击 (${clickCount}/3)`);
+                
+                if (clickTimer) {
+                    clearTimeout(clickTimer);
+                }
+                
+                clickTimer = setTimeout(function() {
+                    clickCount = 0;
+                }, 2000);
+                
+                if (clickCount >= 3) {
+                    debugPanel.style.display = 'flex';
+                    window.addDebugLog && window.addDebugLog('success', '调试面板已打开');
+                    clickCount = 0;
+                }
+            }
+
+            debugTrigger.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDebugTrigger();
+            }, { passive: false });
+
+            debugTrigger.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                handleDebugTrigger();
+            });
+
+            // 为调试面板按钮添加触摸事件
+            function addDebugButtonEvents(btn, handler) {
+                btn.addEventListener('touchstart', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handler();
+                }, { passive: false });
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handler();
+                });
+            }
+
+            addDebugButtonEvents(closeDebugBtn, function() {
+                debugPanel.style.display = 'none';
+                window.addDebugLog && window.addDebugLog('info', '调试面板已关闭');
+            });
+
+            addDebugButtonEvents(testBtn, function() {
+                window.addDebugLog && window.addDebugLog('info', '测试按钮被点击');
+                testAllButtons();
+            });
+
+            addDebugButtonEvents(clearDebugBtn, function() {
+                window.debugLog = [];
+                updateDebugPanel();
+                window.addDebugLog && window.addDebugLog('info', '日志已清空');
+            });
+
+            // 测试所有按钮
+            function testAllButtons() {
+                const buttons = [
+                    'newPlanBtn', 'exportBtn', 'importBtn', 'addExerciseBtn', 
+                    'startTrainingBtn', 'savePlanBtn', 'saveExerciseBtn'
+                ];
+                
+                buttons.forEach(btnId => {
+                    const btn = document.getElementById(btnId);
+                    if (btn) {
+                        window.addDebugLog('success', `按钮 ${btnId} 存在`, {
+                            text: btn.textContent.trim(),
+                            disabled: btn.disabled
+                        });
+                    } else {
+                        window.addDebugLog('error', `按钮 ${btnId} 不存在`);
+                    }
+                });
+            }
+
+            // 收集设备信息
+            window.addDebugLog('info', '设备信息', {
+                userAgent: navigator.userAgent,
+                isMobile: 'ontouchstart' in window || navigator.maxTouchPoints > 0,
+                platform: navigator.platform,
+                language: navigator.language,
+                screen: {
+                    width: window.screen.width,
+                    height: window.screen.height
+                },
+                viewport: {
+                    width: window.innerWidth,
+                    height: window.innerHeight
+                }
+            });
+            
+            // 添加路径诊断信息到调试面板
+            window.addDebugLog('info', '路径诊断', {
+                '当前页面URL': window.location.href,
+                '基础路径': window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1),
+                '协议': window.location.protocol,
+                '主机': window.location.host || '本地文件',
+                '预期JS路径': 'js/storage.js, js/audio.js, js/timer.js, js/main.js'
+            });
+            
+            // 测试所有JS文件路径
+            setTimeout(function() {
+                var jsFiles = ['js/storage.js', 'js/audio.js', 'js/timer.js', 'js/main.js'];
+                jsFiles.forEach(function(filePath) {
+                    window.testFileExists(filePath).then(function(exists) {
+                        window.addDebugLog(exists ? 'success' : 'error', 
+                            '文件路径检测: ' + filePath, 
+                            { exists: exists, fullPath: window.location.href.replace(/[^/]*$/, '') + filePath }
+                        );
+                    });
+                });
+            }, 1000);
+        });
+    </script>
+    <script>
+        // 路径检测和诊断工具
+        window.pathDiagnostics = {
+            currentPath: window.location.href,
+            basePath: window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1),
+            protocol: window.location.protocol,
+            host: window.location.host
+        };
+        
+        // 显示路径信息
+        console.log('[路径诊断]', {
+            '当前页面URL': window.pathDiagnostics.currentPath,
+            '基础路径': window.pathDiagnostics.basePath,
+            '协议': window.pathDiagnostics.protocol,
+            '主机': window.pathDiagnostics.host || '本地文件'
+        });
+        
+        // 检测文件是否存在
+        window.testFileExists = function(filePath) {
+            return new Promise(function(resolve) {
+                var xhr = new XMLHttpRequest();
+                xhr.open('HEAD', filePath, true);
+                xhr.onload = function() {
+                    resolve(xhr.status === 200 || xhr.status === 0); // 0表示file://协议
+                };
+                xhr.onerror = function() {
+                    resolve(false);
+                };
+                xhr.send();
+            });
+        };
+        
+        // 在每个JS文件加载前后都添加检测
+        window.jsFilesStatus = {};
+        window.checkJSFile = function(filename, status) {
+            window.jsFilesStatus[filename] = status;
+            var filePath = 'js/' + filename;
+            var msg = filename + (status ? ' 加载成功' : ' 加载失败');
+            console.log('[文件检测]', msg, '路径: ' + filePath);
+            window.addDebugLog && window.addDebugLog(status ? 'success' : 'error', msg, {
+                path: filePath,
+                fullPath: window.pathDiagnostics.basePath + filePath
+            });
+            
+            if (!status) {
+                // 测试文件是否存在
+                window.testFileExists(filePath).then(function(exists) {
+                    var errorMsg = '文件加载失败: ' + filename + '\n';
+                    errorMsg += '尝试路径: ' + filePath + '\n';
+                    errorMsg += '完整路径: ' + window.pathDiagnostics.basePath + filePath + '\n';
+                    errorMsg += '文件存在: ' + (exists ? '是' : '否') + '\n';
+                    errorMsg += '当前协议: ' + window.pathDiagnostics.protocol + '\n\n';
+                    
+                    if (!exists) {
+                        errorMsg += '可能原因：\n';
+                        errorMsg += '1. 文件路径不正确\n';
+                        errorMsg += '2. 文件不存在\n';
+                        errorMsg += '3. 文件权限问题\n';
+                        if (window.pathDiagnostics.protocol === 'file:') {
+                            errorMsg += '\n提示：使用file://协议时，确保所有文件在同一文件夹下';
+                        }
+                    } else {
+                        errorMsg += '文件存在但无法加载，可能是：\n';
+                        errorMsg += '1. JavaScript语法错误\n';
+                        errorMsg += '2. 文件编码问题\n';
+                        errorMsg += '3. 浏览器安全限制';
+                    }
+                    
+                    window.showBasicError && window.showBasicError(errorMsg);
+                });
+            }
+        };
+        
+        // 显示路径诊断信息
+        window.addDebugLog && window.addDebugLog('info', '路径诊断信息', window.pathDiagnostics);
+    </script>
+    
+    <script>
+        // 路径修复：获取正确的JS文件路径
+        (function() {
+            function getCorrectJSPath(filename) {
+                // 获取当前HTML文件的目录
+                var htmlPath = window.location.href;
+                var htmlDir = htmlPath.substring(0, htmlPath.lastIndexOf('/') + 1);
+                
+                // 构建JS文件路径
+                var jsPath = htmlDir + 'js/' + filename;
+                
+                console.log('[路径修复] HTML目录:', htmlDir);
+                console.log('[路径修复] JS文件路径:', jsPath);
+                
+                return jsPath;
+            }
+            
+            // 动态加载JS文件
+            function loadScript(filename, callback) {
+                var script = document.createElement('script');
+                script.type = 'text/javascript';
+                
+                // 使用绝对路径
+                var jsPath = getCorrectJSPath(filename);
+                script.src = jsPath;
+                
+                script.onload = function() {
+                    console.log('[成功] 加载:', filename, '从路径:', jsPath);
+                    window.checkJSFile && window.checkJSFile(filename, true);
+                    callback && callback(true);
+                };
+                
+                script.onerror = function() {
+                    console.error('[失败] 无法加载:', filename, '路径:', jsPath);
+                    window.checkJSFile && window.checkJSFile(filename, false);
+                    
+                    // 尝试相对路径作为备用
+                    var fallbackPath = 'js/' + filename;
+                    console.log('[备用] 尝试相对路径:', fallbackPath);
+                    
+                    var fallbackScript = document.createElement('script');
+                    fallbackScript.type = 'text/javascript';
+                    fallbackScript.src = fallbackPath;
+                    fallbackScript.onload = function() {
+                        console.log('[成功] 备用路径加载成功:', filename);
+                        window.checkJSFile && window.checkJSFile(filename, true);
+                        callback && callback(true);
+                    };
+                    fallbackScript.onerror = function() {
+                        console.error('[失败] 备用路径也失败:', filename);
+                        callback && callback(false);
+                    };
+                    document.head.appendChild(fallbackScript);
+                };
+                
+                document.head.appendChild(script);
+            }
+            
+            // 依次加载所有JS文件
+            var jsFiles = ['storage.js', 'audio.js', 'timer.js', 'main.js'];
+            var loadedCount = 0;
+            
+            function loadNext(index) {
+                if (index >= jsFiles.length) {
+                    // 所有文件加载完成，检查是否都成功
+                    setTimeout(function() {
+                        var allLoaded = true;
+                        var failedFiles = [];
+                        
+                        if (typeof StorageManager === 'undefined') {
+                            allLoaded = false;
+                            failedFiles.push('storage.js');
+                        }
+                        if (typeof VoiceManager === 'undefined') {
+                            allLoaded = false;
+                            failedFiles.push('audio.js');
+                        }
+                        if (typeof TrainingTimer === 'undefined') {
+                            allLoaded = false;
+                            failedFiles.push('timer.js');
+                        }
+                        if (typeof RehabTrainerApp === 'undefined') {
+                            allLoaded = false;
+                            failedFiles.push('main.js');
+                        }
+                        
+                        if (!allLoaded) {
+                            var errorMsg = '以下JavaScript文件加载失败：\n' + failedFiles.join('\n') + 
+                                         '\n\n当前页面路径：' + window.location.href +
+                                         '\n\n请确保：\n1. HTML文件和js文件夹在同一目录下\n2. js文件夹下有所有.js文件\n3. 文件结构正确';
+                            window.showBasicError && window.showBasicError(errorMsg);
+                            console.error('[严重错误]', errorMsg);
+                        } else {
+                            console.log('[成功] 所有JavaScript文件加载成功');
+                            var errorDiv = document.getElementById('basicErrorDisplay');
+                            if (errorDiv) {
+                                errorDiv.style.display = 'none';
+                            }
+                        }
+                    }, 500);
+                    return;
+                }
+                
+                loadScript(jsFiles[index], function(success) {
+                    loadedCount++;
+                    // 延迟加载下一个，避免并发问题
+                    setTimeout(function() {
+                        loadNext(index + 1);
+                    }, 50);
+                });
+            }
+            
+            // 开始加载
+            loadNext(0);
+        })();
+    </script>
+    
+    <script>
+        // 最终检测：所有文件加载完成后
+        setTimeout(function() {
+            var allLoaded = true;
+            var failedFiles = [];
+            
+            if (typeof StorageManager === 'undefined') {
+                allLoaded = false;
+                failedFiles.push('storage.js');
+            }
+            if (typeof VoiceManager === 'undefined') {
+                allLoaded = false;
+                failedFiles.push('audio.js');
+            }
+            if (typeof TrainingTimer === 'undefined') {
+                allLoaded = false;
+                failedFiles.push('timer.js');
+            }
+            if (typeof RehabTrainerApp === 'undefined') {
+                allLoaded = false;
+                failedFiles.push('main.js');
+            }
+            
+            if (!allLoaded) {
+                var errorMsg = '以下JavaScript文件加载失败：\n' + failedFiles.join('\n') + '\n\n请检查：\n1. 文件是否存在于 js/ 文件夹下\n2. 文件路径是否正确\n3. 文件是否有语法错误';
+                window.showBasicError && window.showBasicError(errorMsg);
+                console.error('[严重错误]', errorMsg);
+            } else {
+                console.log('[调试] 所有JavaScript文件加载成功');
+                // 隐藏基础错误提示
+                var errorDiv = document.getElementById('basicErrorDisplay');
+                if (errorDiv) {
+                    errorDiv.style.display = 'none';
+                }
+            }
+        }, 500);
+    </script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+/* 训练项卡片样式 */
+.exercise-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 1rem;
+    padding: 1rem;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.exercise-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.exercise-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 0.75rem;
+}
+
+.exercise-card-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #333;
+    margin: 0;
+    flex: 1;
+}
+
+.exercise-card-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.card-action-btn {
+    background: none;
+    border: none;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    color: #6c757d;
+    font-size: 1.1rem;
+    transition: color 0.2s ease;
+}
+
+.card-action-btn:hover {
+    color: #0d6efd;
+}
+
+.card-action-btn.delete:hover {
+    color: #dc3545;
+}
+
+.exercise-card-type {
+    display: inline-block;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+}
+
+.type-duration {
+    background-color: #e7f5ff;
+    color: #0c63e4;
+}
+
+.type-reps {
+    background-color: #e7f5e7;
+    color: #198754;
+}
+
+.exercise-card-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #666;
+    font-size: 0.95rem;
+}
+
+.detail-item i {
+    color: #0d6efd;
+    font-size: 1.1rem;
+}
+
+.detail-value {
+    font-weight: 600;
+    color: #333;
+}
+
+.exercise-card-description {
+    color: #6c757d;
+    font-size: 0.9rem;
+    line-height: 1.5;
+    margin: 0;
+    padding-top: 0.75rem;
+    border-top: 1px solid #e9ecef;
+}
+
+/* 拖拽样式 */
+.exercise-card.dragging {
+    opacity: 0.5;
+}
+
+.exercise-card.drag-over {
+    border: 2px dashed #0d6efd;
+}
+
+/* 空状态图标 */
+#emptyState i {
+    display: block;
+}
+
+/* 卡片序号 */
+.exercise-card-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    background: #0d6efd;
+    color: white;
+    border-radius: 50%;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-right: 0.5rem;
+}
+
+/* 响应式调整 */
+@media (max-width: 576px) {
+    .exercise-card {
+        padding: 0.875rem;
+    }
+    
+    .exercise-card-title {
+        font-size: 1.1rem;
+    }
+    
+    .exercise-card-details {
+        gap: 0.75rem;
+    }
+    
+    .detail-item {
+        font-size: 0.875rem;
+    }
+}
