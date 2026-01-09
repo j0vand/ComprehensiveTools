@@ -147,9 +147,7 @@ class RehabTrainerApp {
      */
     addMobileEventListener(element, event, handler) {
         if (!element) {
-            const errorMsg = `元素不存在: ${event}`;
-            console.error(errorMsg);
-            window.addDebugLog && window.addDebugLog('error', errorMsg);
+            console.error(`元素不存在: ${event}`);
             return;
         }
         
@@ -162,45 +160,19 @@ class RehabTrainerApp {
                 const touchHandler = (e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    window.addDebugLog && window.addDebugLog('info', `触摸事件触发: ${element.id || element.className}`, {
-                        type: 'touchstart',
-                        target: element.id || element.className
-                    });
                     handler(e);
                 };
                 
                 element.addEventListener('touchstart', touchHandler, { passive: false });
                 
                 // 同时保留click作为备用
-                const clickHandler = (e) => {
-                    window.addDebugLog && window.addDebugLog('info', `点击事件触发: ${element.id || element.className}`, {
-                        type: 'click',
-                        target: element.id || element.className
-                    });
-                    handler(e);
-                };
-                element.addEventListener('click', clickHandler);
-                
-                window.addDebugLog && window.addDebugLog('success', `已绑定事件监听器: ${element.id || element.className}`, {
-                    touchstart: true,
-                    click: true
-                });
+                element.addEventListener('click', handler);
             } else {
                 // 桌面端：只使用click
-                const clickHandler = (e) => {
-                    window.addDebugLog && window.addDebugLog('info', `点击事件触发: ${element.id || element.className}`);
-                    handler(e);
-                };
-                element.addEventListener('click', clickHandler);
-                
-                window.addDebugLog && window.addDebugLog('success', `已绑定事件监听器: ${element.id || element.className}`, {
-                    click: true
-                });
+                element.addEventListener('click', handler);
             }
         } catch (error) {
-            const errorMsg = `绑定事件监听器失败: ${element.id || element.className}, 错误: ${error.message}`;
-            console.error(errorMsg, error);
-            window.addDebugLog && window.addDebugLog('error', errorMsg, { error: error.toString() });
+            console.error(`绑定事件监听器失败: ${element.id || element.className}`, error);
         }
     }
 
@@ -244,7 +216,6 @@ class RehabTrainerApp {
             // 删除确认
             this.addMobileEventListener(document.getElementById('confirmDeleteBtn'), 'click', () => this.confirmDelete());
             
-            console.log('事件监听器初始化完成');
         } catch (error) {
             console.error('事件监听器初始化失败:', error);
             // 显示错误提示
@@ -999,103 +970,16 @@ class RehabTrainerApp {
 }
 
 // 页面加载完成后初始化应用
-(function() {
-    // 立即执行的代码，不等待DOMContentLoaded
-    try {
-        console.log('[main.js] 文件开始执行');
-        window.showBasicError && window.showBasicError('main.js 文件已开始执行...');
-    } catch(e) {
-        console.error('[main.js] 执行错误:', e);
-    }
-})();
-
 document.addEventListener('DOMContentLoaded', () => {
     try {
-        console.log('[main.js] DOMContentLoaded 事件触发');
-        window.addDebugLog && window.addDebugLog('info', '开始初始化应用...');
-        console.log('开始初始化应用...');
-        
-        // 显示可见提示
-        window.showBasicError && window.showBasicError('正在初始化应用...');
-        
         window.app = new RehabTrainerApp();
-        
-        window.addDebugLog && window.addDebugLog('success', '应用初始化完成');
-        console.log('应用初始化完成');
-        
-        // 隐藏错误提示
-        setTimeout(function() {
-            var errorDiv = document.getElementById('basicErrorDisplay');
-            if (errorDiv) {
-                errorDiv.style.display = 'none';
-            }
-        }, 2000);
-        
-        // 添加全局错误处理
-        window.addEventListener('error', (event) => {
-            const errorMsg = `全局错误: ${event.message}`;
-            console.error(errorMsg, event.error);
-            window.addDebugLog && window.addDebugLog('error', errorMsg, {
-                filename: event.filename,
-                lineno: event.lineno,
-                colno: event.colno,
-                error: event.error ? event.error.toString() : '未知错误'
-            });
-        });
-        
-        // 检测未捕获的Promise错误
-        window.addEventListener('unhandledrejection', (event) => {
-            const errorMsg = `未处理的Promise错误: ${event.reason}`;
-            console.error(errorMsg);
-            window.addDebugLog && window.addDebugLog('error', errorMsg, {
-                reason: event.reason ? event.reason.toString() : '未知原因'
-            });
-        });
-        
-        // 检测是否在移动设备上
-        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        const deviceInfo = isMobile ? '移动设备' : '桌面设备';
-        console.log('设备类型:', deviceInfo);
-        window.addDebugLog && window.addDebugLog('info', `设备类型: ${deviceInfo}`);
-        
-        // 测试按钮点击
-        setTimeout(() => {
-            const testBtn = document.getElementById('newPlanBtn');
-            if (testBtn) {
-                window.addDebugLog && window.addDebugLog('info', '准备测试按钮点击...');
-                // 创建一个测试点击
-                const testClick = () => {
-                    window.addDebugLog && window.addDebugLog('info', '手动触发按钮点击测试');
-                    testBtn.click();
-                };
-                // 5秒后自动测试（可选）
-                // setTimeout(testClick, 5000);
-            }
-        }, 1000);
-        
     } catch (error) {
-        const errorMsg = `应用初始化失败: ${error.message}`;
-        console.error('[main.js]', errorMsg, error);
-        window.addDebugLog && window.addDebugLog('error', errorMsg, {
-            stack: error.stack
-        });
-        
-        // 显示可见的错误提示
-        var detailedError = '应用初始化失败！\n\n错误信息：' + error.message + 
-                          '\n\n堆栈信息：' + (error.stack || '无') +
-                          '\n\n请截图此信息并检查：\n1. JavaScript文件是否有语法错误\n2. 浏览器控制台是否有更多错误';
-        window.showBasicError && window.showBasicError(detailedError);
-        
-        alert('应用初始化失败：' + error.message + '\n\n页面顶部已显示详细错误信息\n请查看调试面板获取更多信息（点击左下角🐛图标3次）');
+        console.error('应用初始化失败:', error);
+        alert('应用初始化失败：' + error.message + '\n请刷新页面重试。');
     }
 });
 
 // 如果DOMContentLoaded已经触发过了，立即执行
-if (document.readyState === 'loading') {
-    // DOM还在加载中，等待DOMContentLoaded
-    console.log('[main.js] 等待DOMContentLoaded...');
-} else {
-    // DOM已经加载完成，立即执行
-    console.log('[main.js] DOM已加载，立即执行初始化...');
+if (document.readyState !== 'loading') {
     document.dispatchEvent(new Event('DOMContentLoaded'));
 }
