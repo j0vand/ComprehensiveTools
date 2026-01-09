@@ -304,9 +304,9 @@ class StorageManager {
     }
 
     /**
-     * 导入数据
+     * 导入数据（智能合并：同名覆盖，不同名新增）
      */
-    importData(importData) {
+    importData(importData, mergeMode = true) {
         try {
             if (!importData || !importData.data) {
                 throw new Error('无效的导入数据');
@@ -317,7 +317,98 @@ class StorageManager {
                 throw new Error('数据格式错误');
             }
 
-            return this.saveData(importData.data);
+            if (mergeMode) {
+                // 智能合并模式：同名覆盖，不同名新增
+                const currentData = this.getData();
+                if (!currentData) {
+                    // 如果没有现有数据，直接保存导入的数据
+                    return this.saveData(importData.data);
+                }
+
+                const existingPlans = currentData.plans || [];
+                const importPlans = importData.data.plans;
+                const mergedPlans = [...existingPlans];
+                let addedCount = 0;
+                let updatedCount = 0;
+
+                // 处理每个导入的计划
+                importPlans.forEach(importPlan => {
+                    // 查找同名计划（优先匹配名称）
+                    const existingIndex = mergedPlans.findIndex(p => p.name === importPlan.name);
+                    
+                    if (existingIndex !== -1) {
+                        // 同名计划：覆盖（保留原有ID，更新内容）
+                        const existingPlan = mergedPlans[existingIndex];
+                        mergedPlans[existingIndex] = {
+                            ...importPlan,
+                            id: existingPlan.id, // 保留原有ID
+                            createdAt: existingPlan.createdAt, // 保留创建时间
+                            updatedAt: new Date().toISOString() // 更新修改时间
+                        };
+                        updatedCount++;
+                    } else {
+                        // 不同名计划：新增
+                        // 如果导入的计划有ID，检查是否已存在
+                        if (importPlan.id) {
+                            const existingById = mergedPlans.findIndex(p => p.id === importPlan.id);
+                            if (existingById !== -1) {
+                                // ID已存在，更新
+                                mergedPlans[existingById] = {
+                                    ...importPlan,
+                                    updatedAt: new Date().toISOString()
+                                };
+                                updatedCount++;
+                            } else {
+                                // ID不存在，新增
+                                if (!importPlan.createdAt) {
+                                    importPlan.createdAt = new Date().toISOString();
+                                }
+                                mergedPlans.push(importPlan);
+                                addedCount++;
+                            }
+                        } else {
+                            // 没有ID，直接新增
+                            importPlan.id = this.generateId();
+                            importPlan.createdAt = new Date().toISOString();
+                            mergedPlans.push(importPlan);
+                            addedCount++;
+                        }
+                    }
+                });
+
+                // 更新数据
+                const mergedData = {
+                    ...currentData,
+                    plans: mergedPlans,
+                    // 如果导入数据有设置，可以选择性更新
+                    settings: importData.data.settings || currentData.settings
+                };
+
+                // 如果当前没有激活计划，且导入数据有激活计划，则使用导入的激活计划
+                if (!mergedData.activePlanId && importData.data.activePlanId) {
+                    // 检查导入的激活计划是否在合并后的计划中
+                    const activePlanExists = mergedPlans.some(p => p.id === importData.data.activePlanId);
+                    if (activePlanExists) {
+                        mergedData.activePlanId = importData.data.activePlanId;
+                    }
+                }
+
+                const result = this.saveData(mergedData);
+                
+                // 返回合并统计信息
+                if (result) {
+                    return {
+                        success: true,
+                        added: addedCount,
+                        updated: updatedCount,
+                        total: mergedPlans.length
+                    };
+                }
+                return false;
+            } else {
+                // 完全覆盖模式（保留原有行为）
+                return this.saveData(importData.data);
+            }
         } catch (e) {
             console.error('导入数据失败:', e);
             return false;

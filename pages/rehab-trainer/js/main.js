@@ -16,11 +16,10 @@ class RehabTrainerApp {
         this.initProgressCircle();
         this.loadPlans();
         this.initTrainingEvents();
+        this.loadVoiceSettings();
         
-        // iOS需要用户交互后才能使用TTS，显示提示
-        if (this.isIOS()) {
-            this.initVoiceOnFirstInteraction();
-        }
+        // 所有设备都需要用户交互后才能使用TTS（浏览器安全限制）
+        this.initVoiceOnFirstInteraction();
     }
 
     /**
@@ -31,17 +30,56 @@ class RehabTrainerApp {
     }
 
     /**
-     * iOS首次交互时初始化语音
+     * 加载语音设置并应用到语音管理器
+     */
+    loadVoiceSettings() {
+        try {
+            const settings = storage.getSettings();
+            if (settings) {
+                if (settings.voiceRate !== undefined) {
+                    voiceManager.setRate(settings.voiceRate);
+                }
+                if (settings.voiceVolume !== undefined) {
+                    voiceManager.setVolume(settings.voiceVolume);
+                }
+            }
+        } catch (error) {
+            console.error('加载语音设置失败:', error);
+        }
+    }
+
+    /**
+     * 首次交互时初始化语音（浏览器安全限制：需要用户交互才能播放语音）
      */
     initVoiceOnFirstInteraction() {
+        let voiceInitialized = false;
+        
         const initVoice = () => {
-            voiceManager.speak(''); // 空语音激活TTS
-            document.removeEventListener('touchstart', initVoice);
-            document.removeEventListener('click', initVoice);
+            if (voiceInitialized) return;
+            voiceInitialized = true;
+            
+            // 测试语音功能是否可用
+            try {
+                // 使用一个很短的测试语音来激活TTS引擎
+                const testUtterance = new SpeechSynthesisUtterance('');
+                testUtterance.volume = 0.01; // 几乎静音
+                testUtterance.rate = 10; // 极快，几乎瞬间完成
+                window.speechSynthesis.speak(testUtterance);
+                
+                // 立即停止，这只是为了激活TTS引擎
+                setTimeout(() => {
+                    window.speechSynthesis.cancel();
+                }, 10);
+            } catch (error) {
+                console.warn('语音初始化失败:', error);
+            }
         };
         
-        document.addEventListener('touchstart', initVoice, { once: true });
-        document.addEventListener('click', initVoice, { once: true });
+        // 监听多种用户交互事件
+        const events = ['touchstart', 'click', 'mousedown', 'keydown'];
+        events.forEach(eventType => {
+            document.addEventListener(eventType, initVoice, { once: true, passive: true });
+        });
     }
 
     /**
@@ -586,19 +624,53 @@ class RehabTrainerApp {
                     throw new Error('数据格式不正确');
                 }
                 
-                // 确认导入
-                const planCount = importData.data.plans.length;
-                const confirm = window.confirm(
-                    `即将导入 ${planCount} 个训练计划。\n\n⚠️ 注意：这将覆盖当前所有数据！\n\n确定要继续吗？`
-                );
+                // 获取当前计划列表
+                const currentPlans = storage.getAllPlans();
+                const importPlans = importData.data.plans;
+                const planCount = importPlans.length;
+                
+                // 检查是否有同名计划
+                const existingPlanNames = currentPlans.map(p => p.name);
+                const importPlanNames = importPlans.map(p => p.name);
+                const duplicateNames = importPlanNames.filter(name => existingPlanNames.includes(name));
+                const newPlanNames = importPlanNames.filter(name => !existingPlanNames.includes(name));
+                
+                // 构建确认消息
+                let confirmMessage = `即将导入 ${planCount} 个训练计划。\n\n`;
+                
+                if (duplicateNames.length > 0) {
+                    confirmMessage += `⚠️ 以下 ${duplicateNames.length} 个计划已存在，将被覆盖：\n`;
+                    duplicateNames.forEach(name => {
+                        confirmMessage += `  • ${name}\n`;
+                    });
+                    confirmMessage += '\n';
+                }
+                
+                if (newPlanNames.length > 0) {
+                    confirmMessage += `✅ 以下 ${newPlanNames.length} 个计划将新增：\n`;
+                    newPlanNames.forEach(name => {
+                        confirmMessage += `  • ${name}\n`;
+                    });
+                    confirmMessage += '\n';
+                }
+                
+                confirmMessage += '确定要继续吗？';
+                
+                const confirm = window.confirm(confirmMessage);
                 
                 if (!confirm) {
                     return;
                 }
                 
-                // 执行导入
-                if (storage.importData(importData)) {
-                    this.showToast('数据导入成功！');
+                // 执行导入（智能合并模式）
+                const result = storage.importData(importData, true);
+                
+                if (result && result.success) {
+                    let message = '数据导入成功！';
+                    if (result.added > 0 || result.updated > 0) {
+                        message += `\n新增 ${result.added} 个计划，更新 ${result.updated} 个计划`;
+                    }
+                    this.showToast(message);
                     this.loadPlans();
                 } else {
                     throw new Error('导入失败');
@@ -850,6 +922,14 @@ class RehabTrainerApp {
         if (this.currentExercises.length === 0) {
             alert('没有训练项');
             return;
+        }
+        
+        // 确保语音设置已加载
+        this.loadVoiceSettings();
+        
+        // 确保语音功能已启用
+        if (voiceManager && 'speechSynthesis' in window) {
+            voiceManager.setEnabled(true);
         }
         
         const settings = storage.getSettings();

@@ -17,6 +17,14 @@ class VoiceManager {
         if (!VoiceManager.isSupported()) {
             console.warn('浏览器不支持语音合成');
             this.enabled = false;
+            return;
+        }
+
+        // 等待语音列表加载（某些浏览器需要）
+        if (this.synth.getVoices().length === 0) {
+            this.synth.addEventListener('voiceschanged', () => {
+                // 语音列表已加载
+            }, { once: true });
         }
     }
 
@@ -35,6 +43,12 @@ class VoiceManager {
             return Promise.resolve();
         }
 
+        // 检查浏览器支持
+        if (!VoiceManager.isSupported()) {
+            console.warn('浏览器不支持语音合成');
+            return Promise.resolve();
+        }
+
         // 停止当前播放
         this.stop();
 
@@ -46,23 +60,47 @@ class VoiceManager {
                 utterance.pitch = options.pitch || this.pitch;
                 utterance.volume = options.volume || this.volume;
 
+                // 设置超时，防止语音卡住
+                let timeoutId = setTimeout(() => {
+                    this.synth.cancel();
+                    this.currentUtterance = null;
+                    resolve(); // 超时也resolve，不阻塞流程
+                }, 10000); // 10秒超时
+
+                utterance.onstart = () => {
+                    clearTimeout(timeoutId);
+                };
+
                 utterance.onend = () => {
+                    clearTimeout(timeoutId);
                     this.currentUtterance = null;
                     resolve();
                 };
 
                 utterance.onerror = (event) => {
-                    // 静默处理语音错误（通常是浏览器限制）
-                    // console.error('语音播放错误:', event);
+                    clearTimeout(timeoutId);
+                    // 记录错误但不阻塞流程
+                    if (event.error !== 'not-allowed') {
+                        console.warn('语音播放错误:', event.error, text);
+                    }
                     this.currentUtterance = null;
                     resolve(); // 改为resolve而不是reject，继续执行
                 };
 
                 this.currentUtterance = utterance;
-                this.synth.speak(utterance);
+                
+                // 尝试播放语音
+                try {
+                    this.synth.speak(utterance);
+                } catch (speakError) {
+                    clearTimeout(timeoutId);
+                    console.warn('调用speechSynthesis.speak失败:', speakError);
+                    this.currentUtterance = null;
+                    resolve(); // 即使失败也resolve，不阻塞流程
+                }
             } catch (error) {
-                console.error('语音合成失败:', error);
-                reject(error);
+                console.error('创建语音合成对象失败:', error);
+                resolve(); // 改为resolve，不阻塞流程
             }
         });
     }
