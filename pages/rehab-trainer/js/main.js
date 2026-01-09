@@ -17,6 +17,7 @@ class RehabTrainerApp {
         this.loadPlans();
         this.initTrainingEvents();
         this.loadVoiceSettings();
+        this.checkAndDisplayVoiceSupport();
         
         // 所有设备都需要用户交互后才能使用TTS（浏览器安全限制）
         this.initVoiceOnFirstInteraction();
@@ -46,6 +47,77 @@ class RehabTrainerApp {
         } catch (error) {
             console.error('加载语音设置失败:', error);
         }
+    }
+
+    /**
+     * 检查并显示语音支持状态
+     */
+    checkAndDisplayVoiceSupport() {
+        if (!this.voiceStatusBar || !this.voiceStatusText) {
+            return;
+        }
+
+        const isSupported = 'speechSynthesis' in window;
+        const browserName = this.getBrowserName();
+        
+        if (isSupported) {
+            // 检查是否有中文语音
+            const checkChineseVoices = () => {
+                const voices = window.speechSynthesis.getVoices();
+                const chineseVoices = voices.filter(v => v.lang.startsWith('zh'));
+                
+                if (chineseVoices.length > 0) {
+                    this.voiceStatusBar.className = 'alert alert-success mb-0 text-center';
+                    this.voiceStatusText.innerHTML = '<i class="bi bi-check-circle"></i> 语音功能已启用，支持中文语音提示';
+                } else {
+                    this.voiceStatusBar.className = 'alert alert-warning mb-0 text-center';
+                    this.voiceStatusText.innerHTML = '<i class="bi bi-exclamation-triangle"></i> 浏览器支持语音，但未找到中文语音包（语音可能为英文）';
+                }
+                this.voiceStatusBar.style.display = 'block';
+            };
+
+            // 如果语音列表已加载
+            if (window.speechSynthesis.getVoices().length > 0) {
+                checkChineseVoices();
+            } else {
+                // 等待语音列表加载
+                window.speechSynthesis.addEventListener('voiceschanged', checkChineseVoices, { once: true });
+                // 设置超时，防止永远不触发
+                setTimeout(() => {
+                    if (this.voiceStatusBar.style.display === 'none') {
+                        this.voiceStatusBar.className = 'alert alert-success mb-0 text-center';
+                        this.voiceStatusText.innerHTML = '<i class="bi bi-check-circle"></i> 语音功能已启用';
+                        this.voiceStatusBar.style.display = 'block';
+                    }
+                }, 1000);
+            }
+        } else {
+            // 不支持语音
+            this.voiceStatusBar.className = 'alert alert-danger mb-0 text-center';
+            let message = '<i class="bi bi-x-circle"></i> <strong>当前浏览器不支持语音功能</strong><br>';
+            message += '<small>建议使用 Chrome、Edge 或 Safari 浏览器以获得完整的语音提示功能</small>';
+            
+            if (browserName) {
+                message += `<br><small>当前浏览器：${browserName}</small>`;
+            }
+            
+            this.voiceStatusText.innerHTML = message;
+            this.voiceStatusBar.style.display = 'block';
+        }
+    }
+
+    /**
+     * 获取浏览器名称
+     */
+    getBrowserName() {
+        const ua = navigator.userAgent;
+        if (ua.indexOf('Chrome') > -1 && ua.indexOf('Edg') === -1) return 'Chrome';
+        if (ua.indexOf('Edg') > -1) return 'Edge';
+        if (ua.indexOf('Firefox') > -1) return 'Firefox';
+        if (ua.indexOf('Safari') > -1 && ua.indexOf('Chrome') === -1) return 'Safari';
+        if (ua.indexOf('Opera') > -1 || ua.indexOf('OPR') > -1) return 'Opera';
+        if (ua.indexOf('MSIE') > -1 || ua.indexOf('Trident') > -1) return 'Internet Explorer';
+        return '未知浏览器';
     }
 
     /**
@@ -91,6 +163,8 @@ class RehabTrainerApp {
         this.exerciseList = document.getElementById('exerciseList');
         this.emptyState = document.getElementById('emptyState');
         this.startTrainingBtn = document.getElementById('startTrainingBtn');
+        this.voiceStatusBar = document.getElementById('voiceStatusBar');
+        this.voiceStatusText = document.getElementById('voiceStatusText');
         
         // 训练界面元素
         this.mainView = document.getElementById('mainView');

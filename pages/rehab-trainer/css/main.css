@@ -275,3 +275,29 @@ body {
 .pulse {
     animation: pulse 2s ease-in-out infinite;
 }
+
+/* 语音状态栏样式 */
+#voiceStatusBar {
+    font-size: 0.875rem;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin-top: 10px;
+    line-height: 1.5;
+}
+
+#voiceStatusBar small {
+    display: block;
+    margin-top: 5px;
+    opacity: 0.9;
+}
+
+#voiceStatusBar i {
+    margin-right: 5px;
+}
+
+@media (max-width: 576px) {
+    #voiceStatusBar {
+        font-size: 0.8rem;
+        padding: 8px 12px;
+    }
+}
