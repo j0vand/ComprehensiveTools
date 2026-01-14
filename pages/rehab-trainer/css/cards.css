@@ -105,12 +105,42 @@
 }
 
 /* 拖拽样式 */
+.exercise-card {
+    cursor: move; /* 显示可拖拽光标 */
+    user-select: none; /* 防止拖拽时选中文本 */
+}
+
 .exercise-card.dragging {
     opacity: 0.5;
+    cursor: grabbing;
 }
 
 .exercise-card.drag-over {
     border: 2px dashed #0d6efd;
+    background-color: #f0f8ff;
+}
+
+.exercise-card.drag-over-top {
+    border-top: 3px solid #0d6efd;
+}
+
+.exercise-card.drag-over-bottom {
+    border-bottom: 3px solid #0d6efd;
+}
+
+/* 按钮区域不触发拖拽 */
+.card-action-btn {
+    cursor: pointer;
+    user-select: none;
+}
+
+/* 占位符样式（触摸拖拽用） */
+.exercise-card-placeholder {
+    height: 80px;
+    background: #e9ecef;
+    border: 2px dashed #0d6efd;
+    border-radius: 12px;
+    margin-bottom: 1rem;
 }
 
 /* 空状态图标 */

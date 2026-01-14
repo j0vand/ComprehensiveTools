@@ -786,6 +786,7 @@ class RehabTrainerApp {
         const card = document.createElement('div');
         card.className = 'exercise-card';
         card.dataset.id = exercise.id;
+        card.draggable = true; // 启用拖拽功能
         
         const typeClass = exercise.type === 'duration' ? 'type-duration' : 'type-reps';
         const typeText = exercise.type === 'duration' ? '持续时间型' : '次数型';
@@ -840,7 +841,9 @@ class RehabTrainerApp {
         // 编辑按钮
         const editBtn = card.querySelector('.edit');
         if (editBtn) {
-            this.addMobileEventListener(editBtn, 'click', () => {
+            editBtn.draggable = false; // 按钮不可拖拽
+            this.addMobileEventListener(editBtn, 'click', (e) => {
+                e.stopPropagation(); // 阻止事件冒泡
                 this.editExercise(exercise.id);
             });
         }
@@ -848,7 +851,9 @@ class RehabTrainerApp {
         // 删除按钮
         const deleteBtn = card.querySelector('.delete');
         if (deleteBtn) {
-            this.addMobileEventListener(deleteBtn, 'click', () => {
+            deleteBtn.draggable = false; // 按钮不可拖拽
+            this.addMobileEventListener(deleteBtn, 'click', (e) => {
+                e.stopPropagation(); // 阻止事件冒泡
                 this.deleteExercise(exercise.id);
             });
         }
@@ -1152,10 +1157,155 @@ class RehabTrainerApp {
     initDragAndDrop() {
         if (!this.exerciseList) return;
 
+        // 使用事件委托，监听整个列表容器
         this.exerciseList.addEventListener('dragstart', (e) => this.handleDragStart(e));
         this.exerciseList.addEventListener('dragover', (e) => this.handleDragOver(e));
         this.exerciseList.addEventListener('drop', (e) => this.handleDrop(e));
         this.exerciseList.addEventListener('dragend', (e) => this.handleDragEnd(e));
+        
+        // 移动端触摸拖拽支持
+        this.initTouchDrag();
+    }
+    
+    /**
+     * 初始化触摸拖拽（移动端支持）
+     */
+    initTouchDrag() {
+        let draggedElement = null;
+        let placeholder = null;
+        let touchStartY = 0;
+        let touchStartX = 0;
+        let draggedIndex = 0;
+        let isDragging = false;
+        const DRAG_THRESHOLD = 10; // 拖拽阈值，超过这个距离才认为是拖拽
+        
+        this.exerciseList.addEventListener('touchstart', (e) => {
+            // 如果点击的是按钮，不处理
+            if (e.target.closest('button')) {
+                return;
+            }
+            
+            const card = e.target.closest('.exercise-card');
+            if (!card) return;
+            
+            touchStartY = e.touches[0].clientY;
+            touchStartX = e.touches[0].clientX;
+            draggedElement = card;
+            draggedIndex = Array.from(this.exerciseList.children).indexOf(card);
+            isDragging = false;
+        }, { passive: true });
+        
+        this.exerciseList.addEventListener('touchmove', (e) => {
+            if (!draggedElement) return;
+            
+            const touchY = e.touches[0].clientY;
+            const touchX = e.touches[0].clientX;
+            const deltaY = Math.abs(touchY - touchStartY);
+            const deltaX = Math.abs(touchX - touchStartX);
+            
+            // 如果垂直移动距离大于水平移动距离，且超过阈值，开始拖拽
+            if (!isDragging && deltaY > DRAG_THRESHOLD && deltaY > deltaX) {
+                isDragging = true;
+                e.preventDefault();
+                
+                // 创建占位符
+                placeholder = document.createElement('div');
+                placeholder.className = 'exercise-card-placeholder';
+                placeholder.style.cssText = `
+                    height: ${draggedElement.offsetHeight}px;
+                    background: #e9ecef;
+                    border: 2px dashed #0d6efd;
+                    border-radius: 12px;
+                    margin-bottom: 1rem;
+                    transition: none;
+                `;
+                
+                draggedElement.style.opacity = '0.5';
+                draggedElement.style.position = 'relative';
+                draggedElement.style.zIndex = '1000';
+                draggedElement.parentNode.insertBefore(placeholder, draggedElement);
+            }
+            
+            if (isDragging && placeholder) {
+                e.preventDefault();
+                const currentY = touchY;
+                const delta = currentY - touchStartY;
+                
+                // 移动卡片
+                draggedElement.style.transform = `translateY(${delta}px)`;
+                
+                // 计算应该插入的位置
+                const allCards = Array.from(this.exerciseList.querySelectorAll('.exercise-card'));
+                const placeholderIndex = Array.from(this.exerciseList.children).indexOf(placeholder);
+                let targetIndex = placeholderIndex;
+                
+                allCards.forEach((card, index) => {
+                    if (card === draggedElement) return;
+                    
+                    const rect = card.getBoundingClientRect();
+                    const cardCenter = rect.top + rect.height / 2;
+                    
+                    if (currentY < cardCenter && index < placeholderIndex) {
+                        targetIndex = index;
+                    } else if (currentY > cardCenter && index > placeholderIndex) {
+                        targetIndex = index + 1;
+                    }
+                });
+                
+                // 移动占位符到目标位置
+                const allChildren = Array.from(this.exerciseList.children);
+                if (allChildren[targetIndex] !== placeholder && targetIndex !== placeholderIndex) {
+                    this.exerciseList.insertBefore(placeholder, allChildren[targetIndex] || null);
+                }
+            }
+        }, { passive: false });
+        
+        this.exerciseList.addEventListener('touchend', () => {
+            if (!isDragging || !draggedElement || !placeholder) {
+                draggedElement = null;
+                placeholder = null;
+                isDragging = false;
+                return;
+            }
+            
+            // 获取最终顺序
+            const allCards = Array.from(this.exerciseList.querySelectorAll('.exercise-card'));
+            const placeholderIndex = Array.from(this.exerciseList.children).indexOf(placeholder);
+            
+            // 移除占位符
+            placeholder.remove();
+            
+            // 重置样式
+            draggedElement.style.opacity = '';
+            draggedElement.style.transform = '';
+            draggedElement.style.position = '';
+            draggedElement.style.zIndex = '';
+            
+            // 获取新的顺序ID数组
+            const exerciseIds = [];
+            allCards.forEach(card => {
+                if (card !== draggedElement) {
+                    exerciseIds.push(card.dataset.id);
+                }
+            });
+            
+            // 将拖拽的元素插入到占位符位置
+            exerciseIds.splice(placeholderIndex, 0, draggedElement.dataset.id);
+            
+            // 保存新顺序
+            if (this.currentPlanId && exerciseIds.length > 0) {
+                if (storage.reorderExercises(this.currentPlanId, exerciseIds)) {
+                    this.currentExercises = storage.getExercises(this.currentPlanId);
+                    this.renderExercises();
+                    this.showToast('顺序已更新');
+                }
+            }
+            
+            // 重置变量
+            draggedElement = null;
+            placeholder = null;
+            isDragging = false;
+        });
     }
 
     /**
@@ -1163,16 +1313,21 @@ class RehabTrainerApp {
      */
     handleDragStart(e) {
         const targetCard = e.target.closest('.exercise-card');
-        if (!targetCard) return;
+        if (!targetCard) {
+            e.preventDefault();
+            return;
+        }
+
+        // 如果点击的是按钮，不触发拖拽
+        if (e.target.closest('button')) {
+            e.preventDefault();
+            return;
+        }
 
         // 设置拖拽反馈样式
         targetCard.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', targetCard.dataset.id);
-
-        // 移动端优化：防止默认行为
-        if (e.type === 'touchstart') {
-            e.preventDefault();
-        }
     }
 
     /**
@@ -1185,9 +1340,30 @@ class RehabTrainerApp {
         const targetCard = e.target.closest('.exercise-card');
         const draggableCard = document.querySelector('.exercise-card.dragging');
 
+        // 移除所有拖拽悬停样式
+        document.querySelectorAll('.exercise-card.drag-over').forEach(card => {
+            if (card !== targetCard) {
+                card.classList.remove('drag-over');
+            }
+        });
+
         if (targetCard && draggableCard && targetCard !== draggableCard) {
             // 添加视觉反馈
             targetCard.classList.add('drag-over');
+            
+            // 计算插入位置
+            const rect = targetCard.getBoundingClientRect();
+            const midpoint = rect.top + rect.height / 2;
+            const mouseY = e.clientY;
+            
+            // 根据鼠标位置决定插入到上方还是下方
+            if (mouseY < midpoint) {
+                targetCard.classList.add('drag-over-top');
+                targetCard.classList.remove('drag-over-bottom');
+            } else {
+                targetCard.classList.add('drag-over-bottom');
+                targetCard.classList.remove('drag-over-top');
+            }
         }
     }
 
@@ -1196,12 +1372,12 @@ class RehabTrainerApp {
      */
     handleDrop(e) {
         e.preventDefault();
+        e.stopPropagation();
 
         // 移除视觉反馈
-        document.querySelectorAll('.exercise-card.drag-over').forEach(card => {
-            card.classList.remove('drag-over');
+        document.querySelectorAll('.exercise-card.drag-over, .exercise-card.drag-over-top, .exercise-card.drag-over-bottom').forEach(card => {
+            card.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom');
         });
-
 
         const targetCard = e.target.closest('.exercise-card');
         const draggedId = e.dataTransfer.getData('text/plain');
@@ -1211,58 +1387,45 @@ class RehabTrainerApp {
             return;
         }
 
-        // 获取当前计划的所有训练项ID
-        const exerciseIds = Array.from(this.exerciseList.querySelectorAll('.exercise-card'))
-            .map(card => card.dataset.id);
+        // 获取当前所有卡片的ID顺序（按DOM顺序）
+        const allCards = Array.from(this.exerciseList.querySelectorAll('.exercise-card'));
+        const exerciseIds = allCards.map(card => card.dataset.id);
 
         // 找到拖拽元素和目标元素的索引
         const draggedIndex = exerciseIds.indexOf(draggedId);
         const targetIndex = exerciseIds.indexOf(targetCard.dataset.id);
 
+        // 如果索引无效，直接返回
+        if (draggedIndex === -1 || targetIndex === -1) {
+            return;
+        }
+
         // 重新排列数组
         exerciseIds.splice(draggedIndex, 1);
         exerciseIds.splice(targetIndex, 0, draggedId);
 
-        // 更新界面顺序
-        this.reorderExerciseList(exerciseIds);
-
-        // 保存新顺序
-        storage.reorderExercises(this.currentPlanId, exerciseIds);
-
-        // 更新序号
-        this.renderExercises();
+        // 保存新顺序到存储
+        if (this.currentPlanId && storage.reorderExercises(this.currentPlanId, exerciseIds)) {
+            // 更新内存中的数据顺序
+            this.currentExercises = storage.getExercises(this.currentPlanId);
+            // 重新渲染以更新序号
+            this.renderExercises();
+            // 显示成功提示
+            this.showToast('顺序已更新');
+        }
     }
 
     /**
      * 处理拖拽结束事件
      */
     handleDragEnd() {
-        // 移除拖拽样式
-        document.querySelectorAll('.exercise-card.dragging, .exercise-card.drag-over')
+        // 移除所有拖拽相关样式
+        document.querySelectorAll('.exercise-card.dragging, .exercise-card.drag-over, .exercise-card.drag-over-top, .exercise-card.drag-over-bottom')
             .forEach(card => {
-                card.classList.remove('dragging', 'drag-over');
+                card.classList.remove('dragging', 'drag-over', 'drag-over-top', 'drag-over-bottom');
             });
     }
 
-    /**
-     * 重新排序练习项列表
-     */
-    reorderExerciseList(exerciseIds) {
-        // 创建一个ID到卡片的映射
-        const cardMap = new Map();
-        this.exerciseList.querySelectorAll('.exercise-card').forEach(card => {
-            cardMap.set(card.dataset.id, card);
-        });
-
-        // 清空列表并按新顺序重新添加
-        this.exerciseList.innerHTML = '';
-        exerciseIds.forEach(id => {
-            const card = cardMap.get(id);
-            if (card) {
-                this.exerciseList.appendChild(card);
-            }
-        });
-    }
 }
 
 // 页面加载完成后初始化应用
