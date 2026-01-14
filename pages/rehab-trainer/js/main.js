@@ -16,6 +16,7 @@ class RehabTrainerApp {
         this.initProgressCircle();
         this.loadPlans();
         this.initTrainingEvents();
+        this.initDragAndDrop();
         this.loadVoiceSettings();
         this.checkAndDisplayVoiceSupport();
         
@@ -421,11 +422,22 @@ class RehabTrainerApp {
         // 跳过
         trainingTimer.on('skip', () => {
             voiceManager.announceSkip();
+
+            // 释放屏幕常亮
+            if (typeof screenWakeLock !== 'undefined' && 'wakeLock' in navigator) {
+                screenWakeLock.release();
+            }
         });
         
         // 完成
         trainingTimer.on('complete', () => {
             voiceManager.announceComplete();
+
+            // 释放屏幕常亮
+            if (typeof screenWakeLock !== 'undefined' && 'wakeLock' in navigator) {
+                screenWakeLock.release();
+            }
+
             setTimeout(() => {
                 this.showMainView();
             }, 2000);
@@ -1008,6 +1020,12 @@ class RehabTrainerApp {
         
         const settings = storage.getSettings();
         const prepareTime = settings && settings.prepareTime ? settings.prepareTime : 10;
+
+        // 激活屏幕常亮
+        if (typeof screenWakeLock !== 'undefined' && 'wakeLock' in navigator) {
+            screenWakeLock.request();
+        }
+
         trainingTimer.start(this.currentExercises, prepareTime);
     }
 
@@ -1118,8 +1136,132 @@ class RehabTrainerApp {
     stopTraining() {
         if (confirm('确定要结束训练吗？')) {
             trainingTimer.stop();
+
+            // 释放屏幕常亮
+            if (typeof screenWakeLock !== 'undefined' && 'wakeLock' in navigator) {
+                screenWakeLock.release();
+            }
+
             this.showMainView();
         }
+    }
+
+    /**
+     * 初始化拖拽排序功能
+     */
+    initDragAndDrop() {
+        if (!this.exerciseList) return;
+
+        this.exerciseList.addEventListener('dragstart', (e) => this.handleDragStart(e));
+        this.exerciseList.addEventListener('dragover', (e) => this.handleDragOver(e));
+        this.exerciseList.addEventListener('drop', (e) => this.handleDrop(e));
+        this.exerciseList.addEventListener('dragend', (e) => this.handleDragEnd(e));
+    }
+
+    /**
+     * 处理拖拽开始事件
+     */
+    handleDragStart(e) {
+        const targetCard = e.target.closest('.exercise-card');
+        if (!targetCard) return;
+
+        // 设置拖拽反馈样式
+        targetCard.classList.add('dragging');
+        e.dataTransfer.setData('text/plain', targetCard.dataset.id);
+
+        // 移动端优化：防止默认行为
+        if (e.type === 'touchstart') {
+            e.preventDefault();
+        }
+    }
+
+    /**
+     * 处理拖拽移动事件
+     */
+    handleDragOver(e) {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+
+        const targetCard = e.target.closest('.exercise-card');
+        const draggableCard = document.querySelector('.exercise-card.dragging');
+
+        if (targetCard && draggableCard && targetCard !== draggableCard) {
+            // 添加视觉反馈
+            targetCard.classList.add('drag-over');
+        }
+    }
+
+    /**
+     * 处理放置事件
+     */
+    handleDrop(e) {
+        e.preventDefault();
+
+        // 移除视觉反馈
+        document.querySelectorAll('.exercise-card.drag-over').forEach(card => {
+            card.classList.remove('drag-over');
+        });
+
+
+        const targetCard = e.target.closest('.exercise-card');
+        const draggedId = e.dataTransfer.getData('text/plain');
+
+        // 不能放置到自身
+        if (!targetCard || targetCard.dataset.id === draggedId) {
+            return;
+        }
+
+        // 获取当前计划的所有训练项ID
+        const exerciseIds = Array.from(this.exerciseList.querySelectorAll('.exercise-card'))
+            .map(card => card.dataset.id);
+
+        // 找到拖拽元素和目标元素的索引
+        const draggedIndex = exerciseIds.indexOf(draggedId);
+        const targetIndex = exerciseIds.indexOf(targetCard.dataset.id);
+
+        // 重新排列数组
+        exerciseIds.splice(draggedIndex, 1);
+        exerciseIds.splice(targetIndex, 0, draggedId);
+
+        // 更新界面顺序
+        this.reorderExerciseList(exerciseIds);
+
+        // 保存新顺序
+        storage.reorderExercises(this.currentPlanId, exerciseIds);
+
+        // 更新序号
+        this.renderExercises();
+    }
+
+    /**
+     * 处理拖拽结束事件
+     */
+    handleDragEnd() {
+        // 移除拖拽样式
+        document.querySelectorAll('.exercise-card.dragging, .exercise-card.drag-over')
+            .forEach(card => {
+                card.classList.remove('dragging', 'drag-over');
+            });
+    }
+
+    /**
+     * 重新排序练习项列表
+     */
+    reorderExerciseList(exerciseIds) {
+        // 创建一个ID到卡片的映射
+        const cardMap = new Map();
+        this.exerciseList.querySelectorAll('.exercise-card').forEach(card => {
+            cardMap.set(card.dataset.id, card);
+        });
+
+        // 清空列表并按新顺序重新添加
+        this.exerciseList.innerHTML = '';
+        exerciseIds.forEach(id => {
+            const card = cardMap.get(id);
+            if (card) {
+                this.exerciseList.appendChild(card);
+            }
+        });
     }
 }
 
