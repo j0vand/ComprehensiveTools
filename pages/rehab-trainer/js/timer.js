@@ -12,6 +12,7 @@ class TrainingTimer {
             TRAINING: 'training',    // 训练中
             RESTING: 'resting',      // 组内休息（持续时间型）
             SET_REST: 'set_rest',    // 组间休息
+            TRANSITION: 'transition', // 准备间隔（休息结束到训练开始之间）
             WAITING: 'waiting',      // 等待用户操作（次数型）
             PAUSED: 'paused',        // 暂停
             COMPLETED: 'completed'   // 完成
@@ -32,6 +33,10 @@ class TrainingTimer {
         this.pausedTime = 0;
         this.duration = 0;
         this.intervalId = null;
+        this.lastCountdownSecond = null; // 记录上次倒计时播报的秒数，防止重复
+        this.transitionInterval = 5; // 默认准备间隔5秒
+        this.countdownStart = 10; // 默认倒计时从10秒开始
+        this.previousState = null; // 保存暂停前的状态
         // 如果callbacks未初始化，则初始化；否则保留事件监听器
         if (!this.callbacks) {
             this.callbacks = {};
@@ -41,7 +46,7 @@ class TrainingTimer {
     /**
      * 开始训练流程
      */
-    start(exercises, prepareTime = 10) {
+    start(exercises, prepareTime = 10, transitionInterval = 5, countdownStart = 10) {
         if (!exercises || exercises.length === 0) {
             console.error('没有训练项');
             return false;
@@ -50,6 +55,8 @@ class TrainingTimer {
         this.reset();
         this.exercises = exercises;
         this.prepareTime = prepareTime;
+        this.transitionInterval = transitionInterval;
+        this.countdownStart = countdownStart;
         
         // 开始准备倒计时
         this.startPrepare();
@@ -62,6 +69,7 @@ class TrainingTimer {
     startPrepare() {
         this.state = this.STATE.PREPARING;
         this.duration = this.prepareTime;
+        this.lastCountdownSecond = null; // 重置倒计时标志
         this.startTimer();
         this.trigger('prepare', { duration: this.prepareTime });
     }
@@ -92,6 +100,7 @@ class TrainingTimer {
         const exercise = this.getCurrentExercise();
         this.state = this.STATE.TRAINING;
         this.duration = exercise.duration;
+        this.lastCountdownSecond = null; // 重置倒计时标志
         this.startTimer();
         
         this.trigger('trainingStart', {
@@ -124,16 +133,25 @@ class TrainingTimer {
         if (exercise.setRest > 0) {
             this.state = this.STATE.SET_REST;
             this.duration = exercise.setRest;
+            this.lastCountdownSecond = null; // 重置倒计时标志
             this.startTimer();
             
+            // 触发详细的休息开始事件
+            this.trigger('setRestStart', {
+                exercise: exercise,
+                set: this.currentSet,
+                duration: exercise.setRest
+            });
+            
+            // 也触发原来的setRest事件以保持兼容性
             this.trigger('setRest', {
                 exercise: exercise,
                 set: this.currentSet,
                 duration: exercise.setRest
             });
         } else {
-            // 没有组间休息，直接下一组
-            this.nextSet();
+            // 没有组间休息，直接进入准备间隔
+            this.startTransition();
         }
     }
 
@@ -160,9 +178,10 @@ class TrainingTimer {
         const elapsed = (Date.now() - this.startTime) / 1000;
         const remaining = Math.max(0, this.duration - elapsed);
         const progress = this.duration > 0 ? (elapsed / this.duration) * 100 : 0;
+        const remainingCeil = Math.ceil(remaining);
 
         this.trigger('tick', {
-            remaining: Math.ceil(remaining),
+            remaining: remainingCeil,
             progress: Math.min(100, progress),
             elapsed: elapsed
         });
@@ -170,10 +189,43 @@ class TrainingTimer {
         // 时间到
         if (remaining <= 0) {
             this.onTimerComplete();
+            return;
         }
-        // 剩余10秒提醒
-        else if (remaining <= 10 && remaining > 9.9 && this.state === this.STATE.TRAINING) {
-            this.trigger('reminder', { remaining: 10 });
+
+        // 倒计时提醒逻辑
+        const countdownStart = this.countdownStart || 10;
+        
+        // 准备阶段倒计时：剩余时间 <= 3 且 > 0 时，每秒播报
+        if (this.state === this.STATE.PREPARING && remainingCeil <= 3 && remainingCeil > 0) {
+            if (this.lastCountdownSecond !== remainingCeil) {
+                this.lastCountdownSecond = remainingCeil;
+                this.trigger('prepareCountdown', { remaining: remainingCeil });
+            }
+        }
+        // 训练倒计时：剩余时间 <= countdownStart 且 > 0 时，每秒播报
+        else if (this.state === this.STATE.TRAINING && remainingCeil <= countdownStart && remainingCeil > 0) {
+            if (this.lastCountdownSecond !== remainingCeil) {
+                this.lastCountdownSecond = remainingCeil;
+                this.trigger('trainingCountdown', { remaining: remainingCeil });
+            }
+        }
+        // 休息倒计时：剩余时间 <= countdownStart 且 > 0 时，每秒播报
+        else if (this.state === this.STATE.SET_REST && remainingCeil <= countdownStart && remainingCeil > 0) {
+            if (this.lastCountdownSecond !== remainingCeil) {
+                this.lastCountdownSecond = remainingCeil;
+                this.trigger('restCountdown', { remaining: remainingCeil });
+            }
+        }
+        // 准备间隔倒计时：剩余时间 <= 3 且 > 0 时，每秒播报
+        else if (this.state === this.STATE.TRANSITION && remainingCeil <= 3 && remainingCeil > 0) {
+            if (this.lastCountdownSecond !== remainingCeil) {
+                this.lastCountdownSecond = remainingCeil;
+                this.trigger('transitionCountdown', { remaining: remainingCeil });
+            }
+        }
+        // 其他状态重置倒计时标志
+        else {
+            this.lastCountdownSecond = null;
         }
     }
 
@@ -199,7 +251,16 @@ class TrainingTimer {
                 break;
 
             case this.STATE.SET_REST:
-                // 组间休息完成，下一组
+                // 组间休息完成，进入准备间隔
+                this.startTransition();
+                break;
+
+            case this.STATE.TRANSITION:
+                // 准备间隔完成，触发transitionEnd事件，然后开始下一组
+                this.trigger('transitionEnd', {
+                    exercise: this.getCurrentExercise(),
+                    set: this.currentSet + 1
+                });
                 this.nextSet();
                 break;
         }
@@ -219,10 +280,11 @@ class TrainingTimer {
      * 暂停
      */
     pause() {
-        if (this.state !== this.STATE.TRAINING && this.state !== this.STATE.SET_REST) {
+        if (this.state !== this.STATE.TRAINING && this.state !== this.STATE.SET_REST && this.state !== this.STATE.TRANSITION) {
             return false;
         }
 
+        this.previousState = this.state; // 保存暂停前的状态
         this.pausedTime = Date.now();
         this.state = this.STATE.PAUSED;
         this.trigger('pause');
@@ -239,7 +301,11 @@ class TrainingTimer {
 
         const pauseDuration = Date.now() - this.pausedTime;
         this.startTime += pauseDuration;
-        this.state = this.state === this.STATE.PAUSED ? this.STATE.TRAINING : this.state;
+        // 恢复之前的状态
+        if (this.previousState) {
+            this.state = this.previousState;
+            this.previousState = null;
+        }
         this.trigger('resume');
         return true;
     }
@@ -393,6 +459,22 @@ class TrainingTimer {
     }
 
     /**
+     * 开始准备间隔（休息结束到训练开始之间）
+     */
+    startTransition() {
+        this.state = this.STATE.TRANSITION;
+        this.duration = this.transitionInterval;
+        this.lastCountdownSecond = null; // 重置倒计时标志
+        this.startTimer();
+        
+        this.trigger('transitionStart', {
+            exercise: this.getCurrentExercise(),
+            set: this.currentSet + 1,
+            duration: this.transitionInterval
+        });
+    }
+
+    /**
      * 获取状态文本
      */
     getStateText() {
@@ -402,6 +484,7 @@ class TrainingTimer {
             [this.STATE.TRAINING]: '训练中',
             [this.STATE.RESTING]: '休息中',
             [this.STATE.SET_REST]: '组间休息',
+            [this.STATE.TRANSITION]: '准备下一组',
             [this.STATE.WAITING]: '等待操作',
             [this.STATE.PAUSED]: '已暂停',
             [this.STATE.COMPLETED]: '已完成'

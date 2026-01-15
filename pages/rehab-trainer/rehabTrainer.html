@@ -73,6 +73,13 @@
                         <input type="file" id="importFile" accept=".json" style="display: none;">
                     </div>
                 </div>
+                <div class="row g-2 mt-2">
+                    <div class="col-12">
+                        <button id="managePlansBtn" class="btn btn-outline-secondary btn-sm w-100">
+                            <i class="bi bi-list-ul"></i> 管理计划与顺序
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -107,7 +114,7 @@
     </div>
 
     <!-- 训练执行界面 -->
-    <div id="trainingView" class="container-fluid vh-100 d-flex flex-column" style="display: none;">
+    <div id="trainingView" class="container-fluid vh-100 d-flex flex-column" style="display: none; visibility: hidden;">
         <!-- 顶部进度信息 -->
         <div class="training-header text-center py-3">
             <h2 id="exerciseName" class="mb-2">平板支撑</h2>
@@ -308,6 +315,36 @@
         </div>
     </div>
 
+    <!-- 计划管理界面 -->
+    <div class="modal fade" id="planManageModal" tabindex="-1">
+        <div class="modal-dialog modal-fullscreen-lg-down modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="bi bi-list-ul"></i> 管理计划与顺序
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="max-height: calc(100vh - 200px); overflow-y: auto;">
+                    <div class="alert alert-info mb-3">
+                        <i class="bi bi-info-circle"></i>
+                        <strong>使用说明：</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>按住左侧 <i class="bi bi-grip-vertical"></i> 图标可以拖动训练项调整顺序</li>
+                            <li>拖动训练项到其他计划可以跨计划移动</li>
+                            <li>点击训练项右侧按钮可以编辑或删除</li>
+                        </ul>
+                    </div>
+                    <div id="planManageList">
+                        <!-- 动态生成计划列表 -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>

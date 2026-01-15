@@ -106,7 +106,6 @@
 
 /* 拖拽样式 */
 .exercise-card {
-    cursor: move; /* 显示可拖拽光标 */
     user-select: none; /* 防止拖拽时选中文本 */
 }
 
@@ -161,6 +160,33 @@
     font-size: 0.85rem;
     font-weight: 600;
     margin-right: 0.5rem;
+}
+
+/* 管理界面样式 */
+.manage-exercise-item {
+    background: white;
+    transition: background-color 0.2s ease;
+}
+
+.manage-exercise-item:hover {
+    background-color: #f8f9fa;
+}
+
+.manage-exercise-item.dragging {
+    opacity: 0.5;
+}
+
+.plan-exercise-list.drag-over {
+    background-color: #e7f5ff;
+    border: 2px dashed #0d6efd;
+    border-radius: 8px;
+    min-height: 50px;
+}
+
+.plan-exercise-list {
+    min-height: 20px;
+    padding: 0.5rem;
+    border-radius: 4px;
 }
 
 /* 响应式调整 */

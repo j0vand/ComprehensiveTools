@@ -203,8 +203,18 @@ class VoiceManager {
     /**
      * 持续时间型训练开始
      */
-    announceDurationStart(exerciseName, duration) {
+    announceDurationStart(exerciseName, duration, setNumber = null) {
+        if (setNumber && setNumber > 1) {
+            return this.speak(`第${setNumber}组，${exerciseName}，坚持${duration}秒`);
+        }
         return this.speak(`${exerciseName}，坚持${duration}秒`);
+    }
+    
+    /**
+     * 训练开始详细提示（用于准备间隔后）
+     */
+    announceTrainingStart(exerciseName, setNumber, duration) {
+        return this.speak(`第${setNumber}组，${exerciseName}，坚持${duration}秒`);
     }
 
     /**
@@ -223,6 +233,27 @@ class VoiceManager {
     announceTimeRemaining(seconds) {
         return this.speak(`还剩${seconds}秒，坚持住`);
     }
+    
+    /**
+     * 训练倒计时（全程只说数字）
+     */
+    announceTrainingCountdown(seconds) {
+        return this.speak(seconds.toString());
+    }
+    
+    /**
+     * 休息倒计时（全程只说数字）
+     */
+    announceRestCountdown(seconds) {
+        return this.speak(seconds.toString());
+    }
+    
+    /**
+     * 准备阶段倒计时（全程只说数字）
+     */
+    announcePrepareCountdown(seconds) {
+        return this.speak(seconds.toString());
+    }
 
     /**
      * 组完成
@@ -232,13 +263,34 @@ class VoiceManager {
     }
 
     /**
-     * 组间休息
+     * 组间休息开始（详细提示）
+     */
+    announceSetRestStart(exerciseName, setNumber, restSeconds) {
+        return this.speak(`第${setNumber}组完成，开始组间休息${restSeconds}秒`);
+    }
+    
+    /**
+     * 组间休息（保持兼容性）
      */
     announceSetRest(restSeconds) {
         if (restSeconds > 0) {
             return this.speak(`组间休息${restSeconds}秒`);
         }
         return this.speak('准备下一组');
+    }
+    
+    /**
+     * 准备间隔开始
+     */
+    announceTransitionStart(seconds) {
+        return this.speak(`准备下一组，${seconds}秒后开始`);
+    }
+    
+    /**
+     * 准备间隔倒计时
+     */
+    announceTransitionCountdown(seconds) {
+        return this.speak(seconds.toString());
     }
 
     /**

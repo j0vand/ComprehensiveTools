@@ -16,9 +16,18 @@ class RehabTrainerApp {
         this.initProgressCircle();
         this.loadPlans();
         this.initTrainingEvents();
-        this.initDragAndDrop();
+        // 拖拽功能已移至计划管理界面，主界面不再支持拖拽
         this.loadVoiceSettings();
         this.checkAndDisplayVoiceSupport();
+        
+        // 确保初始状态：主界面显示，训练界面隐藏
+        if (this.mainView) {
+            this.mainView.style.display = 'block';
+        }
+        if (this.trainingView) {
+            this.trainingView.style.display = 'none';
+            this.trainingView.style.visibility = 'hidden';
+        }
         
         // 所有设备都需要用户交互后才能使用TTS（浏览器安全限制）
         this.initVoiceOnFirstInteraction();
@@ -201,10 +210,12 @@ class RehabTrainerApp {
                 this.planModal = this.createFallbackModal('planModal');
                 this.exerciseModal = this.createFallbackModal('exerciseModal');
                 this.deleteModal = this.createFallbackModal('deleteModal');
+                this.planManageModal = this.createFallbackModal('planManageModal');
             } else {
                 this.planModal = new bootstrap.Modal(document.getElementById('planModal'));
                 this.exerciseModal = new bootstrap.Modal(document.getElementById('exerciseModal'));
                 this.deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+                this.planManageModal = new bootstrap.Modal(document.getElementById('planManageModal'));
             }
         } catch (error) {
             console.error('模态框初始化失败:', error);
@@ -212,6 +223,7 @@ class RehabTrainerApp {
             this.planModal = this.createFallbackModal('planModal');
             this.exerciseModal = this.createFallbackModal('exerciseModal');
             this.deleteModal = this.createFallbackModal('deleteModal');
+            this.planManageModal = this.createFallbackModal('planManageModal');
         }
     }
 
@@ -304,6 +316,9 @@ class RehabTrainerApp {
             this.addMobileEventListener(document.getElementById('importBtn'), 'click', () => this.triggerImport());
             document.getElementById('importFile').addEventListener('change', (e) => this.importData(e));
             
+            // 计划管理
+            this.addMobileEventListener(document.getElementById('managePlansBtn'), 'click', () => this.showPlanManageModal());
+            
             // 训练项相关
             this.addMobileEventListener(document.getElementById('addExerciseBtn'), 'click', () => this.showExerciseModal());
             this.addMobileEventListener(document.getElementById('saveExerciseBtn'), 'click', () => this.saveExercise());
@@ -354,11 +369,44 @@ class RehabTrainerApp {
         trainingTimer.on('tick', (data) => {
             this.timerDisplay.textContent = data.remaining;
             this.updateProgressCircle(data.progress);
-            
-            // 准备阶段最后3秒倒数
-            if (trainingTimer.state === trainingTimer.STATE.PREPARING && data.remaining <= 3 && data.remaining > 0) {
-                voiceManager.speak(data.remaining.toString());
-            }
+        });
+        
+        // 准备阶段倒计时
+        trainingTimer.on('prepareCountdown', (data) => {
+            voiceManager.announcePrepareCountdown(data.remaining);
+        });
+        
+        // 训练倒计时
+        trainingTimer.on('trainingCountdown', (data) => {
+            voiceManager.announceTrainingCountdown(data.remaining);
+        });
+        
+        // 休息倒计时
+        trainingTimer.on('restCountdown', (data) => {
+            voiceManager.announceRestCountdown(data.remaining);
+        });
+        
+        // 准备间隔倒计时
+        trainingTimer.on('transitionCountdown', (data) => {
+            voiceManager.announceTransitionCountdown(data.remaining);
+        });
+        
+        // 组间休息开始（详细提示）
+        trainingTimer.on('setRestStart', (data) => {
+            voiceManager.announceSetRestStart(data.exercise.name, data.set, data.duration);
+        });
+        
+        // 准备间隔开始
+        trainingTimer.on('transitionStart', (data) => {
+            this.statusText.textContent = '准备下一组';
+            this.timerDisplay.textContent = data.duration;
+            this.showDurationDisplay();
+            voiceManager.announceTransitionStart(data.duration);
+        });
+        
+        // 准备间隔结束，训练开始
+        trainingTimer.on('transitionEnd', (data) => {
+            // 这里会在 nextSet() 中触发 trainingStart 事件，所以不需要额外处理
         });
         
         // 持续时间型训练开始
@@ -368,9 +416,8 @@ class RehabTrainerApp {
             this.timerDisplay.textContent = data.duration;
             this.showDurationDisplay();
             
-            if (trainingTimer.currentSet === 1) {
-                voiceManager.announceDurationStart(data.exercise.name, data.duration);
-            }
+            // 播放详细的训练开始提示（包含组数信息）
+            voiceManager.announceTrainingStart(data.exercise.name, data.set, data.duration);
         });
         
         // 次数型训练开始
@@ -382,8 +429,9 @@ class RehabTrainerApp {
             voiceManager.announceRepsStart(data.exercise.name, data.reps, data.set);
         });
         
-        // 10秒提醒
+        // 10秒提醒（保持兼容性，但现在主要使用倒计时事件）
         trainingTimer.on('reminder', () => {
+            // 倒计时事件已经处理了提醒，这里可以保留作为备用
             voiceManager.announceTimeRemaining(10);
         });
         
@@ -392,12 +440,12 @@ class RehabTrainerApp {
             voiceManager.announceSetComplete(data.set);
         });
         
-        // 组间休息
+        // 组间休息（保持兼容性，但主要使用 setRestStart 事件）
         trainingTimer.on('setRest', (data) => {
             this.statusText.textContent = '组间休息';
             this.timerDisplay.textContent = data.duration;
             this.showDurationDisplay();
-            voiceManager.announceSetRest(data.duration);
+            // setRestStart 事件已经播放了详细提示，这里不再重复播放
         });
         
         // 下一个训练项
@@ -414,7 +462,14 @@ class RehabTrainerApp {
         
         // 继续
         trainingTimer.on('resume', () => {
-            this.statusText.textContent = '训练中';
+            // 根据当前状态更新UI
+            if (trainingTimer.state === trainingTimer.STATE.TRAINING) {
+                this.statusText.textContent = '训练中';
+            } else if (trainingTimer.state === trainingTimer.STATE.SET_REST) {
+                this.statusText.textContent = '组间休息';
+            } else if (trainingTimer.state === trainingTimer.STATE.TRANSITION) {
+                this.statusText.textContent = '准备下一组';
+            }
             document.getElementById('pauseBtn').innerHTML = '<i class="bi bi-pause-fill"></i> 暂停';
             voiceManager.announceResume();
         });
@@ -786,7 +841,7 @@ class RehabTrainerApp {
         const card = document.createElement('div');
         card.className = 'exercise-card';
         card.dataset.id = exercise.id;
-        card.draggable = true; // 启用拖拽功能
+        // 主页面的卡片不再启用拖拽，拖拽功能移到管理界面
         
         const typeClass = exercise.type === 'duration' ? 'type-duration' : 'type-reps';
         const typeText = exercise.type === 'duration' ? '持续时间型' : '次数型';
@@ -841,9 +896,8 @@ class RehabTrainerApp {
         // 编辑按钮
         const editBtn = card.querySelector('.edit');
         if (editBtn) {
-            editBtn.draggable = false; // 按钮不可拖拽
             this.addMobileEventListener(editBtn, 'click', (e) => {
-                e.stopPropagation(); // 阻止事件冒泡
+                e.stopPropagation();
                 this.editExercise(exercise.id);
             });
         }
@@ -851,9 +905,8 @@ class RehabTrainerApp {
         // 删除按钮
         const deleteBtn = card.querySelector('.delete');
         if (deleteBtn) {
-            deleteBtn.draggable = false; // 按钮不可拖拽
             this.addMobileEventListener(deleteBtn, 'click', (e) => {
-                e.stopPropagation(); // 阻止事件冒泡
+                e.stopPropagation();
                 this.deleteExercise(exercise.id);
             });
         }
@@ -994,9 +1047,17 @@ class RehabTrainerApp {
         if (!this.deleteTarget) return;
         
         if (this.deleteTarget.type === 'exercise') {
-            if (storage.deleteExercise(this.currentPlanId, this.deleteTarget.id)) {
-                this.currentExercises = storage.getExercises(this.currentPlanId);
-                this.renderExercises();
+            const planId = this.deleteTarget.planId || this.currentPlanId;
+            if (storage.deleteExercise(planId, this.deleteTarget.id)) {
+                // 如果是在管理界面删除，刷新管理界面
+                const manageModal = document.getElementById('planManageModal');
+                if (manageModal && manageModal.classList.contains('show')) {
+                    this.renderPlanManageList();
+                } else {
+                    // 在主界面删除，刷新主界面
+                    this.currentExercises = storage.getExercises(this.currentPlanId);
+                    this.renderExercises();
+                }
             }
         }
         
@@ -1025,29 +1086,41 @@ class RehabTrainerApp {
         
         const settings = storage.getSettings();
         const prepareTime = settings && settings.prepareTime ? settings.prepareTime : 10;
+        const transitionInterval = settings && settings.transitionInterval ? settings.transitionInterval : 5;
+        const countdownStart = settings && settings.countdownStart ? settings.countdownStart : 10;
 
         // 激活屏幕常亮
         if (typeof screenWakeLock !== 'undefined' && 'wakeLock' in navigator) {
             screenWakeLock.request();
         }
 
-        trainingTimer.start(this.currentExercises, prepareTime);
+        trainingTimer.start(this.currentExercises, prepareTime, transitionInterval, countdownStart);
     }
 
     /**
      * 显示训练界面
      */
     showTrainingView() {
-        this.mainView.style.display = 'none';
-        this.trainingView.style.display = 'flex';
+        if (this.mainView) {
+            this.mainView.style.display = 'none';
+        }
+        if (this.trainingView) {
+            this.trainingView.style.display = 'flex';
+            this.trainingView.style.visibility = 'visible';
+        }
     }
 
     /**
      * 显示主界面
      */
     showMainView() {
-        this.trainingView.style.display = 'none';
-        this.mainView.style.display = 'block';
+        if (this.trainingView) {
+            this.trainingView.style.display = 'none';
+            this.trainingView.style.visibility = 'hidden';
+        }
+        if (this.mainView) {
+            this.mainView.style.display = 'block';
+        }
     }
 
     /**
@@ -1152,280 +1225,323 @@ class RehabTrainerApp {
     }
 
     /**
-     * 初始化拖拽排序功能
+     * 初始化拖拽排序功能（已移至管理界面，主界面不再支持拖拽）
      */
     initDragAndDrop() {
-        if (!this.exerciseList) return;
-
-        // 使用事件委托，监听整个列表容器
-        this.exerciseList.addEventListener('dragstart', (e) => this.handleDragStart(e));
-        this.exerciseList.addEventListener('dragover', (e) => this.handleDragOver(e));
-        this.exerciseList.addEventListener('drop', (e) => this.handleDrop(e));
-        this.exerciseList.addEventListener('dragend', (e) => this.handleDragEnd(e));
-        
-        // 移动端触摸拖拽支持
-        this.initTouchDrag();
+        // 拖拽功能已移至计划管理界面
+        // 主界面不再支持拖拽，避免误触
     }
-    
+
+    // ==================== 计划管理界面 ====================
+
     /**
-     * 初始化触摸拖拽（移动端支持）
+     * 显示计划管理界面
      */
-    initTouchDrag() {
-        let draggedElement = null;
-        let placeholder = null;
-        let touchStartY = 0;
-        let touchStartX = 0;
-        let draggedIndex = 0;
-        let isDragging = false;
-        const DRAG_THRESHOLD = 10; // 拖拽阈值，超过这个距离才认为是拖拽
-        
-        this.exerciseList.addEventListener('touchstart', (e) => {
-            // 如果点击的是按钮，不处理
-            if (e.target.closest('button')) {
-                return;
-            }
-            
-            const card = e.target.closest('.exercise-card');
-            if (!card) return;
-            
-            touchStartY = e.touches[0].clientY;
-            touchStartX = e.touches[0].clientX;
-            draggedElement = card;
-            draggedIndex = Array.from(this.exerciseList.children).indexOf(card);
-            isDragging = false;
-        }, { passive: true });
-        
-        this.exerciseList.addEventListener('touchmove', (e) => {
-            if (!draggedElement) return;
-            
-            const touchY = e.touches[0].clientY;
-            const touchX = e.touches[0].clientX;
-            const deltaY = Math.abs(touchY - touchStartY);
-            const deltaX = Math.abs(touchX - touchStartX);
-            
-            // 如果垂直移动距离大于水平移动距离，且超过阈值，开始拖拽
-            if (!isDragging && deltaY > DRAG_THRESHOLD && deltaY > deltaX) {
-                isDragging = true;
-                e.preventDefault();
-                
-                // 创建占位符
-                placeholder = document.createElement('div');
-                placeholder.className = 'exercise-card-placeholder';
-                placeholder.style.cssText = `
-                    height: ${draggedElement.offsetHeight}px;
-                    background: #e9ecef;
-                    border: 2px dashed #0d6efd;
-                    border-radius: 12px;
-                    margin-bottom: 1rem;
-                    transition: none;
-                `;
-                
-                draggedElement.style.opacity = '0.5';
-                draggedElement.style.position = 'relative';
-                draggedElement.style.zIndex = '1000';
-                draggedElement.parentNode.insertBefore(placeholder, draggedElement);
-            }
-            
-            if (isDragging && placeholder) {
-                e.preventDefault();
-                const currentY = touchY;
-                const delta = currentY - touchStartY;
-                
-                // 移动卡片
-                draggedElement.style.transform = `translateY(${delta}px)`;
-                
-                // 计算应该插入的位置
-                const allCards = Array.from(this.exerciseList.querySelectorAll('.exercise-card'));
-                const placeholderIndex = Array.from(this.exerciseList.children).indexOf(placeholder);
-                let targetIndex = placeholderIndex;
-                
-                allCards.forEach((card, index) => {
-                    if (card === draggedElement) return;
-                    
-                    const rect = card.getBoundingClientRect();
-                    const cardCenter = rect.top + rect.height / 2;
-                    
-                    if (currentY < cardCenter && index < placeholderIndex) {
-                        targetIndex = index;
-                    } else if (currentY > cardCenter && index > placeholderIndex) {
-                        targetIndex = index + 1;
-                    }
-                });
-                
-                // 移动占位符到目标位置
-                const allChildren = Array.from(this.exerciseList.children);
-                if (allChildren[targetIndex] !== placeholder && targetIndex !== placeholderIndex) {
-                    this.exerciseList.insertBefore(placeholder, allChildren[targetIndex] || null);
-                }
-            }
-        }, { passive: false });
-        
-        this.exerciseList.addEventListener('touchend', () => {
-            if (!isDragging || !draggedElement || !placeholder) {
-                draggedElement = null;
-                placeholder = null;
-                isDragging = false;
-                return;
-            }
-            
-            // 获取最终顺序
-            const allCards = Array.from(this.exerciseList.querySelectorAll('.exercise-card'));
-            const placeholderIndex = Array.from(this.exerciseList.children).indexOf(placeholder);
-            
-            // 移除占位符
-            placeholder.remove();
-            
-            // 重置样式
-            draggedElement.style.opacity = '';
-            draggedElement.style.transform = '';
-            draggedElement.style.position = '';
-            draggedElement.style.zIndex = '';
-            
-            // 获取新的顺序ID数组
-            const exerciseIds = [];
-            allCards.forEach(card => {
-                if (card !== draggedElement) {
-                    exerciseIds.push(card.dataset.id);
+    showPlanManageModal() {
+        this.renderPlanManageList();
+        this.planManageModal.show();
+    }
+
+    /**
+     * 渲染计划管理列表
+     */
+    renderPlanManageList() {
+        const container = document.getElementById('planManageList');
+        if (!container) return;
+
+        container.innerHTML = '';
+        const plans = storage.getAllPlans();
+
+        if (plans.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center py-4">还没有训练计划，请先创建计划</p>';
+            return;
+        }
+
+        plans.forEach((plan, planIndex) => {
+            const planCard = this.createPlanManageCard(plan, planIndex);
+            container.appendChild(planCard);
+        });
+
+        // 初始化跨计划拖拽
+        this.initCrossPlanDrag();
+    }
+
+    /**
+     * 创建计划管理卡片
+     */
+    createPlanManageCard(plan, planIndex) {
+        const card = document.createElement('div');
+        card.className = 'card mb-3';
+        card.dataset.planId = plan.id;
+
+        const exercises = plan.exercises || [];
+        const exerciseCount = exercises.length;
+
+        card.innerHTML = `
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-link p-0 text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#plan-${plan.id}">
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
+                    <h6 class="mb-0">${plan.name}</h6>
+                    <span class="badge bg-secondary">${exerciseCount} 项</span>
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary edit-plan-name" data-plan-id="${plan.id}">
+                        <i class="bi bi-pencil"></i> 重命名
+                    </button>
+                </div>
+            </div>
+            <div class="collapse show" id="plan-${plan.id}">
+                <div class="card-body">
+                    <div class="plan-exercise-list" data-plan-id="${plan.id}">
+                        ${exerciseCount === 0 ? '<p class="text-muted text-center py-2 mb-0">暂无训练项，可拖动其他计划的训练项到这里</p>' : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 渲染训练项
+        const exerciseList = card.querySelector('.plan-exercise-list');
+        exercises.forEach((exercise, index) => {
+            const exerciseItem = this.createManageExerciseItem(exercise, index, plan.id);
+            exerciseList.appendChild(exerciseItem);
+        });
+
+        // 重命名按钮
+        const renameBtn = card.querySelector('.edit-plan-name');
+        if (renameBtn) {
+            this.addMobileEventListener(renameBtn, 'click', () => {
+                this.editPlanName(plan.id);
+            });
+        }
+
+        return card;
+    }
+
+    /**
+     * 创建管理界面的训练项
+     */
+    createManageExerciseItem(exercise, index, planId) {
+        const item = document.createElement('div');
+        item.className = 'manage-exercise-item mb-2 p-2 border rounded';
+        item.dataset.exerciseId = exercise.id;
+        item.dataset.planId = planId;
+        item.draggable = true;
+
+        const typeText = exercise.type === 'duration' ? '持续时间型' : '次数型';
+        const typeClass = exercise.type === 'duration' ? 'type-duration' : 'type-reps';
+
+        item.innerHTML = `
+            <div class="d-flex align-items-center gap-2">
+                <div class="exercise-card-drag-handle" title="拖动排序或移动到其他计划">
+                    <i class="bi bi-grip-vertical"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary">${index + 1}</span>
+                        <strong>${exercise.name}</strong>
+                        <span class="badge ${typeClass === 'type-duration' ? 'bg-info' : 'bg-success'}">${typeText}</span>
+                    </div>
+                    <small class="text-muted">
+                        ${exercise.type === 'duration' ? `坚持${exercise.duration}秒` : `每组${exercise.reps}次`} · 
+                        ${exercise.sets}组 · 组间休息${exercise.setRest}秒
+                    </small>
+                </div>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary edit-exercise-manage" data-exercise-id="${exercise.id}" data-plan-id="${planId}">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-outline-danger delete-exercise-manage" data-exercise-id="${exercise.id}" data-plan-id="${planId}">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // 编辑按钮
+        const editBtn = item.querySelector('.edit-exercise-manage');
+        if (editBtn) {
+            editBtn.draggable = false;
+            this.addMobileEventListener(editBtn, 'click', (e) => {
+                e.stopPropagation();
+                const exercise = storage.getExercises(planId).find(e => e.id === editBtn.dataset.exerciseId);
+                if (exercise) {
+                    this.planManageModal.hide();
+                    this.currentPlanId = planId;
+                    this.switchPlan(planId);
+                    setTimeout(() => {
+                        this.editExercise(exercise.id);
+                    }, 300);
                 }
             });
-            
-            // 将拖拽的元素插入到占位符位置
-            exerciseIds.splice(placeholderIndex, 0, draggedElement.dataset.id);
-            
-            // 保存新顺序
-            if (this.currentPlanId && exerciseIds.length > 0) {
-                if (storage.reorderExercises(this.currentPlanId, exerciseIds)) {
-                    this.currentExercises = storage.getExercises(this.currentPlanId);
-                    this.renderExercises();
-                    this.showToast('顺序已更新');
+        }
+
+        // 删除按钮
+        const deleteBtn = item.querySelector('.delete-exercise-manage');
+        if (deleteBtn) {
+            deleteBtn.draggable = false;
+            this.addMobileEventListener(deleteBtn, 'click', (e) => {
+                e.stopPropagation();
+                const exercise = storage.getExercises(planId).find(e => e.id === deleteBtn.dataset.exerciseId);
+                if (exercise) {
+                    this.deleteTarget = { type: 'exercise', id: deleteBtn.dataset.exerciseId, planId: planId };
+                    document.getElementById('deleteMessage').textContent = `确定要删除"${exercise.name}"吗？`;
+                    this.deleteModal.show();
                 }
-            }
-            
-            // 重置变量
-            draggedElement = null;
-            placeholder = null;
-            isDragging = false;
+            });
+        }
+
+        // 拖拽手柄
+        const dragHandle = item.querySelector('.exercise-card-drag-handle');
+        if (dragHandle) {
+            dragHandle.draggable = true;
+            dragHandle.addEventListener('dragstart', (e) => {
+                e.stopPropagation();
+                item.draggable = true;
+                e.dataTransfer.setData('text/plain', JSON.stringify({
+                    exerciseId: exercise.id,
+                    planId: planId
+                }));
+                item.classList.add('dragging');
+            });
+        }
+
+        return item;
+    }
+
+    /**
+     * 初始化跨计划拖拽
+     */
+    initCrossPlanDrag() {
+        const planLists = document.querySelectorAll('.plan-exercise-list');
+        
+        planLists.forEach(list => {
+            list.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                
+                const draggingItem = document.querySelector('.manage-exercise-item.dragging');
+                if (draggingItem && draggingItem.parentElement !== list) {
+                    list.classList.add('drag-over');
+                }
+            });
+
+            list.addEventListener('dragleave', () => {
+                list.classList.remove('drag-over');
+            });
+
+            list.addEventListener('drop', (e) => {
+                e.preventDefault();
+                list.classList.remove('drag-over');
+
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                const sourcePlanId = data.planId;
+                const exerciseId = data.exerciseId;
+                const targetPlanId = list.dataset.planId;
+
+                if (sourcePlanId === targetPlanId) {
+                    // 同计划内排序
+                    this.handleSamePlanReorder(list, exerciseId, e);
+                } else {
+                    // 跨计划移动
+                    this.handleCrossPlanMove(sourcePlanId, targetPlanId, exerciseId, list);
+                }
+            });
         });
     }
 
     /**
-     * 处理拖拽开始事件
+     * 处理同计划内排序
      */
-    handleDragStart(e) {
-        const targetCard = e.target.closest('.exercise-card');
-        if (!targetCard) {
-            e.preventDefault();
-            return;
+    handleSamePlanReorder(list, exerciseId, e) {
+        const items = Array.from(list.querySelectorAll('.manage-exercise-item'));
+        const draggedItem = items.find(item => item.dataset.exerciseId === exerciseId);
+        if (!draggedItem) return;
+
+        const afterElement = this.getDragAfterElement(list, e.clientY);
+        if (afterElement == null) {
+            list.appendChild(draggedItem);
+        } else {
+            list.insertBefore(draggedItem, afterElement);
         }
 
-        // 如果点击的是按钮，不触发拖拽
-        if (e.target.closest('button')) {
-            e.preventDefault();
-            return;
-        }
-
-        // 设置拖拽反馈样式
-        targetCard.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', targetCard.dataset.id);
+        // 更新顺序
+        const exerciseIds = Array.from(list.querySelectorAll('.manage-exercise-item'))
+            .map(item => item.dataset.exerciseId);
+        storage.reorderExercises(list.dataset.planId, exerciseIds);
+        
+        // 更新序号
+        this.updateExerciseNumbers(list);
+        draggedItem.classList.remove('dragging');
     }
 
     /**
-     * 处理拖拽移动事件
+     * 处理跨计划移动
      */
-    handleDragOver(e) {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
+    handleCrossPlanMove(sourcePlanId, targetPlanId, exerciseId, targetList) {
+        const exercise = storage.getExercises(sourcePlanId).find(e => e.id === exerciseId);
+        if (!exercise) return;
 
-        const targetCard = e.target.closest('.exercise-card');
-        const draggableCard = document.querySelector('.exercise-card.dragging');
+        // 从源计划删除
+        storage.deleteExercise(sourcePlanId, exerciseId);
 
-        // 移除所有拖拽悬停样式
-        document.querySelectorAll('.exercise-card.drag-over').forEach(card => {
-            if (card !== targetCard) {
-                card.classList.remove('drag-over');
-            }
-        });
+        // 添加到目标计划
+        storage.addExercise(targetPlanId, exercise);
 
-        if (targetCard && draggableCard && targetCard !== draggableCard) {
-            // 添加视觉反馈
-            targetCard.classList.add('drag-over');
+        // 重新渲染
+        this.renderPlanManageList();
+        this.showToast(`已将"${exercise.name}"移动到目标计划`);
+    }
+
+    /**
+     * 获取拖拽后的元素位置
+     */
+    getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.manage-exercise-item:not(.dragging)')];
+        
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
             
-            // 计算插入位置
-            const rect = targetCard.getBoundingClientRect();
-            const midpoint = rect.top + rect.height / 2;
-            const mouseY = e.clientY;
-            
-            // 根据鼠标位置决定插入到上方还是下方
-            if (mouseY < midpoint) {
-                targetCard.classList.add('drag-over-top');
-                targetCard.classList.remove('drag-over-bottom');
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
             } else {
-                targetCard.classList.add('drag-over-bottom');
-                targetCard.classList.remove('drag-over-top');
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    /**
+     * 更新训练项序号
+     */
+    updateExerciseNumbers(list) {
+        const items = list.querySelectorAll('.manage-exercise-item');
+        items.forEach((item, index) => {
+            const badge = item.querySelector('.badge.bg-primary');
+            if (badge) {
+                badge.textContent = index + 1;
+            }
+        });
+    }
+
+    /**
+     * 编辑计划名称
+     */
+    editPlanName(planId) {
+        const plan = storage.getPlanById(planId);
+        if (!plan) return;
+
+        const newName = prompt('请输入新的计划名称：', plan.name);
+        if (newName && newName.trim() && newName.trim() !== plan.name) {
+            plan.name = newName.trim();
+            if (storage.savePlan(plan)) {
+                this.renderPlanManageList();
+                this.loadPlans(); // 更新主页面的计划列表
+                this.showToast('计划名称已更新');
             }
         }
     }
-
-    /**
-     * 处理放置事件
-     */
-    handleDrop(e) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // 移除视觉反馈
-        document.querySelectorAll('.exercise-card.drag-over, .exercise-card.drag-over-top, .exercise-card.drag-over-bottom').forEach(card => {
-            card.classList.remove('drag-over', 'drag-over-top', 'drag-over-bottom');
-        });
-
-        const targetCard = e.target.closest('.exercise-card');
-        const draggedId = e.dataTransfer.getData('text/plain');
-
-        // 不能放置到自身
-        if (!targetCard || targetCard.dataset.id === draggedId) {
-            return;
-        }
-
-        // 获取当前所有卡片的ID顺序（按DOM顺序）
-        const allCards = Array.from(this.exerciseList.querySelectorAll('.exercise-card'));
-        const exerciseIds = allCards.map(card => card.dataset.id);
-
-        // 找到拖拽元素和目标元素的索引
-        const draggedIndex = exerciseIds.indexOf(draggedId);
-        const targetIndex = exerciseIds.indexOf(targetCard.dataset.id);
-
-        // 如果索引无效，直接返回
-        if (draggedIndex === -1 || targetIndex === -1) {
-            return;
-        }
-
-        // 重新排列数组
-        exerciseIds.splice(draggedIndex, 1);
-        exerciseIds.splice(targetIndex, 0, draggedId);
-
-        // 保存新顺序到存储
-        if (this.currentPlanId && storage.reorderExercises(this.currentPlanId, exerciseIds)) {
-            // 更新内存中的数据顺序
-            this.currentExercises = storage.getExercises(this.currentPlanId);
-            // 重新渲染以更新序号
-            this.renderExercises();
-            // 显示成功提示
-            this.showToast('顺序已更新');
-        }
-    }
-
-    /**
-     * 处理拖拽结束事件
-     */
-    handleDragEnd() {
-        // 移除所有拖拽相关样式
-        document.querySelectorAll('.exercise-card.dragging, .exercise-card.drag-over, .exercise-card.drag-over-top, .exercise-card.drag-over-bottom')
-            .forEach(card => {
-                card.classList.remove('dragging', 'drag-over', 'drag-over-top', 'drag-over-bottom');
-            });
-    }
-
 }
 
 // 页面加载完成后初始化应用
