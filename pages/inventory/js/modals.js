@@ -792,14 +792,30 @@ class InventoryModals {
                         </div>
                     </div>
                     <div class="modal-footer">
-                        <button class="secondary-button" onclick="ModalsManager.openEditItemModal('${item.id}')">编辑商品</button>
-                        <button class="primary-button" onclick="ModalsManager.openAdjustQuantityModal('${item.id}')">调整库存</button>
+                        <button class="secondary-button" data-action="edit-item" data-item-id="${item.id}">编辑商品</button>
+                        <button class="primary-button" data-action="adjust-quantity" data-item-id="${item.id}">调整库存</button>
                     </div>
                 </div>
             </div>
         `;
 
         this.showModal(html, 'itemDetailsModal', (modal) => {
+            // 事件委托：处理动态生成的按钮点击
+            modal.addEventListener('click', (e) => {
+                const action = e.target.getAttribute('data-action');
+                const itemId = e.target.getAttribute('data-item-id');
+                
+                if (action === 'edit-item' && itemId) {
+                    e.preventDefault();
+                    this.closeModal();
+                    setTimeout(() => this.openEditItemModal(itemId), 100);
+                } else if (action === 'adjust-quantity' && itemId) {
+                    e.preventDefault();
+                    this.closeModal();
+                    setTimeout(() => this.openAdjustQuantityModal(itemId), 100);
+                }
+            });
+
             // Tab 切换逻辑
             const tabs = modal.querySelectorAll('.tab-button');
             tabs.forEach(tab => {
@@ -1133,7 +1149,7 @@ class InventoryModals {
                                     <div class="reminder-item">
                                         <div class="reminder-item-name">${item.itemName}</div>
                                         <div class="reminder-item-detail">还有 ${item.daysToExpiry} 天过期</div>
-                                        <button class="action-icon action-icon-add" onclick="ModalsManager.addToShoppingListFromReminder('${item.itemId}')" title="添加到购物清单">🛒</button>
+                                        <button class="action-icon action-icon-add" data-action="add-to-shopping-list" data-item-id="${item.itemId}" title="添加到购物清单">🛒</button>
                                     </div>
                                 `).join('')}
                             </div>
@@ -1148,7 +1164,7 @@ class InventoryModals {
                                     <div class="reminder-item">
                                         <div class="reminder-item-name">${item.itemName}</div>
                                         <div class="reminder-item-detail">${item.reason}</div>
-                                        <button class="action-icon action-icon-add" onclick="ModalsManager.addToShoppingListFromReminder('${item.itemId}')" title="添加到购物清单">🛒</button>
+                                        <button class="action-icon action-icon-add" data-action="add-to-shopping-list" data-item-id="${item.itemId}" title="添加到购物清单">🛒</button>
                                     </div>
                                 `).join('')}
                             </div>
@@ -1160,7 +1176,16 @@ class InventoryModals {
         `;
         
         this.showModal(html, 'remindersModal', (modal) => {
-            // 模态框已显示
+            // 事件委托：处理动态生成的"添加到购物清单"按钮
+            modal.addEventListener('click', (e) => {
+                const action = e.target.getAttribute('data-action');
+                const itemId = e.target.getAttribute('data-item-id');
+                
+                if (action === 'add-to-shopping-list' && itemId) {
+                    e.preventDefault();
+                    this.addToShoppingListFromReminder(itemId);
+                }
+            });
         });
     }
     

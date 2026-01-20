@@ -136,14 +136,25 @@ function classNames(classObj) {
 }
 
 /**
- * 显示通知信息
+ * 显示通知信息（优先使用公共工具库，降级到本地实现）
  * @param {string} message - 通知内容
  * @param {string} type - 通知类型：'success', 'warning', 'error', 'info'
  * @param {number} duration - 显示时间（毫秒）
  */
 function showNotification(message, type = 'info', duration = 3000) {
+    // 优先使用公共工具库
+    if (window.CommonUtils && window.CommonUtils.showNotification) {
+        window.CommonUtils.showNotification(message, type, duration);
+        return;
+    }
+    
+    // 降级处理：如果公共工具库未加载，使用本地实现（依赖 alertContainer）
     const container = document.getElementById('alertContainer');
-    if (!container) return;
+    if (!container) {
+        // 如果连 alertContainer 都没有，使用 alert
+        alert(message);
+        return;
+    }
     
     const alert = document.createElement('div');
     alert.className = `alert alert-${type}`;
@@ -172,7 +183,9 @@ function showNotification(message, type = 'info', duration = 3000) {
     setTimeout(() => {
         alert.style.opacity = '0';
         setTimeout(() => {
-            container.removeChild(alert);
+            if (container.contains(alert)) {
+                container.removeChild(alert);
+            }
         }, 300);
     }, duration);
 }
@@ -260,12 +273,17 @@ function kebabToCamel(str) {
 }
 
 /**
- * 安全获取本地存储中的JSON数据
+ * 安全获取本地存储中的JSON数据（优先使用公共工具库）
  * @param {string} key - 存储键名
  * @param {*} defaultValue - 默认值
  * @returns {*} 解析后的数据或默认值
  */
 function getLocalStorageItem(key, defaultValue = null) {
+    // 优先使用公共工具库
+    if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
+        return window.CommonUtils.getLocalStorageItem(key, defaultValue);
+    }
+    // 降级处理：如果公共工具库未加载，使用本地实现
     try {
         const item = localStorage.getItem(key);
         if (item === null) return defaultValue;
@@ -277,12 +295,17 @@ function getLocalStorageItem(key, defaultValue = null) {
 }
 
 /**
- * 安全设置本地存储中的JSON数据
+ * 安全设置本地存储中的JSON数据（优先使用公共工具库）
  * @param {string} key - 存储键名
  * @param {*} value - 要存储的数据
  * @returns {boolean} 是否成功
  */
 function setLocalStorageItem(key, value) {
+    // 优先使用公共工具库
+    if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
+        return window.CommonUtils.setLocalStorageItem(key, value);
+    }
+    // 降级处理：如果公共工具库未加载，使用本地实现
     try {
         localStorage.setItem(key, JSON.stringify(value));
         return true;
@@ -380,7 +403,14 @@ function initDarkMode() {
     if (!themeToggle) return;
     
     // 检查用户偏好
-    const savedTheme = localStorage.getItem('inventory-theme');
+    // 使用统一的存储键名和函数（主题存储保持独立键名）
+    const STORAGE_KEY = 'inventory-theme';
+    let savedTheme;
+    if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
+        savedTheme = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, null);
+    } else {
+        savedTheme = localStorage.getItem(STORAGE_KEY);
+    }
     const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     
     // 应用主题
@@ -398,7 +428,13 @@ function initDarkMode() {
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
         
         document.body.setAttribute('data-theme', newTheme);
-        localStorage.setItem('inventory-theme', newTheme);
+        // 使用统一的存储函数
+        const STORAGE_KEY = 'inventory-theme'; // 主题存储可以保持独立
+        if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
+            window.CommonUtils.setLocalStorageItem(STORAGE_KEY, newTheme);
+        } else {
+            localStorage.setItem(STORAGE_KEY, newTheme);
+        }
         
         // 如果存在图表，更新图表主题
         if (typeof updateChartsTheme === 'function') {

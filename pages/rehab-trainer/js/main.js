@@ -346,8 +346,8 @@ class RehabTrainerApp {
             
         } catch (error) {
             console.error('事件监听器初始化失败:', error);
-            // 显示错误提示
-            alert('初始化失败，请刷新页面重试。错误：' + error.message);
+            // 显示错误提示（使用统一通知组件）
+            this.showError('初始化失败，请刷新页面重试。错误：' + error.message);
         }
     }
 
@@ -550,7 +550,7 @@ class RehabTrainerApp {
         const name = document.getElementById('planName').value.trim();
         
         if (!name) {
-            alert('请输入计划名称');
+            this.showError('请输入计划名称');
             return;
         }
         
@@ -566,7 +566,7 @@ class RehabTrainerApp {
             this.planSelect.value = newPlan.id;
             this.switchPlan(newPlan.id);
         } else {
-            alert('保存失败');
+            this.showError('保存失败');
         }
     }
 
@@ -626,7 +626,7 @@ class RehabTrainerApp {
      */
     addSampleExercises() {
         if (!this.currentPlanId) {
-            alert('请先选择训练计划');
+            this.showError('请先选择训练计划');
             return;
         }
 
@@ -671,6 +671,22 @@ class RehabTrainerApp {
     /**
      * 显示提示消息
      */
+    /**
+     * 显示错误消息（使用统一通知组件）
+     */
+    showError(message) {
+        if (window.CommonUtils && window.CommonUtils.showNotification) {
+            window.CommonUtils.showNotification(message, 'error', 5000);
+        } else {
+            // 降级处理：使用现有的 showToast 或 alert
+            if (this.showToast) {
+                this.showToast(message);
+            } else {
+                alert(message);
+            }
+        }
+    }
+
     showToast(message) {
         // 创建toast元素
         const toast = document.createElement('div');
@@ -710,7 +726,7 @@ class RehabTrainerApp {
         const exportData = storage.exportData();
         
         if (!exportData) {
-            alert('没有可导出的数据');
+            this.showError('没有可导出的数据');
             return;
         }
         
@@ -750,7 +766,7 @@ class RehabTrainerApp {
         
         // 检查文件类型
         if (!file.name.endsWith('.json')) {
-            alert('请选择JSON格式的文件');
+            this.showError('请选择JSON格式的文件');
             return;
         }
         
@@ -819,7 +835,7 @@ class RehabTrainerApp {
                 
             } catch (error) {
                 console.error('导入错误:', error);
-                alert('导入失败：' + error.message);
+                this.showError('导入失败：' + error.message);
             } finally {
                 // 清空文件选择，允许重复导入同一文件
                 event.target.value = '';
@@ -827,7 +843,7 @@ class RehabTrainerApp {
         };
         
         reader.onerror = () => {
-            alert('文件读取失败');
+            this.showError('文件读取失败');
             event.target.value = '';
         };
         
@@ -919,7 +935,7 @@ class RehabTrainerApp {
      */
     showExerciseModal(exercise = null) {
         if (!this.currentPlanId) {
-            alert('请先选择或创建一个训练计划');
+            this.showError('请先选择或创建一个训练计划');
             return;
         }
         
@@ -981,7 +997,7 @@ class RehabTrainerApp {
         const description = document.getElementById('description').value.trim();
         
         if (!name) {
-            alert('请输入训练项名称');
+            this.showError('请输入训练项名称');
             return;
         }
         
@@ -1014,7 +1030,7 @@ class RehabTrainerApp {
             this.currentExercises = storage.getExercises(this.currentPlanId);
             this.renderExercises();
         } else {
-            alert('保存失败');
+            this.showError('保存失败');
         }
     }
 
@@ -1072,7 +1088,7 @@ class RehabTrainerApp {
      */
     startTraining() {
         if (this.currentExercises.length === 0) {
-            alert('没有训练项');
+            this.showError('没有训练项');
             return;
         }
         
@@ -1550,7 +1566,12 @@ document.addEventListener('DOMContentLoaded', () => {
         window.app = new RehabTrainerApp();
     } catch (error) {
         console.error('应用初始化失败:', error);
-        alert('应用初始化失败：' + error.message + '\n请刷新页面重试。');
+        // 使用统一通知组件（降级处理）
+        if (window.CommonUtils && window.CommonUtils.showNotification) {
+            window.CommonUtils.showNotification('应用初始化失败：' + error.message + '\n请刷新页面重试。', 'error', 5000);
+        } else {
+            alert('应用初始化失败：' + error.message + '\n请刷新页面重试。');
+        }
     }
 });
 

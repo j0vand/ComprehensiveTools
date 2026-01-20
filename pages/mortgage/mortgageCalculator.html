@@ -316,9 +316,9 @@
         <div class="calculator-container">
             <div class="input-card">
                 <div class="loan-type-selector">
-                    <button class="loan-type-button active" onclick="switchLoanType('commercial', event)">商业贷款</button>
-                    <button class="loan-type-button" onclick="switchLoanType('fund', event)">公积金贷款</button>
-                    <button class="loan-type-button" onclick="switchLoanType('combined', event)">组合贷款</button>
+                    <button class="loan-type-button active" data-loan-type="commercial">商业贷款</button>
+                    <button class="loan-type-button" data-loan-type="fund">公积金贷款</button>
+                    <button class="loan-type-button" data-loan-type="combined">组合贷款</button>
                 </div>
 
                 <!-- 商业贷款输入 -->
@@ -407,7 +407,7 @@
                     </select>
                 </div>
 
-                <button class="calculate-button" onclick="calculateMortgage()">计算还款明细</button>
+                <button class="calculate-button" id="calculate-mortgage-btn">计算还款明细</button>
             </div>
 
             <div class="result-card">
@@ -432,8 +432,8 @@
 
                 <div class="tab-container">
                     <div class="tab-buttons">
-                        <button class="tab-button active" onclick="switchTab('schedule', event)">还款计划</button>
-                        <button class="tab-button" onclick="switchTab('chart', event)">还款分析</button>
+                        <button class="tab-button active" data-tab="schedule">还款计划</button>
+                        <button class="tab-button" data-tab="chart">还款分析</button>
                     </div>
 
                     <div id="schedule-tab">
@@ -463,34 +463,20 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="../../utils/storage-keys.js"></script>
+    <script src="../../utils/common.js"></script>
     <script>
         let currentLoanType = 'commercial';
         let chart = null;
         
-        // Toast提示函数
+        // 使用公共工具库的通知函数
         function showToast(message, type = 'info') {
-            // 移除已存在的toast
-            const existingToast = document.querySelector('.toast');
-            if (existingToast) {
-                existingToast.remove();
+            if (window.CommonUtils && window.CommonUtils.showNotification) {
+                window.CommonUtils.showNotification(message, type, 3000);
+            } else {
+                // 降级处理
+                alert(message);
             }
-            
-            // 创建新的toast
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            
-            // 3秒后自动移除
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateX(-50%) translateY(20px)';
-                setTimeout(() => {
-                    if (toast.parentNode) {
-                        toast.parentNode.removeChild(toast);
-                    }
-                }, 300);
-            }, 3000);
         }
         
         // 统一函数名，供按钮调用
@@ -499,21 +485,14 @@
         }
 
         // 切换贷款类型
-        function switchLoanType(type, event) {
+        function switchLoanType(type) {
             currentLoanType = type;
             document.querySelectorAll('.loan-type-button').forEach(btn => {
                 btn.classList.remove('active');
+                if (btn.getAttribute('data-loan-type') === type) {
+                    btn.classList.add('active');
+                }
             });
-            if (event && event.target) {
-                event.target.classList.add('active');
-            } else {
-                // 如果没有event，通过type找到对应按钮
-                document.querySelectorAll('.loan-type-button').forEach(btn => {
-                    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(type)) {
-                        btn.classList.add('active');
-                    }
-                });
-            }
 
             // 隐藏所有输入区域
             document.querySelectorAll('#commercial-inputs, #fund-inputs, #combined-inputs').forEach(div => {
@@ -525,20 +504,13 @@
         }
 
         // 切换标签页
-        function switchTab(tab, event) {
+        function switchTab(tab) {
             document.querySelectorAll('.tab-button').forEach(btn => {
                 btn.classList.remove('active');
+                if (btn.getAttribute('data-tab') === tab) {
+                    btn.classList.add('active');
+                }
             });
-            if (event && event.target) {
-                event.target.classList.add('active');
-            } else {
-                // 如果没有event，通过tab找到对应按钮
-                document.querySelectorAll('.tab-button').forEach(btn => {
-                    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(tab)) {
-                        btn.classList.add('active');
-                    }
-                });
-            }
 
             document.getElementById('schedule-tab').style.display = tab === 'schedule' ? 'block' : 'none';
             document.getElementById('chart-tab').style.display = tab === 'chart' ? 'block' : 'none';
@@ -547,6 +519,31 @@
                 chart.resize();
             }
         }
+
+        // 初始化事件监听器
+        document.addEventListener('DOMContentLoaded', function() {
+            // 贷款类型切换按钮
+            document.querySelectorAll('.loan-type-button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const type = this.getAttribute('data-loan-type');
+                    switchLoanType(type);
+                });
+            });
+
+            // 计算按钮
+            const calculateBtn = document.getElementById('calculate-mortgage-btn');
+            if (calculateBtn) {
+                calculateBtn.addEventListener('click', calculateMortgage);
+            }
+
+            // 标签页切换按钮
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tab = this.getAttribute('data-tab');
+                    switchTab(tab);
+                });
+            });
+        });
 
         // 格式化金额
         function formatMoney(amount, decimals = 2) {
@@ -866,12 +863,24 @@
             chart.setOption(option);
         }
 
-        // 监听窗口大小变化，调整图表大小
-        window.addEventListener('resize', function() {
+        // 节流函数（用于 resize 事件）
+        function throttle(func, limit = 100) {
+            let inThrottle;
+            return function(...args) {
+                if (!inThrottle) {
+                    func.apply(this, args);
+                    inThrottle = true;
+                    setTimeout(() => { inThrottle = false; }, limit);
+                }
+            };
+        }
+
+        // 监听窗口大小变化，调整图表大小（使用节流优化性能）
+        window.addEventListener('resize', throttle(function() {
             if (chart) {
                 chart.resize();
             }
-        });
+        }, 100));
     </script>
 </body>
 </html>

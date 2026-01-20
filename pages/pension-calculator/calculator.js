@@ -10,31 +10,20 @@
 // ==========================================
 // 0. 常量定义
 // ==========================================
+// 注意：以下常量已在其他模块中定义，在同一全局作用域中可直接使用：
+// - PERSONAL_CONTRIBUTION_RATE, BASIC_PENSION_RATE, MIN_CONTRIBUTION_RATE (calculator-core.js)
+// - DEFAULT_VALUES (calculator-storage.js)
 
-// 养老金计算相关常量
-const PERSONAL_CONTRIBUTION_RATE = 0.08;  // 个人缴费比例 8%
-const BASIC_PENSION_RATE = 0.01;          // 基础养老金系数 1%
-const MID_YEAR_FACTOR = 0.5;                // 年中缴费时间点
-const MIN_CONTRIBUTION_RATE = 0.6;         // 最低缴费比例（社平工资的60%）
-
-// 表单默认值配置
-const DEFAULT_VALUES = {
-    currentAge: 30,
-    paidYears: 5,
-    accountBalance: 20000,
-    salaryBase: 8000,
-    avgSalary: 8000,
-    pastAvgIndex: 1.0,
-    futureAvgIndex: null,  // 改为null，表示选填
-    baseChangeMode: 'follow_salary',  // 默认跟着工资增长
-    stopAge: 50,
-    salaryGrowth: 3,
-    socAvgGrowth: 3,
-    interestRate: 3
-};
+// 年中缴费时间点（仅本文件使用）
+const MID_YEAR_FACTOR = 0.5;
 
 document.addEventListener('DOMContentLoaded', function() {
-    restoreFormData();  // 恢复保存的数据
+    // 使用存储模块恢复数据
+    if (window.PensionCalculatorStorage && window.PensionCalculatorStorage.restoreFormData) {
+        window.PensionCalculatorStorage.restoreFormData();
+    } else {
+        restoreFormData();  // 降级处理
+    }
     initEventListeners();
 });
 
@@ -77,10 +66,17 @@ function saveFormData() {
         interestRate: getElementValue('interest-rate', 'float', DEFAULT_VALUES.interestRate)
     };
     
-    try {
-        localStorage.setItem('pensionCalculator_data', JSON.stringify(formData));
-    } catch (e) {
-        console.warn('无法保存数据到 localStorage:', e);
+    // 使用统一的存储键名和函数
+    const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.PENSION_CALCULATOR) || 'pensionCalculator_data';
+    if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
+        window.CommonUtils.setLocalStorageItem(STORAGE_KEY, formData);
+    } else {
+        // 降级处理：如果公共工具库未加载，使用本地实现
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
+        } catch (e) {
+            console.warn('无法保存数据到 localStorage:', e);
+        }
     }
 }
 
@@ -88,11 +84,23 @@ function saveFormData() {
  * 从 localStorage 恢复表单数据
  */
 function restoreFormData() {
-    try {
-        const savedData = localStorage.getItem('pensionCalculator_data');
-        if (!savedData) return;
-        
-        const formData = JSON.parse(savedData);
+    // 使用统一的存储键名和函数
+    const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.PENSION_CALCULATOR) || 'pensionCalculator_data';
+    let formData;
+    if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
+        formData = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, null);
+        if (!formData) return;
+    } else {
+        // 降级处理：如果公共工具库未加载，使用本地实现
+        try {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (!savedData) return;
+            formData = JSON.parse(savedData);
+        } catch (e) {
+            console.warn('无法从 localStorage 恢复数据:', e);
+            return;
+        }
+    }
         
         // 恢复基本信息
         const genderRadio = document.querySelector(`input[name="gender"][value="${formData.gender}"]`);
@@ -156,9 +164,6 @@ function restoreFormData() {
         const interestRateEl = document.getElementById('interest-rate');
         if (interestRateEl && formData.interestRate !== undefined) interestRateEl.value = formData.interestRate;
         
-    } catch (e) {
-        console.warn('无法从 localStorage 恢复数据:', e);
-    }
 }
 
 function initEventListeners() {
@@ -172,7 +177,14 @@ function initEventListeners() {
     const planRadios = document.querySelectorAll('input[name="payment-plan"]');
     planRadios.forEach(radio => {
         radio.addEventListener('change', toggleStopAgeInput);
-        radio.addEventListener('change', saveFormData);  // 保存数据
+        radio.addEventListener('change', () => {
+            // 使用存储模块保存数据
+            if (window.PensionCalculatorStorage && window.PensionCalculatorStorage.saveFormData) {
+                window.PensionCalculatorStorage.saveFormData();
+            } else {
+                saveFormData();  // 降级处理
+            }
+        });
     });
     
     // 监听所有输入框变化，自动保存
@@ -186,21 +198,45 @@ function initEventListeners() {
     inputIds.forEach(id => {
         const element = document.getElementById(id);
         if (element) {
-            element.addEventListener('input', saveFormData);
-            element.addEventListener('change', saveFormData);
+            element.addEventListener('input', () => {
+                if (window.PensionCalculatorStorage && window.PensionCalculatorStorage.saveFormData) {
+                    window.PensionCalculatorStorage.saveFormData();
+                } else {
+                    saveFormData();  // 降级处理
+                }
+            });
+            element.addEventListener('change', () => {
+                if (window.PensionCalculatorStorage && window.PensionCalculatorStorage.saveFormData) {
+                    window.PensionCalculatorStorage.saveFormData();
+                } else {
+                    saveFormData();  // 降级处理
+                }
+            });
         }
     });
     
     // 监听性别选择变化
     const genderRadios = document.querySelectorAll('input[name="gender"]');
     genderRadios.forEach(radio => {
-        radio.addEventListener('change', saveFormData);
+        radio.addEventListener('change', () => {
+            if (window.PensionCalculatorStorage && window.PensionCalculatorStorage.saveFormData) {
+                window.PensionCalculatorStorage.saveFormData();
+            } else {
+                saveFormData();  // 降级处理
+            }
+        });
     });
     
     // 监听缴费基数变化方式选择变化
     const baseChangeModeRadios = document.querySelectorAll('input[name="base-change-mode"]');
     baseChangeModeRadios.forEach(radio => {
-        radio.addEventListener('change', saveFormData);
+        radio.addEventListener('change', () => {
+            if (window.PensionCalculatorStorage && window.PensionCalculatorStorage.saveFormData) {
+                window.PensionCalculatorStorage.saveFormData();
+            } else {
+                saveFormData();  // 降级处理
+            }
+        });
     });
 }
 
@@ -218,72 +254,130 @@ function toggleStopAgeInput(e) {
 // ==========================================
 
 /**
- * 计发月数表 (国发[2005]38号)
+ * 获取计发月数（从核心模块引用）
+ * @param {number} age - 退休年龄
+ * @returns {number} 计发月数
  */
-const PAYMENT_MONTHS = {
-    40: 233, 41: 230, 42: 226, 43: 223, 44: 220,
-    45: 216, 46: 212, 47: 208, 48: 204, 49: 199,
-    50: 195, 51: 190, 52: 185, 53: 180, 54: 175,
-    55: 170, 56: 164, 57: 158, 58: 152, 59: 145,
-    60: 139, 61: 132, 62: 125, 63: 117, 64: 109,
-    65: 101, 66: 93,  67: 84,  68: 75,  69: 65,
-    70: 56
-};
-
 function getPaymentMonths(age) {
-    // 边界处理
+    // 优先使用核心模块的函数
+    if (window.PensionCalculatorCore && window.PensionCalculatorCore.getPaymentMonths) {
+        return window.PensionCalculatorCore.getPaymentMonths(age);
+    }
+    // 降级处理：如果核心模块未加载，使用本地实现
     if (age < 40) return 233;
     if (age > 70) return 56;
     const floorAge = Math.floor(age);
-    // 确保返回有效值
+    // 简化的计发月数表（仅用于降级）
+    const PAYMENT_MONTHS = {
+        40: 233, 41: 230, 42: 226, 43: 223, 44: 220,
+        45: 216, 46: 212, 47: 208, 48: 204, 49: 199,
+        50: 195, 51: 190, 52: 185, 53: 180, 54: 175,
+        55: 170, 56: 164, 57: 158, 58: 152, 59: 145,
+        60: 139, 61: 132, 62: 125, 63: 117, 64: 109,
+        65: 101, 66: 93,  67: 84,  68: 75,  69: 65,
+        70: 56
+    };
     return PAYMENT_MONTHS[floorAge] || PAYMENT_MONTHS[Math.min(70, Math.max(40, floorAge))] || 139;
 }
 
 function calculateAndShow() {
-    // 1. 获取输入数据
-    const inputs = getInputs();
-    if (!validateInputs(inputs)) return;
+    try {
+        // 1. 获取输入数据
+        const inputs = getInputs();
+        if (!validateInputs(inputs)) return;
 
-    // 2. 计算退休信息
-    const retirementInfo = calculateRetirementInfo(inputs.gender, inputs.currentAge);
-    
-    // 再次验证：停止缴费年龄不能大于退休年龄
-    if (inputs.paymentPlan === 'stop_early') {
-        if (inputs.stopAge > retirementInfo.retireAge) {
-            alert(`您的预计退休年龄为 ${retirementInfo.retireAge} 岁，停止缴费年龄不能大于退休年龄。`);
+        // 2. 计算退休信息
+        const retirementInfo = calculateRetirementInfo(inputs.gender, inputs.currentAge);
+        
+        // 再次验证：停止缴费年龄不能大于退休年龄
+        if (inputs.paymentPlan === 'stop_early') {
+            if (inputs.stopAge > retirementInfo.retireAge) {
+                showError(`您的预计退休年龄为 ${retirementInfo.retireAge} 岁，停止缴费年龄不能大于退休年龄。`);
+                return;
+            }
+            if (inputs.stopAge <= inputs.currentAge) {
+                showError("停止缴费年龄必须大于当前年龄。");
+                return;
+            }
+        }
+
+        // 3. 执行核心计算
+        let result;
+        try {
+            // 使用核心计算模块
+            if (window.PensionCalculatorCore && window.PensionCalculatorCore.calculatePension) {
+                result = window.PensionCalculatorCore.calculatePension(inputs, retirementInfo);
+            } else {
+                result = calculatePension(inputs, retirementInfo);
+            }
+        } catch (calcError) {
+            console.error('计算过程出错:', calcError);
+            showError('计算过程中发生错误：' + (calcError.message || '未知错误') + '\n请检查输入数据是否合理。');
             return;
         }
-        if (inputs.stopAge <= inputs.currentAge) {
-            alert("停止缴费年龄必须大于当前年龄。");
+
+        // 验证计算结果的有效性
+        if (!result || typeof result.totalPension !== 'number' || isNaN(result.totalPension) || !isFinite(result.totalPension)) {
+            showError('计算结果无效，请检查输入数据。');
+            console.error('计算结果无效:', result);
             return;
         }
+
+        // 4. 渲染结果
+        try {
+            renderResults(result, retirementInfo);
+        } catch (renderError) {
+            console.error('渲染结果出错:', renderError);
+            showError('显示结果时发生错误：' + (renderError.message || '未知错误') + '\n计算结果已生成，但无法显示。');
+        }
+    } catch (error) {
+        console.error('计算过程发生未预期的错误:', error);
+        showError('发生未预期的错误：' + (error.message || '未知错误') + '\n请刷新页面重试。');
     }
-
-    // 3. 执行核心计算
-    const result = calculatePension(inputs, retirementInfo);
-
-    // 4. 渲染结果
-    renderResults(result, retirementInfo);
 }
 
 /**
- * 获取元素值的辅助函数
+ * 获取元素值的辅助函数（使用公共工具库）
  */
 function getElementValue(id, type = 'float', defaultValue = 0) {
+    if (window.CommonUtils && window.CommonUtils.getElementValue) {
+        return window.CommonUtils.getElementValue(id, type, defaultValue);
+    }
+    // 降级处理：如果公共工具库未加载，使用本地实现
     const element = document.getElementById(id);
     if (!element || !element.value) return defaultValue;
     return type === 'int' ? parseInt(element.value) || defaultValue : parseFloat(element.value) || defaultValue;
 }
 
 /**
- * 获取选中的radio值
+ * 获取选中的radio值（使用公共工具库）
  */
 function getRadioValue(name, defaultValue = '') {
+    if (window.CommonUtils && window.CommonUtils.getRadioValue) {
+        return window.CommonUtils.getRadioValue(name, defaultValue);
+    }
+    // 降级处理：如果公共工具库未加载，使用本地实现
     const radio = document.querySelector(`input[name="${name}"]:checked`);
     return radio ? radio.value : defaultValue;
 }
 
 function getInputs() {
+    // 使用存储模块的默认值（如果可用）
+    const DEFAULT_VALUES = (window.PensionCalculatorStorage && window.PensionCalculatorStorage.DEFAULT_VALUES) || {
+        currentAge: 30,
+        paidYears: 5,
+        accountBalance: 20000,
+        salaryBase: 8000,
+        avgSalary: 8000,
+        pastAvgIndex: 1.0,
+        futureAvgIndex: null,
+        baseChangeMode: 'follow_salary',
+        stopAge: 50,
+        salaryGrowth: 3,
+        socAvgGrowth: 3,
+        interestRate: 3
+    };
+
     // 获取未来平均缴费指数（选填）
     const futureAvgIndexEl = document.getElementById('avg-index');
     let futureAvgIndex = null;
@@ -319,7 +413,7 @@ function getInputs() {
 function validateInputs(data) {
     // 验证年龄：18岁以上，且未达到退休年龄
     if (data.currentAge < 18) {
-        alert("请输入有效的年龄 (18岁以上)");
+        showError("请输入有效的年龄 (18岁以上)");
         return false;
     }
     
@@ -328,17 +422,77 @@ function validateInputs(data) {
     if (data.gender === 'female_worker') retireAge = 60;  // 女性60岁退休
     
     if (data.currentAge >= retireAge) {
-        alert(`您已达到退休年龄 (${retireAge}岁)，无需计算。`);
+        showError(`您已达到退休年龄 (${retireAge}岁)，无需计算。`);
         return false;
     }
     
     // 验证平均工资
-    if (data.avgSalary <= 0) {
-        alert("请输入有效的平均工资");
+    if (data.avgSalary <= 0 || !isFinite(data.avgSalary)) {
+        showError("请输入有效的平均工资");
+        return false;
+    }
+    
+    // 验证已缴费年限
+    if (data.paidYears < 0 || !isFinite(data.paidYears)) {
+        showError("请输入有效的已缴费年限");
+        return false;
+    }
+    
+    // 验证账户余额
+    if (data.accountBalance < 0 || !isFinite(data.accountBalance)) {
+        showError("请输入有效的账户余额");
+        return false;
+    }
+    
+    // 验证缴费基数
+    if (data.salaryBase <= 0 || !isFinite(data.salaryBase)) {
+        showError("请输入有效的缴费基数");
+        return false;
+    }
+    
+    // 验证过去平均缴费指数
+    if (data.pastAvgIndex < 0 || !isFinite(data.pastAvgIndex)) {
+        showError("请输入有效的过去平均缴费指数");
+        return false;
+    }
+    
+    // 验证未来平均缴费指数（如果填写了）
+    if (data.futureAvgIndex !== null && data.futureAvgIndex !== undefined) {
+        if (data.futureAvgIndex < 0 || !isFinite(data.futureAvgIndex)) {
+            showError("请输入有效的未来平均缴费指数");
+            return false;
+        }
+    }
+    
+    // 验证增长率参数
+    if (data.salaryGrowth < 0 || data.salaryGrowth > 1 || !isFinite(data.salaryGrowth)) {
+        showError("工资增长率应在0%到100%之间");
+        return false;
+    }
+    
+    if (data.socAvgGrowth < 0 || data.socAvgGrowth > 1 || !isFinite(data.socAvgGrowth)) {
+        showError("社平工资增长率应在0%到100%之间");
+        return false;
+    }
+    
+    if (data.interestRate < 0 || data.interestRate > 1 || !isFinite(data.interestRate)) {
+        showError("记账利率应在0%到100%之间");
         return false;
     }
     
     return true;
+}
+
+/**
+ * 显示错误消息（统一使用通知组件）
+ */
+function showError(message) {
+    if (window.CommonUtils && window.CommonUtils.showNotification) {
+        window.CommonUtils.showNotification(message, 'error', 5000);
+    } else {
+        // 降级处理：如果公共工具库未加载，使用 alert
+        alert(message);
+    }
 }
 
 function calculateRetirementInfo(gender, currentAge) {
@@ -471,24 +625,50 @@ function calculatePension(data, retirementInfo) {
 
     // E. 基础养老金计算
     // 公式：退休时社平工资 × (1 + 平均缴费指数) / 2 × 累计缴费年限 × 1%
+    if (!isFinite(futureAvgSalary) || futureAvgSalary <= 0) {
+        throw new Error('退休时社会平均工资计算结果无效');
+    }
+    if (!isFinite(weightedAvgIndex) || weightedAvgIndex < 0) {
+        throw new Error('加权平均缴费指数计算结果无效');
+    }
     const basicPension = futureAvgSalary * (1 + weightedAvgIndex) / 2 * totalYears * BASIC_PENSION_RATE;
+    
+    // 检查基础养老金计算结果的有效性
+    if (!isFinite(basicPension) || isNaN(basicPension)) {
+        throw new Error('基础养老金计算结果无效');
+    }
 
     // F. 个人账户养老金计算
     // 公式：账户余额 / 计发月数
     const paymentMonths = getPaymentMonths(retireAge);
+    if (paymentMonths <= 0) {
+        throw new Error('计发月数无效，无法计算个人账户养老金');
+    }
     const personalPension = totalAccountBalance / paymentMonths;
+    
+    // 检查计算结果的有效性
+    if (!isFinite(personalPension) || isNaN(personalPension)) {
+        throw new Error('个人账户养老金计算结果无效');
+    }
 
-    // G. 总计
-    const totalPension = basicPension + personalPension;
-
-    // H. 计算年度明细数据
+    // G. 计算年度明细数据
     const yearDetails = calculateYearDetails(data, retirementInfo, futurePaymentYears, futureAvgSalary, weightedAvgIndex);
+    
+    // H. 使用表格最后一行的数据来确保主计算结果与表格一致
+    // 这样用户在表格中选择"持续缴费到退休"时，结果与顶部显示一致
+    const lastYearDetail = yearDetails[yearDetails.length - 1];
+    const finalTotalPension = lastYearDetail.pensionIfStop;
+    const finalAccountBalance = lastYearDetail.accumulatedBalance;
+    
+    // 重新计算基础养老金和个人账户养老金，使其与表格一致
+    const finalBasicPension = futureAvgSalary * (1 + weightedAvgIndex) / 2 * totalYears * BASIC_PENSION_RATE;
+    const finalPersonalPension = finalAccountBalance / paymentMonths;
 
     return {
-        totalPension,
-        basicPension,
-        personalPension,
-        totalAccountBalance,
+        totalPension: finalTotalPension,
+        basicPension: finalBasicPension,
+        personalPension: finalPersonalPension,
+        totalAccountBalance: finalAccountBalance,
         totalYears,
         paymentMonths,
         futureAvgSalary,
@@ -614,12 +794,21 @@ function calculateYearDetails(data, retirementInfo, futurePaymentYears, futureAv
         // 计算如果从这一年开始停止缴费的养老金
         let pensionIfStop = 0;
         // 如果停止缴费，使用的累计年限应该是到上一年的年限
-        const yearsIfStop = i === 0 ? data.paidYears : (i <= futurePaymentYears ? data.paidYears + i - 1 : accumulatedYears);
+        // 如果停止缴费，使用的累计年限应该是到上一年的年限
+        // 特殊情况：如果是退休年（yearsToRetireFromHere == 0），使用完整的累计年限
+        const yearsIfStop = i === 0 ? data.paidYears : 
+            (yearsToRetireFromHere === 0 ? accumulatedYears : 
+            (i <= futurePaymentYears ? data.paidYears + i - 1 : accumulatedYears));
         
-        if (yearsToRetireFromHere > 0 && yearsIfStop > 0) {
-            // 计算加权平均缴费指数（到上一年为止）
+        // 退休年（yearsToRetireFromHere == 0）也需要计算，显示持续缴费到退休的最终结果
+        if (yearsToRetireFromHere >= 0 && yearsIfStop > 0) {
+            // 计算加权平均缴费指数
             let avgIndexToHere;
-            if (i === 0) {
+            
+            if (yearsToRetireFromHere === 0) {
+                // 退休年：使用完整的加权平均缴费指数
+                avgIndexToHere = weightedAvgIndex;
+            } else if (i === 0) {
                 // 如果第一年就停止，只用过去的指数
                 avgIndexToHere = data.pastAvgIndex;
             } else if (i <= futurePaymentYears) {
@@ -659,15 +848,19 @@ function calculateYearDetails(data, retirementInfo, futurePaymentYears, futureAv
                 avgIndexToHere = weightedAvgIndex;
             }
             
-            // 退休时的社平工资
-            const futureAvgSalaryAtStop = data.avgSalary * Math.pow(1 + data.socAvgGrowth, yearsToRetireFromHere);
+            // 退休时的社平工资（固定值，因为退休年份是固定的）
+            // 所有行都使用相同的退休时社平工资
+            const futureAvgSalaryAtStop = futureAvgSalary;
             
             // 基础养老金
             const basicPensionAtStop = futureAvgSalaryAtStop * (1 + avgIndexToHere) / 2 * yearsIfStop * BASIC_PENSION_RATE;
             
             // 个人账户养老金
+            // 退休年时使用退休年年初的账户余额（即上一年年末余额，不再复利）
+            // 因为退休时就开始领取养老金，不会再整年复利
             const paymentMonthsAtStop = getPaymentMonths(retireAge);
-            const personalPensionAtStop = balanceAtRetirement / paymentMonthsAtStop;
+            const balanceForPension = yearsToRetireFromHere === 0 ? accumulatedBalance : balanceAtRetirement;
+            const personalPensionAtStop = balanceForPension / paymentMonthsAtStop;
             
             pensionIfStop = basicPensionAtStop + personalPensionAtStop;
         }
@@ -854,11 +1047,19 @@ function renderYearDetailsTable(yearDetails) {
 }
 
 function setText(id, value) {
+    if (window.CommonUtils && window.CommonUtils.setText) {
+        return window.CommonUtils.setText(id, value);
+    }
+    // 降级处理：如果公共工具库未加载，使用本地实现
     const el = document.getElementById(id);
     if (el) el.textContent = value;
 }
 
 function formatMoney(num) {
+    if (window.CommonUtils && window.CommonUtils.formatMoney) {
+        return window.CommonUtils.formatMoney(num);
+    }
+    // 降级处理：如果公共工具库未加载，使用本地实现
     return num.toLocaleString('zh-CN', {
         minimumFractionDigits: 2,
         maximumFractionDigits: 2
@@ -866,11 +1067,35 @@ function formatMoney(num) {
 }
 
 function resetForm() {
-    // 清除保存的数据
-    try {
-        localStorage.removeItem('pensionCalculator_data');
-    } catch (e) {
-        console.warn('无法清除 localStorage 数据:', e);
+    // 使用存储模块的默认值（如果可用）
+    const DEFAULT_VALUES = (window.PensionCalculatorStorage && window.PensionCalculatorStorage.DEFAULT_VALUES) || {
+        currentAge: 30,
+        paidYears: 5,
+        accountBalance: 20000,
+        salaryBase: 8000,
+        avgSalary: 8000,
+        pastAvgIndex: 1.0,
+        futureAvgIndex: null,
+        baseChangeMode: 'follow_salary',
+        stopAge: 50,
+        salaryGrowth: 3,
+        socAvgGrowth: 3,
+        interestRate: 3
+    };
+
+    // 清除保存的数据（使用存储模块）
+    const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.PENSION_CALCULATOR) || 'pensionCalculator_data';
+    if (window.PensionCalculatorStorage && window.PensionCalculatorStorage.clearFormData) {
+        window.PensionCalculatorStorage.clearFormData();
+    } else if (window.CommonUtils && window.CommonUtils.removeLocalStorageItem) {
+        window.CommonUtils.removeLocalStorageItem(STORAGE_KEY);
+    } else {
+        // 降级处理：如果公共工具库未加载，使用本地实现
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+        } catch (e) {
+            console.warn('无法清除 localStorage 数据:', e);
+        }
     }
     
     // 重置所有输入值

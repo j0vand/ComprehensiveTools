@@ -5,7 +5,10 @@
 
 class StorageManager {
     constructor() {
-        this.STORAGE_KEY = 'rehabTrainer';
+        // 使用统一的存储键名管理
+        this.STORAGE_KEY = (typeof window !== 'undefined' && window.StorageKeys && window.StorageKeys.REHAB_TRAINER_PLANS) 
+            ? window.StorageKeys.REHAB_TRAINER_PLANS 
+            : 'rehabTrainer';
         this.init();
     }
 
@@ -19,7 +22,8 @@ class StorageManager {
         }
 
         // 如果没有数据，初始化空结构
-        if (!localStorage.getItem(this.STORAGE_KEY)) {
+        const existingData = this.getData();
+        if (!existingData) {
             const initialData = {
                 plans: [],
                 activePlanId: null,
@@ -41,6 +45,13 @@ class StorageManager {
     isLocalStorageAvailable() {
         try {
             const test = '__storage_test__';
+            // 优先使用公共工具库
+            if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
+                window.CommonUtils.setLocalStorageItem(test, test);
+                window.CommonUtils.removeLocalStorageItem(test);
+                return true;
+            }
+            // 降级处理
             localStorage.setItem(test, test);
             localStorage.removeItem(test);
             return true;
@@ -50,9 +61,14 @@ class StorageManager {
     }
 
     /**
-     * 获取所有数据
+     * 获取所有数据（使用公共工具库）
      */
     getData() {
+        // 优先使用公共工具库
+        if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
+            return window.CommonUtils.getLocalStorageItem(this.STORAGE_KEY, null);
+        }
+        // 降级处理：如果公共工具库未加载，使用本地实现
         try {
             const data = localStorage.getItem(this.STORAGE_KEY);
             return data ? JSON.parse(data) : null;
@@ -63,9 +79,14 @@ class StorageManager {
     }
 
     /**
-     * 保存所有数据
+     * 保存所有数据（使用公共工具库）
      */
     saveData(data) {
+        // 优先使用公共工具库
+        if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
+            return window.CommonUtils.setLocalStorageItem(this.STORAGE_KEY, data);
+        }
+        // 降级处理：如果公共工具库未加载，使用本地实现
         try {
             localStorage.setItem(this.STORAGE_KEY, JSON.stringify(data));
             return true;
@@ -418,11 +439,17 @@ class StorageManager {
     }
 
     /**
-     * 清除所有数据
+     * 清除所有数据（使用公共工具库）
      */
     clearAllData() {
         try {
-            localStorage.removeItem(this.STORAGE_KEY);
+            // 优先使用公共工具库
+            if (window.CommonUtils && window.CommonUtils.removeLocalStorageItem) {
+                window.CommonUtils.removeLocalStorageItem(this.STORAGE_KEY);
+            } else {
+                // 降级处理：如果公共工具库未加载，使用本地实现
+                localStorage.removeItem(this.STORAGE_KEY);
+            }
             this.init();
             return true;
         } catch (e) {

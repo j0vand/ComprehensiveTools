@@ -977,7 +977,9 @@ class UIManager {
         
         // 点击行查看详情
         row.addEventListener('click', () => {
-            ModalsManager.openItemDetailsModal(item.id);
+            if (window.ModalsManager) {
+                window.ModalsManager.openItemDetailsModal(item.id);
+            }
         });
         
         return row;
