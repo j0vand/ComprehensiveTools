@@ -35,17 +35,12 @@
                                     <label class="radio-label">
                                         <input type="radio" name="gender" value="male" checked>
                                         <span class="radio-custom"></span>
-                                        <span>男 (60岁退休)</span>
+                                        <span>男 (65岁退休)</span>
                                     </label>
                                     <label class="radio-label">
                                         <input type="radio" name="gender" value="female_worker">
                                         <span class="radio-custom"></span>
-                                        <span>女职工 (50岁退休)</span>
-                                    </label>
-                                    <label class="radio-label">
-                                        <input type="radio" name="gender" value="female_cadre">
-                                        <span class="radio-custom"></span>
-                                        <span>女干部 (55岁退休)</span>
+                                        <span>女职工 (60岁退休)</span>
                                     </label>
                                 </div>
                             </div>
@@ -54,25 +49,17 @@
                                 <div class="form-group">
                                     <label for="current-age">当前年龄</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="current-age" min="18" max="60" value="30">
+                                        <input type="number" id="current-age" min="18" max="65" value="30">
                                         <span class="unit">岁</span>
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label for="city-select">所在城市</label>
-                                    <select id="city-select">
-                                        <option value="">请选择城市</option>
-                                    </select>
+                                    <label for="avg-salary">当地上年度月平均工资</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="avg-salary" min="0" value="8000">
+                                        <span class="unit">元</span>
+                                    </div>
                                 </div>
-                            </div>
-
-                            <div class="form-group">
-                                <label for="avg-salary">当地上年度月平均工资</label>
-                                <div class="input-wrapper">
-                                    <input type="number" id="avg-salary" min="0" value="8000">
-                                    <span class="unit">元</span>
-                                </div>
-                                <small class="form-helper">根据选择城市自动填充，也可手动修改</small>
                             </div>
                         </div>
                     </div>
@@ -110,18 +97,46 @@
 
                             <div class="form-row">
                                 <div class="form-group">
-                                    <label for="avg-index">平均缴费指数</label>
+                                    <label for="past-avg-index">过去平均缴费指数</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="avg-index" min="0.6" max="3" step="0.1" value="1.0">
+                                        <input type="number" id="past-avg-index" step="0.1" value="1.0">
                                     </div>
-                                    <small class="form-helper">0.6~3.0之间，1.0代表平均水平</small>
+                                    <small class="form-helper">已缴费年限的平均缴费指数</small>
                                 </div>
                                 <div class="form-group">
-                                    <label for="payment-ratio">个人缴费比例</label>
+                                    <label for="avg-index">未来平均缴费指数（选填）</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="payment-ratio" value="8" readonly>
-                                        <span class="unit">%</span>
+                                        <input type="number" id="avg-index" step="0.1" placeholder="留空则根据缴费基数计算">
                                     </div>
+                                    <small class="form-helper">留空则根据缴费基数变化方式自动计算</small>
+                                </div>
+                            </div>
+
+                            <div class="form-group">
+                                <label>缴费基数变化方式</label>
+                                <div class="radio-group">
+                                    <label class="radio-label">
+                                        <input type="radio" name="base-change-mode" value="follow_salary" checked>
+                                        <span class="radio-custom"></span>
+                                        <span>跟着工资增长</span>
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="base-change-mode" value="fixed">
+                                        <span class="radio-custom"></span>
+                                        <span>固定基数（公司会调整到60%）</span>
+                                    </label>
+                                </div>
+                                <small class="form-helper">
+                                    <strong>跟着工资增长：</strong>缴费基数按工资增长率增长，但不能低于社平工资的60%。<br>
+                                    <strong>固定基数：</strong>缴费基数保持您填写的值不变，但当社平工资的60%超过当前基数时，公司会强制提高到社平工资的60%（满足最低缴费下限）。
+                                </small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="payment-ratio">个人缴费比例</label>
+                                <div class="input-wrapper">
+                                    <input type="number" id="payment-ratio" value="8" readonly>
+                                    <span class="unit">%</span>
                                 </div>
                             </div>
 
@@ -144,7 +159,7 @@
                             <div class="form-group hidden" id="stop-age-group">
                                 <label for="stop-age">预计停止缴费年龄</label>
                                 <div class="input-wrapper">
-                                    <input type="number" id="stop-age" min="0" max="60" value="50">
+                                    <input type="number" id="stop-age" min="0" max="65" value="50">
                                     <span class="unit">岁</span>
                                 </div>
                                 <small class="form-helper">缴费满此年龄后停止，账户资金继续复利至退休</small>
@@ -242,6 +257,12 @@
                             </div>
                         </div>
 
+                        <!-- 详细计算说明 -->
+                        <div id="calculation-details"></div>
+
+                        <!-- 年度明细表格 -->
+                        <div id="year-details-table"></div>
+
                         <div class="disclaimer">
                             <p><strong>声明：</strong> 本计算器结果仅供参考。实际养老金受退休时政策、社会平均工资、个人账户积累等多种因素影响。计算假设了工资和社平工资按固定比例增长，这在长期跨度下可能产生较大偏差。</p>
                         </div>
@@ -250,7 +271,6 @@
             </div>
         </main>
     </div>
-    <script src="citydata.js"></script>
     <script src="calculator.js"></script>
 </body>
 </html>
