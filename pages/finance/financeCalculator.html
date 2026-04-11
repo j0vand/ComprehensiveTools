@@ -841,11 +841,31 @@
             }
         }
 
+        /**
+         * 获取输入框的值，正确处理0值和空值
+         * @param {string} id - 元素ID
+         * @param {string} type - 值类型：'int' 或 'float'
+         * @param {*} defaultValue - 默认值
+         * @returns {*} 解析后的值或默认值
+         */
+        function getElementValue(id, type = 'float', defaultValue = 0) {
+            if (window.CommonUtils && window.CommonUtils.getElementValue) {
+                return window.CommonUtils.getElementValue(id, type, defaultValue);
+            }
+            // 降级处理
+            const element = document.getElementById(id);
+            if (!element) return defaultValue;
+            const value = element.value.trim();
+            if (value === '') return defaultValue;
+            const parsedValue = type === 'int' ? parseInt(value) : parseFloat(value);
+            return isNaN(parsedValue) ? defaultValue : parsedValue;
+        }
+
         // 复利计算
         function calculateCompound() {
-            const principal = parseFloat(document.getElementById('compoundPrincipal').value) || 0;
-            const rate = parseFloat(document.getElementById('compoundRate').value) || 0;
-            const years = parseFloat(document.getElementById('compoundYears').value) || 0;
+            const principal = getElementValue('compoundPrincipal', 'float', 0);
+            const rate = getElementValue('compoundRate', 'float', 0);
+            const years = getElementValue('compoundYears', 'float', 0);
             
             // 验证输入
             if (principal <= 0 || years <= 0) {
@@ -888,9 +908,9 @@
 
         // 贷款计算
         function calculateLoan() {
-            const amount = parseFloat(document.getElementById('loanAmount').value) || 0;
-            const rate = parseFloat(document.getElementById('loanRate').value) || 0;
-            const years = parseFloat(document.getElementById('loanYears').value) || 0;
+            const amount = getElementValue('loanAmount', 'float', 0);
+            const rate = getElementValue('loanRate', 'float', 0);
+            const years = getElementValue('loanYears', 'float', 0);
 
             const monthlyRate = rate / 100 / 12;
             const totalMonths = years * 12;
@@ -931,10 +951,10 @@
 
         // 定投收益计算
         function calculateInvestment() {
-            const amount = parseFloat(document.getElementById('investmentAmount').value) || 0;
+            const amount = getElementValue('investmentAmount', 'float', 0);
             const period = document.getElementById('investmentPeriod').value;
-            const rate = parseFloat(document.getElementById('investmentRate').value) || 0;
-            const years = parseFloat(document.getElementById('investmentYears').value) || 0;
+            const rate = getElementValue('investmentRate', 'float', 0);
+            const years = getElementValue('investmentYears', 'float', 0);
 
             // 计算不同周期的参数
             const periodsPerYear = {
@@ -1089,10 +1109,10 @@
 
         // 修复目标规划计算功能
         function calculateTarget() {
-            const target = parseFloat(document.getElementById('targetAmount').value) || 0;
+            const target = getElementValue('targetAmount', 'float', 0);
             const period = document.getElementById('targetPeriod').value;
-            const duration = parseFloat(document.getElementById('targetDuration').value) || 0;
-            const rate = parseFloat(document.getElementById('targetRate').value) || 0;
+            const duration = getElementValue('targetDuration', 'float', 0);
+            const rate = getElementValue('targetRate', 'float', 0);
             
             // 验证输入
             if (target <= 0 || duration <= 0) {
@@ -1260,9 +1280,9 @@
 
         // 添加信用卡免息期计算
         function calculateCreditCard() {
-            const amount = parseFloat(document.getElementById('creditAmount').value) || 0;
-            const periods = parseInt(document.getElementById('creditPeriods').value) || 0;
-            const interestRate = parseFloat(document.getElementById('creditRate').value) || 0;
+            const amount = getElementValue('creditAmount', 'float', 0);
+            const periods = getElementValue('creditPeriods', 'int', 0);
+            const interestRate = getElementValue('creditRate', 'float', 0);
             
             // 验证输入
             if (amount <= 0 || periods <= 0) {

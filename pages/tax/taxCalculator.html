@@ -1246,29 +1246,44 @@
             },
 
             saveState: function() {
+                // 获取元素值的辅助函数（正确处理0值）
+                const getElementVal = (id, type = 'float', defaultValue = 0) => {
+                    if (window.CommonUtils && window.CommonUtils.getElementValue) {
+                        return window.CommonUtils.getElementValue(id, type, defaultValue);
+                    }
+                    // 降级处理
+                    const el = document.getElementById(id);
+                    if (!el) return defaultValue;
+
+                    const value = el.value.trim();
+                    if (value === '') return defaultValue;
+
+                    const parsedValue = type === 'int' ? parseInt(value) : parseFloat(value);
+                    return isNaN(parsedValue) ? defaultValue : parsedValue;
+                };
+
                 const getVal = (id) => {
                     const el = document.getElementById(id);
                     return el ? el.value : '';
                 };
 
-                this.state.baseSalary = Number(getVal('baseSalary'));
-                this.state.specialDeduction = Number(getVal('specialDeduction'));
-                this.state.socialBase = Number(getVal('socialBase'));
-                this.state.fundBase = Number(getVal('fundBase')) || '';
-                this.state.fundRate = Number(getVal('fundRate'));
+                this.state.baseSalary = getElementVal('baseSalary', 'float', 0);
+                this.state.specialDeduction = getElementVal('specialDeduction', 'float', 0);
+                this.state.socialBase = getElementVal('socialBase', 'float', 0);
+                this.state.fundBase = getElementVal('fundBase', 'float', 0);
+                this.state.fundRate = getElementVal('fundRate', 'float', 0);
                 this.state.bonusTaxMonth = getVal('bonusTaxMonth');
                 this.state.jobChangeMonth = getVal('jobChangeMonth');
-                
+
                 // 保存新公司参数
-                this.state.newBaseSalary = Number(getVal('newBaseSalary')) || '';
-                this.state.newSocialBase = Number(getVal('newSocialBase')) || '';
-                this.state.newFundBase = Number(getVal('newFundBase')) || '';
-                this.state.newFundRate = Number(getVal('newFundRate')) || '';
-                this.state.newSpecialDeduction = Number(getVal('newSpecialDeduction')) || '';
+                this.state.newBaseSalary = getElementVal('newBaseSalary', 'float', 0);
+                this.state.newSocialBase = getElementVal('newSocialBase', 'float', 0);
+                this.state.newFundBase = getElementVal('newFundBase', 'float', 0);
+                this.state.newFundRate = getElementVal('newFundRate', 'float', 0);
+                this.state.newSpecialDeduction = getElementVal('newSpecialDeduction', 'float', 0);
 
                 for(let i=1; i<=12; i++) {
-                    const val = getVal(`bonus_m${i}`);
-                    this.state.bonuses[i] = val ? Number(val) : 0;
+                    this.state.bonuses[i] = getElementVal(`bonus_m${i}`, 'float', 0);
                 }
 
                 // 使用统一的存储键名和函数

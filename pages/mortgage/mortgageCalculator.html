@@ -478,7 +478,27 @@
                 alert(message);
             }
         }
-        
+
+        /**
+         * 获取输入框的值，正确处理0值和空值
+         * @param {string} id - 元素ID
+         * @param {string} type - 值类型：'int' 或 'float'
+         * @param {*} defaultValue - 默认值
+         * @returns {*} 解析后的值或默认值
+         */
+        function getElementValue(id, type = 'float', defaultValue = 0) {
+            if (window.CommonUtils && window.CommonUtils.getElementValue) {
+                return window.CommonUtils.getElementValue(id, type, defaultValue);
+            }
+            // 降级处理
+            const element = document.getElementById(id);
+            if (!element) return defaultValue;
+            const value = element.value.trim();
+            if (value === '') return defaultValue;
+            const parsedValue = type === 'int' ? parseInt(value) : parseFloat(value);
+            return isNaN(parsedValue) ? defaultValue : parsedValue;
+        }
+
         // 统一函数名，供按钮调用
         function calculateMortgage() {
             calculate();
@@ -568,27 +588,27 @@
             let errorMessage = '';
             
             if (loanType === 'commercial') {
-                const amount = parseFloat(document.getElementById('commercialAmount').value) || 0;
-                const years = parseInt(document.getElementById('commercialYears').value) || 0;
-                const rate = parseFloat(document.getElementById('commercialRate').value) || 0;
+                const amount = getElementValue('commercialAmount', 'float', 0);
+                const years = getElementValue('commercialYears', 'int', 0);
+                const rate = getElementValue('commercialRate', 'float', 0);
                 if (amount <= 0 || years <= 0 || rate <= 0) {
                     isValid = false;
                     errorMessage = '请输入有效的贷款金额、年限和利率';
                 }
             } else if (loanType === 'fund') {
-                const amount = parseFloat(document.getElementById('fundAmount').value) || 0;
-                const years = parseInt(document.getElementById('fundYears').value) || 0;
-                const rate = parseFloat(document.getElementById('fundRate').value) || 0;
+                const amount = getElementValue('fundAmount', 'float', 0);
+                const years = getElementValue('fundYears', 'int', 0);
+                const rate = getElementValue('fundRate', 'float', 0);
                 if (amount <= 0 || years <= 0 || rate <= 0) {
                     isValid = false;
                     errorMessage = '请输入有效的贷款金额、年限和利率';
                 }
             } else if (loanType === 'combined') {
-                const commercialAmount = parseFloat(document.getElementById('combinedCommercialAmount').value) || 0;
-                const fundAmount = parseFloat(document.getElementById('combinedFundAmount').value) || 0;
-                const years = parseInt(document.getElementById('combinedYears').value) || 0;
-                const commercialRate = parseFloat(document.getElementById('combinedCommercialRate').value) || 0;
-                const fundRate = parseFloat(document.getElementById('combinedFundRate').value) || 0;
+                const commercialAmount = getElementValue('combinedCommercialAmount', 'float', 0);
+                const fundAmount = getElementValue('combinedFundAmount', 'float', 0);
+                const years = getElementValue('combinedYears', 'int', 0);
+                const commercialRate = getElementValue('combinedCommercialRate', 'float', 0);
+                const fundRate = getElementValue('combinedFundRate', 'float', 0);
                 if ((commercialAmount <= 0 && fundAmount <= 0) || years <= 0 || commercialRate <= 0 || fundRate <= 0) {
                     isValid = false;
                     errorMessage = '请输入有效的贷款金额、年限和利率';
@@ -615,21 +635,21 @@
             let fundAmount = 0;
             
             if (loanType === 'commercial') {
-                commercialAmount = parseFloat(document.getElementById('commercialAmount').value) * 10000 || 0;
-                years = parseInt(document.getElementById('commercialYears').value) || 30;
-                commercialRate = parseFloat(document.getElementById('commercialRate').value) || 4.9;
+                commercialAmount = getElementValue('commercialAmount', 'float', 0) * 10000;
+                years = getElementValue('commercialYears', 'int', 30);
+                commercialRate = getElementValue('commercialRate', 'float', 4.9);
                 loanAmount = commercialAmount;
             } else if (loanType === 'fund') {
-                fundAmount = parseFloat(document.getElementById('fundAmount').value) * 10000 || 0;
-                years = parseInt(document.getElementById('fundYears').value) || 30;
-                fundRate = parseFloat(document.getElementById('fundRate').value) || 3.25;
+                fundAmount = getElementValue('fundAmount', 'float', 0) * 10000;
+                years = getElementValue('fundYears', 'int', 30);
+                fundRate = getElementValue('fundRate', 'float', 3.25);
                 loanAmount = fundAmount;
             } else if (loanType === 'combined') {
-                commercialAmount = parseFloat(document.getElementById('combinedCommercialAmount').value) * 10000 || 0;
-                fundAmount = parseFloat(document.getElementById('combinedFundAmount').value) * 10000 || 0;
-                years = parseInt(document.getElementById('combinedYears').value) || 30;
-                commercialRate = parseFloat(document.getElementById('combinedCommercialRate').value) || 4.9;
-                fundRate = parseFloat(document.getElementById('combinedFundRate').value) || 3.25;
+                commercialAmount = getElementValue('combinedCommercialAmount', 'float', 0) * 10000;
+                fundAmount = getElementValue('combinedFundAmount', 'float', 0) * 10000;
+                years = getElementValue('combinedYears', 'int', 30);
+                commercialRate = getElementValue('combinedCommercialRate', 'float', 4.9);
+                fundRate = getElementValue('combinedFundRate', 'float', 3.25);
                 loanAmount = commercialAmount + fundAmount;
             }
             
