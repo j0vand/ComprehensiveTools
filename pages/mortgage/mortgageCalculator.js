@@ -155,6 +155,32 @@
             }
         }
 
+        /**
+         * 验证输入字段
+         * @param {string} inputId - 输入框ID
+         * @returns {boolean} 验证是否通过
+         */
+        function validateInput(inputId) {
+            const input = document.getElementById(inputId);
+            if (!input) return true;
+
+            const inputGroup = input.closest('.input-group');
+            if (!inputGroup) return true;
+
+            const value = parseFloat(input.value);
+
+            // 检查是否为有效数字且非负
+            if (input.value && (isNaN(value) || value < 0)) {
+                inputGroup.classList.add('error');
+                input.style.borderColor = '#f44336';
+                return false;
+            } else {
+                inputGroup.classList.remove('error');
+                input.style.borderColor = '';
+                return true;
+            }
+        }
+
         // 初始化事件监听器
         document.addEventListener('DOMContentLoaded', function() {
             // 恢复保存的表单数据
@@ -183,10 +209,16 @@
                 });
             });
 
-            // 监听所有输入框的变化，自动保存
+            // 监听所有输入框的变化，自动保存并验证
             const inputFields = document.querySelectorAll('input[type="number"], select');
             inputFields.forEach(field => {
                 field.addEventListener('change', saveFormData);
+                // 为数字输入框添加实时验证
+                if (field.type === 'number') {
+                    field.addEventListener('input', function() {
+                        validateInput(this.id);
+                    });
+                }
             });
         });
 

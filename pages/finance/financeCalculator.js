@@ -53,6 +53,32 @@
             return isNaN(parsedValue) ? defaultValue : parsedValue;
         }
 
+        /**
+         * 验证输入字段
+         * @param {string} inputId - 输入框ID
+         * @returns {boolean} 验证是否通过
+         */
+        function validateInput(inputId) {
+            const input = document.getElementById(inputId);
+            if (!input) return true;
+
+            const inputGroup = input.closest('.input-group');
+            if (!inputGroup) return true;
+
+            const value = parseFloat(input.value);
+
+            // 检查是否为有效数字且非负
+            if (input.value && (isNaN(value) || value < 0)) {
+                inputGroup.classList.add('error');
+                input.style.borderColor = '#f44336';
+                return false;
+            } else {
+                inputGroup.classList.remove('error');
+                input.style.borderColor = '';
+                return true;
+            }
+        }
+
         // 复利计算
         function calculateCompound() {
             const principal = getElementValue('compoundPrincipal', 'float', 0);
@@ -674,6 +700,13 @@
             // 页面加载时初始化
             loadInputs();
             saveInputs();
+
+            // 为所有数字输入框添加实时验证
+            document.querySelectorAll('input[type="number"]').forEach(input => {
+                input.addEventListener('input', function() {
+                    validateInput(this.id);
+                });
+            });
         });
 
         // 添加表格横向滚动处理

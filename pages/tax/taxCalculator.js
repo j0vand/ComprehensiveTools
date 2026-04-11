@@ -340,12 +340,15 @@
                     bonusTaxMonthSelect.addEventListener('change', () => this.saveState());
                 }
 
-                // 新公司相关输入框变化事件
+                // 新公司相关输入框变化事件（添加验证）
                 const newCompanyInputs = ['newBaseSalary', 'newSocialBase', 'newFundBase', 'newFundRate', 'newSpecialDeduction'];
                 newCompanyInputs.forEach(id => {
                     const input = document.getElementById(id);
                     if (input) {
-                        input.addEventListener('input', () => this.saveState());
+                        input.addEventListener('input', () => {
+                            this.saveState();
+                            this.validateInput(id);
+                        });
                     }
                 });
 
@@ -366,21 +369,25 @@
                     });
                 }
 
-                // 其他基础输入框变化事件
+                // 其他基础输入框变化事件（添加验证）
                 const basicInputs = ['socialBase', 'fundBase', 'fundRate'];
                 basicInputs.forEach(id => {
                     const input = document.getElementById(id);
                     if (input) {
-                        input.addEventListener('input', () => this.saveState());
+                        input.addEventListener('input', () => {
+                            this.saveState();
+                            this.validateInput(id);
+                        });
                     }
                 });
 
-                // 奖金输入框变化事件（动态生成，使用事件委托）
+                // 奖金输入框变化事件（动态生成，使用事件委托，添加验证）
                 const bonusInputsContainer = document.getElementById('bonusInputs');
                 if (bonusInputsContainer) {
                     bonusInputsContainer.addEventListener('input', (e) => {
                         if (e.target && e.target.id && e.target.id.startsWith('bonus_m')) {
                             this.saveState();
+                            this.validateInput(e.target.id);
                         }
                     });
                 }
