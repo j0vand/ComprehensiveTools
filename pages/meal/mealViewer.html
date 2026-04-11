@@ -222,14 +222,9 @@
             </div>
 
             <div class="save-options" style="margin-bottom: 12px;">
-                <label style="display: flex; align-items: center; gap: 8px; color: #666;">
-                    <input type="checkbox" id="saveForNextWeek">
-                    保存为下周记录
-                </label>
-                <div class="hint-box" style="margin-top: 8px; font-size: 12px; padding: 12px; border-radius: var(--radius-sm);">
-                    <b>提示:</b> 系统会自动将日期格式化为"月日-周几"形式，以保持记录的一致性。<br>
-                    - 输入"周几"时，会保留原始日期，包括本周已过去的日期<br>
-                    - 选择"保存为下周记录"时，日期将统一调整为下周对应日期（而非下下周）
+                <div id="weekDetectHint" style="display: none; font-size: 14px; font-weight: bold; padding: 8px 12px; border-radius: var(--radius-sm); background: #f0fdf4; margin-bottom: 8px;"></div>
+                <div class="hint-box" style="font-size: 12px; padding: 12px; border-radius: var(--radius-sm);">
+                    <b>提示:</b> 系统会根据粘贴内容头部的日期范围（如"4月13日-4月17日"），自动判断是本周还是下周的记录，无需手动选择。
                 </div>
             </div>
             <button class="button" id="save-meal-btn">保存安排</button>

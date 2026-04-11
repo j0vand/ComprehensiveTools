@@ -35,6 +35,52 @@
 
         const MEAL_STORAGE_KEY = (window.StorageKeys && window.StorageKeys.MEAL_VIEWER_DATA) || 'mealArrangements';
 
+        /**
+         * 从粘贴文本的头部日期范围自动判断是本周还是下周
+         * 支持格式：
+         *   - "4月13日-4月17日" / "4月13日-4月17日用餐收集"
+         *   - "4.13-4.17"
+         *   - "04.13-04.17"
+         * @returns {{ isNextWeek: boolean, startDate: Date|null, endDate: Date|null }}
+         */
+        function detectWeekFromHeader(text) {
+            const lines = text.split('\n').slice(0, 5); // 只看前5行
+            const now = new Date();
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+            for (const line of lines) {
+                let startMonth, startDay, endMonth, endDay;
+
+                // 匹配 "X月X日-X月X日" 或 "X月X日～X月X日"
+                const fullMatch = line.match(/(\d{1,2})月(\d{1,2})日\s*[-~～至]\s*(\d{1,2})月(\d{1,2})日/);
+                if (fullMatch) {
+                    [, startMonth, startDay, endMonth, endDay] = fullMatch.map(Number);
+                }
+
+                // 匹配 "X.X-X.X" 或 "0X.0X-0X.0X"
+                if (!startMonth) {
+                    const dotMatch = line.match(/(\d{1,2})\.(\d{1,2})\s*[-~～]\s*(\d{1,2})\.(\d{1,2})/);
+                    if (dotMatch) {
+                        [, startMonth, startDay, endMonth, endDay] = dotMatch.map(Number);
+                    }
+                }
+
+                if (startMonth && startDay) {
+                    const year = now.getFullYear();
+                    const rangeStart = new Date(year, startMonth - 1, startDay);
+                    const rangeEnd = endMonth ? new Date(year, endMonth - 1, endDay) : rangeStart;
+
+                    // 如果范围的起始日期在今天之后（超过1天），判定为下周
+                    const diffDays = Math.floor((rangeStart - today) / (1000 * 60 * 60 * 24));
+                    const isNextWeek = diffDays > 2;
+
+                    return { isNextWeek, startDate: rangeStart, endDate: rangeEnd };
+                }
+            }
+
+            return { isNextWeek: false, startDate: null, endDate: null };
+        }
+
         // 格式化日期对象为 "M月D日-周X" 字符串
         function formatDate(dateObj) {
             const month = dateObj.getMonth() + 1;
@@ -255,50 +301,105 @@
                 }
                 
                 const owner = document.querySelector('input[name="mealOwner"]:checked').value;
-                const saveForNextWeek = document.getElementById('saveForNextWeek').checked;
+                // 自动检测是否为下周，不再依赖手动勾选
+                const headerInfo = detectWeekFromHeader(input);
+                const saveForNextWeek = headerInfo.isNextWeek;
+
+                // 更新UI提示
+                const weekHintEl = document.getElementById('weekDetectHint');
+                if (weekHintEl) {
+                    if (headerInfo.startDate) {
+                        const label = saveForNextWeek ? '下周' : '本周';
+                        weekHintEl.textContent = `已自动识别为「${label}」的记录`;
+                        weekHintEl.style.color = saveForNextWeek ? '#f59e0b' : '#10b981';
+                        weekHintEl.style.display = 'block';
+                    } else {
+                        weekHintEl.style.display = 'none';
+                    }
+                }
+
                 const lines = input.split('\n').filter(line => line.trim());
                 const meals = [];
                 
                 // 1. 处理详细输入框
                 if (input.trim()) {
+                    // 当前正在处理的日期上下文（周几）
+                    let currentWeekDay = null;
+
                     for (let i = 0; i < lines.length; i++) {
-                        if (lines[i].includes('【') && lines[i].includes('】')) {
-                            const dateMatch = lines[i].match(/【(.+?)】/);
+                        const line = lines[i].trim();
+
+                        // 跳过纯数字行（序号行如 "01*"、"02"）
+                        if (/^\d{1,3}\*?$/.test(line)) continue;
+                        // 跳过头部信息行（日期范围、提交信息、配送楼层等）
+                        if (/用餐收集|已提交|最后提交|配送楼层|^\d+\.\d+\s*[-~]/.test(line)) continue;
+
+                        // === 新格式：【周X午餐】或【周X晚餐】===
+                        const combinedBracketMatch = line.match(/【(周[一二三四五六日])(午餐|晚餐)】/);
+                        if (combinedBracketMatch) {
+                            currentWeekDay = combinedBracketMatch[1];
+                            const mealTime = combinedBracketMatch[2];
+
+                            if (owner === 'others' && mealTime === '午餐') {
+                                currentWeekDay = null; // 重置，跳过他人午餐
+                                continue;
+                            }
+
+                            // 下一行应该是 "午餐N:内容" 或 "晚餐N:内容"
+                            if (i + 1 < lines.length) {
+                                const nextLine = lines[i + 1].trim();
+                                const numberMatch = nextLine.match(/[午晚]餐(\d+)\s*[:：]\s*/);
+                                if (numberMatch) {
+                                    const standardizedDate = standardizeDate(currentWeekDay, saveForNextWeek);
+                                    if (!isValidDateFormat(standardizedDate)) {
+                                        console.warn('标准化后的日期格式不正确:', standardizedDate);
+                                        continue;
+                                    }
+                                    const number = numberMatch[1];
+                                    const content = nextLine.replace(/[午晚]餐\d+\s*[:：]\s*/, '').trim();
+                                    if (!content) {
+                                        console.warn('无法解析餐点内容:', nextLine);
+                                        continue;
+                                    }
+                                    meals.push(new MealArrangement(standardizedDate, mealTime, number, content, owner));
+                                    i++; // 已消费下一行
+                                }
+                            }
+                            continue;
+                        }
+
+                        // === 旧格式兼容：【周X】或【X月X日】（日期和餐点分开的行）===
+                        if (line.includes('【') && line.includes('】')) {
+                            const dateMatch = line.match(/【(.+?)】/);
                             if (dateMatch && i + 1 < lines.length) {
                                 let originalDate = dateMatch[1];
-                                const nextLine = lines[i + 1];
+                                const nextLine = lines[i + 1].trim();
                                 
-                                // 改进正则表达式增强匹配能力
-                                const numberMatch = nextLine.match(/[午晚]餐(\d+)[:\s]/);
+                                const numberMatch = nextLine.match(/[午晚]餐(\d+)\s*[:：\s]/);
                                 const mealTime = nextLine.includes('午餐') ? '午餐' : '晚餐';
 
                                 if (owner === 'others' && mealTime === '午餐') {
-                                    continue; // 跳过他人的午餐安排
+                                    continue;
                                 }
                                 
                                 if (numberMatch) {
-                                    // 使用新的标准化日期函数
                                     const standardizedDate = standardizeDate(originalDate, saveForNextWeek);
                                     
-                                    // 验证日期格式
                                     if (!isValidDateFormat(standardizedDate)) {
                                         console.warn('标准化后的日期格式不正确:', standardizedDate);
                                         continue;
                                     }
                                     
                                     const number = numberMatch[1];
-                                    // 安全获取内容，即使没有冒号也能处理
-                                    const contentParts = nextLine.split(/[:\s]/).slice(1);
-                                    const content = contentParts.join(' ').trim();
+                                    const content = nextLine.replace(/[午晚]餐\d+\s*[:：\s]\s*/, '').trim();
                                     
                                     if (!content) {
                                         console.warn('无法解析餐点内容:', nextLine);
                                         continue;
                                     }
                                     
-                                    // 注意：这里的重复检查只针对详细录入的内容
-                                    
                                     meals.push(new MealArrangement(standardizedDate, mealTime, number, content, owner));
+                                    i++; // 已消费下一行
                                 }
                             }
                         }
@@ -312,12 +413,14 @@
                         let startDate = new Date();
                         startDate.setHours(0, 0, 0, 0);
 
-                        if (saveForNextWeek) {
-                            const dayOfWeek = startDate.getDay(); // 0=Sun, 1=Mon, ...
+                        // 快捷录入没有头部日期范围，判断逻辑：
+                        // 如果今天是周五/周六/周日，默认下周一开始；否则明天开始
+                        const dayOfWeek = startDate.getDay();
+                        if (dayOfWeek === 5 || dayOfWeek === 6 || dayOfWeek === 0) {
                             const daysUntilNextMonday = (dayOfWeek === 0) ? 1 : (8 - dayOfWeek);
                             startDate.setDate(startDate.getDate() + daysUntilNextMonday);
                         } else {
-                            startDate.setDate(startDate.getDate() + 1); // 默认从明天开始
+                            startDate.setDate(startDate.getDate() + 1);
                         }
 
                         for (let i = 0; i < numbers.length; i++) {
@@ -360,10 +463,11 @@
                         localStorage.setItem(MEAL_STORAGE_KEY, dataString);
                     }
                     
-                    // 清空输入和复选框
+                    // 清空输入
                     document.getElementById('mealInput').value = '';
                     document.getElementById('quickMealNumbers').value = '';
-                    document.getElementById('saveForNextWeek').checked = false;
+                    const weekHintReset = document.getElementById('weekDetectHint');
+                    if (weekHintReset) weekHintReset.style.display = 'none';
                     
                     // 刷新显示
                     displayMeals();
