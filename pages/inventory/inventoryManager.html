@@ -8,9 +8,6 @@
     <link rel="stylesheet" href="css/modal.css">
     <link rel="stylesheet" href="css/cards.css">
     <link rel="stylesheet" href="css/responsive.css">
-    <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.18.2/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
     <!-- 顶部导航栏 -->
@@ -251,6 +248,14 @@
     <div id="modalContainer"></div>
     
     <!-- 引入JavaScript文件 -->
+    <!-- 外部库（CDN） -->
+    <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.18.2/dist/index.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- 公共工具库 -->
+    <script src="../../utils/storage-keys.js"></script>
+    <script src="../../utils/common.js"></script>
+    <!-- 模块文件（按依赖顺序） -->
     <script src="js/utils.js"></script>
     <script src="js/data.js"></script>
     <script src="js/modals.js"></script>

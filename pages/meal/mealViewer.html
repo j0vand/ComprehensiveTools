@@ -163,8 +163,8 @@
                     - 选择"保存为下周记录"时，日期将统一调整为下周对应日期（而非下下周）
                 </div>
             </div>
-            <button class="button" onclick="processMealData()">保存安排</button>
-            <button class="button clear-button" onclick="clearData()">清除所有安排</button>
+            <button class="button" id="save-meal-btn">保存安排</button>
+            <button class="button clear-button" id="clear-meal-btn">清除所有安排</button>
         </div>
 
         <div class="card">
@@ -173,6 +173,8 @@
         </div>
     </div>
 
+    <script src="../../utils/storage-keys.js"></script>
+    <script src="../../utils/common.js"></script>
     <script>
         // 数据结构
         class MealArrangement {
@@ -494,7 +496,14 @@
                 }
 
                 // 获取现有安排并删除过期安排
-                let existingArrangements = JSON.parse(localStorage.getItem('mealArrangements') || '[]');
+                // 使用统一的存储键名和函数
+                const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.MEAL_VIEWER_DATA) || 'mealArrangements';
+                let existingArrangements;
+                if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
+                    existingArrangements = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, []);
+                } else {
+                    existingArrangements = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                }
                 
                 // 合并新旧安排
                 const allArrangements = [...existingArrangements, ...meals];
@@ -507,7 +516,14 @@
                     if (dataString.length > 4000000) { // 设置安全限制
                         throw new Error("数据量过大，请清理部分历史安排");
                     }
-                    localStorage.setItem('mealArrangements', dataString);
+                    // 使用统一的存储函数
+                    const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.MEAL_VIEWER_DATA) || 'mealArrangements';
+                    if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
+                        // 公共工具库会自动处理 JSON 序列化
+                        window.CommonUtils.setLocalStorageItem(STORAGE_KEY, finalArrangements);
+                    } else {
+                        localStorage.setItem(STORAGE_KEY, dataString);
+                    }
                     
                     // 清空输入和复选框
                     document.getElementById('mealInput').value = '';
@@ -575,14 +591,27 @@
         // 显示所有订餐安排，并隐藏过期安排
         function displayMeals() {
             try {
-                let arrangements = JSON.parse(localStorage.getItem('mealArrangements') || '[]');
+                // 使用统一的存储键名和函数
+                const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.MEAL_VIEWER_DATA) || 'mealArrangements';
+                let arrangements;
+                if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
+                    arrangements = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, []);
+                } else {
+                    arrangements = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                }
                 
                 // 删除过期安排
                 const filteredArrangements = removeExpiredArrangements(arrangements);
                 
                 // 如果有安排被过滤掉，保存更新后的安排
                 if (filteredArrangements.length !== arrangements.length) {
-                    localStorage.setItem('mealArrangements', JSON.stringify(filteredArrangements));
+                    // 使用统一的存储函数
+                    const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.MEAL_VIEWER_DATA) || 'mealArrangements';
+                    if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
+                        window.CommonUtils.setLocalStorageItem(STORAGE_KEY, filteredArrangements);
+                    } else {
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredArrangements));
+                    }
                     console.log(`已清理 ${arrangements.length - filteredArrangements.length} 条过期安排`);
                 }
                 
@@ -712,7 +741,14 @@
         // 显示今日餐点
         function displayTodayMeals() {
             try {
-                const arrangements = JSON.parse(localStorage.getItem('mealArrangements') || '[]');
+                // 使用统一的存储键名和函数
+                const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.MEAL_VIEWER_DATA) || 'mealArrangements';
+                let arrangements;
+                if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
+                    arrangements = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, []);
+                } else {
+                    arrangements = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                }
                 const todayInfo = getTodayFormats();
                 
                 // 获取当前时间
@@ -808,7 +844,13 @@
             try {
                 // 移除确认对话框，直接执行清除操作
                 // if (confirm('确定要清除所有安排吗？此操作不可恢复！')) {
-                localStorage.removeItem('mealArrangements');
+                // 使用统一的存储键名和函数
+                const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.MEAL_VIEWER_DATA) || 'mealArrangements';
+                if (window.CommonUtils && window.CommonUtils.removeLocalStorageItem) {
+                    window.CommonUtils.removeLocalStorageItem(STORAGE_KEY);
+                } else {
+                    localStorage.removeItem(STORAGE_KEY);
+                }
                 displayMeals();
                 displayTodayMeals();
                 showToast('已清除所有安排', 'success');
@@ -819,50 +861,35 @@
             }
         }
 
-        // 添加一个Toast通知替代弹窗
+        // 使用公共工具库的通知函数
         function showToast(message, type = 'info') {
-            // 创建toast元素
-            const toast = document.createElement('div');
-            toast.className = 'toast';
-            toast.style.position = 'fixed';
-            toast.style.bottom = '20px';
-            toast.style.left = '50%';
-            toast.style.transform = 'translateX(-50%)';
-            toast.style.padding = '10px 20px';
-            toast.style.borderRadius = '4px';
-            toast.style.color = 'white';
-            toast.style.fontSize = '14px';
-            toast.style.zIndex = '1000';
-            toast.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)';
-            toast.style.transition = 'opacity 0.3s ease-in-out';
-            
-            // 根据类型设置背景颜色
-            if (type === 'success') {
-                toast.style.backgroundColor = '#4CAF50';
-            } else if (type === 'error') {
-                toast.style.backgroundColor = '#f44336';
+            if (window.CommonUtils && window.CommonUtils.showNotification) {
+                window.CommonUtils.showNotification(message, type, 3000);
             } else {
-                toast.style.backgroundColor = '#2196F3';
+                // 降级处理
+                alert(message);
             }
-            
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            
-            // 3秒后自动消失
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => {
-                    document.body.removeChild(toast);
-                }, 300);
-            }, 3000);
         }
 
-        // 页面加载初始化
-        window.onload = function() {
+        // 初始化事件监听器
+        document.addEventListener('DOMContentLoaded', function() {
+            // 保存按钮
+            const saveBtn = document.getElementById('save-meal-btn');
+            if (saveBtn) {
+                saveBtn.addEventListener('click', processMealData);
+            }
+
+            // 清除按钮
+            const clearBtn = document.getElementById('clear-meal-btn');
+            if (clearBtn) {
+                clearBtn.addEventListener('click', clearData);
+            }
+
+            // 页面加载初始化
             displayMeals();
             displayTodayMeals();
             startAutoRefresh(); // 启动自动刷新
-        };
+        });
     </script>
 </body>
 </html> 

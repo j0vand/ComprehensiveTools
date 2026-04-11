@@ -467,11 +467,11 @@
         </header>
 
         <div class="calculator-types">
-            <button class="type-button active" onclick="switchCalculator('compound', event)">复利计算</button>
-            <button class="type-button" onclick="switchCalculator('loan', event)">贷款计算</button>
-            <button class="type-button" onclick="switchCalculator('investment', event)">定投收益</button>
-            <button class="type-button" onclick="switchCalculator('target', event)">目标规划</button>
-            <button class="type-button" onclick="switchCalculator('creditCard', event)">信用卡免息</button>
+            <button class="type-button active" data-calc-type="compound">复利计算</button>
+            <button class="type-button" data-calc-type="loan">贷款计算</button>
+            <button class="type-button" data-calc-type="investment">定投收益</button>
+            <button class="type-button" data-calc-type="target">目标规划</button>
+            <button class="type-button" data-calc-type="creditCard">信用卡免息</button>
         </div>
 
         <!-- 复利计算器 -->
@@ -495,7 +495,7 @@
                         <input type="number" id="compoundYears" class="input-field" placeholder="请输入投资年限">
                     </div>
                 </div>
-                <button class="calculate-button" onclick="calculateCompound()">计算收益</button>
+                <button class="calculate-button" id="calculate-compound-btn">计算收益</button>
             </div>
             <div id="compoundResult" class="result-card">
                 <div class="result-item">
@@ -553,7 +553,7 @@
                         <input type="number" id="loanYears" class="input-field" placeholder="请输入贷款年限">
                     </div>
                 </div>
-                <button class="calculate-button" onclick="calculateLoan()">计算还款</button>
+                <button class="calculate-button" id="calculate-loan-btn">计算还款</button>
             </div>
             <div id="loanResult" class="result-card">
                 <div class="result-item">
@@ -622,7 +622,7 @@
                         <input type="number" id="investmentYears" class="input-field" placeholder="请输入投资年限">
                     </div>
                 </div>
-                <button class="calculate-button" onclick="calculateInvestment()">计算收益</button>
+                <button class="calculate-button" id="calculate-investment-btn">计算收益</button>
             </div>
             <div id="investmentResult" class="result-card">
                 <div class="result-item">
@@ -640,9 +640,9 @@
                 
                 <div class="yearly-details">
                     <div class="period-selector">
-                        <button class="period-button active" onclick="switchInvestmentView('year', event)">年度明细</button>
-                        <button class="period-button" onclick="switchInvestmentView('quarter', event)">季度明细</button>
-                        <button class="period-button" onclick="switchInvestmentView('month', event)">月度明细</button>
+                        <button class="period-button active" data-period="year" data-view-type="investment">年度明细</button>
+                        <button class="period-button" data-period="quarter" data-view-type="investment">季度明细</button>
+                        <button class="period-button" data-period="month" data-view-type="investment">月度明细</button>
                     </div>
                     <div class="table-container">
                         <table id="investmentTable">
@@ -676,7 +676,7 @@
                 <div class="input-group">
                     <label>计划周期</label>
                     <div class="select-group">
-                        <select id="targetPeriod" class="input-field" onchange="updatePeriodInput()">
+                        <select id="targetPeriod" class="input-field">
                             <option value="day">按天</option>
                             <option value="week">按周</option>
                             <option value="month" selected>按月</option>
@@ -698,7 +698,7 @@
                         <input type="number" id="targetRate" class="input-field" placeholder="请输入预期年化收益率">
                     </div>
                 </div>
-                <button class="calculate-button" onclick="calculateTarget()">计算投资计划</button>
+                <button class="calculate-button" id="calculate-target-btn">计算投资计划</button>
             </div>
             <div id="targetResult" class="result-card">
                 <div class="result-item">
@@ -716,10 +716,10 @@
                 
                 <div class="yearly-details">
                     <div class="period-selector">
-                        <button class="period-button active" onclick="switchTargetView('year', event)">年度明细</button>
-                        <button class="period-button" onclick="switchTargetView('quarter', event)">季度明细</button>
-                        <button class="period-button" onclick="switchTargetView('month', event)">月度明细</button>
-                        <button class="period-button" onclick="switchTargetView('week', event)">周明细</button>
+                        <button class="period-button active" data-period="year" data-view-type="target">年度明细</button>
+                        <button class="period-button" data-period="quarter" data-view-type="target">季度明细</button>
+                        <button class="period-button" data-period="month" data-view-type="target">月度明细</button>
+                        <button class="period-button" data-period="week" data-view-type="target">周明细</button>
                     </div>
                     <div class="table-container">
                         <table id="targetTable">
@@ -763,7 +763,7 @@
                         <input type="number" id="creditRate" class="input-field" placeholder="请输入预期年化收益率">
                     </div>
                 </div>
-                <button class="calculate-button" onclick="calculateCreditCard()">计算免息收益</button>
+                <button class="calculate-button" id="calculate-credit-card-btn">计算免息收益</button>
             </div>
             <div id="creditResult" class="result-card">
                 <div class="result-item">
@@ -803,8 +803,10 @@
         </div>
     </div>
 
+    <script src="../../utils/storage-keys.js"></script>
+    <script src="../../utils/common.js"></script>
     <script>
-        function switchCalculator(type, event) {
+        function switchCalculator(type) {
             // 隐藏所有计算器
             document.querySelectorAll('.calculator-section').forEach(section => {
                 section.classList.remove('active');
@@ -816,17 +818,10 @@
             // 更新按钮状态
             document.querySelectorAll('.type-button').forEach(button => {
                 button.classList.remove('active');
+                if (button.getAttribute('data-calc-type') === type) {
+                    button.classList.add('active');
+                }
             });
-            if (event && event.target) {
-                event.target.classList.add('active');
-            } else {
-                // 如果没有event，通过type找到对应按钮
-                document.querySelectorAll('.type-button').forEach(button => {
-                    if (button.getAttribute('onclick') && button.getAttribute('onclick').includes(type)) {
-                        button.classList.add('active');
-                    }
-                });
-            }
         }
 
         function formatMoney(number) {
@@ -836,30 +831,14 @@
             }).format(number);
         }
         
-        // Toast提示函数
+        // 使用公共工具库的通知函数
         function showToast(message, type = 'info') {
-            // 移除已存在的toast
-            const existingToast = document.querySelector('.toast');
-            if (existingToast) {
-                existingToast.remove();
+            if (window.CommonUtils && window.CommonUtils.showNotification) {
+                window.CommonUtils.showNotification(message, type, 3000);
+            } else {
+                // 降级处理
+                alert(message);
             }
-            
-            // 创建新的toast
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.textContent = message;
-            document.body.appendChild(toast);
-            
-            // 3秒后自动移除
-            setTimeout(() => {
-                toast.style.opacity = '0';
-                toast.style.transform = 'translateX(-50%) translateY(20px)';
-                setTimeout(() => {
-                    if (toast.parentNode) {
-                        toast.parentNode.removeChild(toast);
-                    }
-                }, 300);
-            }, 3000);
         }
 
         // 复利计算
@@ -1009,23 +988,16 @@
         }
 
         // 切换投资明细视图
-        function switchInvestmentView(viewType, event) {
+        function switchInvestmentView(viewType) {
             if (!window.investmentData) return;
 
             // 更新按钮状态
-            document.querySelectorAll('.period-button').forEach(btn => {
+            document.querySelectorAll('.period-button[data-view-type="investment"]').forEach(btn => {
                 btn.classList.remove('active');
+                if (btn.getAttribute('data-period') === viewType) {
+                    btn.classList.add('active');
+                }
             });
-            if (event && event.target) {
-                event.target.classList.add('active');
-            } else {
-                // 如果没有event，通过viewType找到对应按钮
-                document.querySelectorAll('.period-button').forEach(btn => {
-                    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(viewType)) {
-                        btn.classList.add('active');
-                    }
-                });
-            }
 
             const { periodData, periodsPerYear, period } = window.investmentData;
             const tbody = document.getElementById('investmentTable').getElementsByTagName('tbody')[0];
@@ -1200,23 +1172,16 @@
         }
 
         // 切换目标规划明细视图
-        function switchTargetView(viewType, event) {
+        function switchTargetView(viewType) {
             if (!window.targetData) return;
 
             // 更新按钮状态
-            document.querySelectorAll('.period-button').forEach(btn => {
+            document.querySelectorAll('.period-button[data-view-type="target"]').forEach(btn => {
                 btn.classList.remove('active');
+                if (btn.getAttribute('data-period') === viewType) {
+                    btn.classList.add('active');
+                }
             });
-            if (event && event.target) {
-                event.target.classList.add('active');
-            } else {
-                // 如果没有event，通过viewType找到对应按钮
-                document.querySelectorAll('.period-button').forEach(btn => {
-                    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(viewType)) {
-                        btn.classList.add('active');
-                    }
-                });
-            }
 
             const { periodData, periodsPerYear, period, target } = window.targetData;
             const tbody = document.getElementById('targetTable').getElementsByTagName('tbody')[0];
@@ -1393,32 +1358,111 @@
             document.getElementById('periodUnit').textContent = unitMap[period];
         }
 
-        // 保存输入值到localStorage
+        // 保存输入值到localStorage（使用统一的存储键名和函数）
         function saveInputs() {
+            const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.FINANCE_CALCULATOR_INPUTS) || 'financeCalculator_inputs';
             const inputs = document.querySelectorAll('input[type="number"]');
             inputs.forEach(input => {
                 input.addEventListener('change', function() {
-                    localStorage.setItem(input.id, input.value);
+                    const inputData = {};
+                    document.querySelectorAll('input[type="number"]').forEach(inp => {
+                        if (inp.value) {
+                            inputData[inp.id] = inp.value;
+                        }
+                    });
+                    if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
+                        window.CommonUtils.setLocalStorageItem(STORAGE_KEY, inputData);
+                    } else {
+                        localStorage.setItem(STORAGE_KEY, JSON.stringify(inputData));
+                    }
                 });
             });
         }
 
-        // 从localStorage加载输入值
+        // 从localStorage加载输入值（使用统一的存储键名和函数）
         function loadInputs() {
+            const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.FINANCE_CALCULATOR_INPUTS) || 'financeCalculator_inputs';
+            let savedData;
+            if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
+                savedData = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, {});
+            } else {
+                try {
+                    const saved = localStorage.getItem(STORAGE_KEY);
+                    savedData = saved ? JSON.parse(saved) : {};
+                } catch (e) {
+                    savedData = {};
+                }
+            }
             const inputs = document.querySelectorAll('input[type="number"]');
             inputs.forEach(input => {
-                const savedValue = localStorage.getItem(input.id);
-                if (savedValue) {
-                    input.value = savedValue;
+                if (savedData[input.id]) {
+                    input.value = savedData[input.id];
                 }
             });
         }
 
-        // 页面加载时初始化
-        window.onload = function() {
+        // 初始化事件监听器
+        document.addEventListener('DOMContentLoaded', function() {
+            // 计算器类型切换按钮
+            document.querySelectorAll('.type-button').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const type = this.getAttribute('data-calc-type');
+                    switchCalculator(type);
+                });
+            });
+
+            // 计算按钮
+            const calculateCompoundBtn = document.getElementById('calculate-compound-btn');
+            if (calculateCompoundBtn) {
+                calculateCompoundBtn.addEventListener('click', calculateCompound);
+            }
+
+            const calculateLoanBtn = document.getElementById('calculate-loan-btn');
+            if (calculateLoanBtn) {
+                calculateLoanBtn.addEventListener('click', calculateLoan);
+            }
+
+            const calculateInvestmentBtn = document.getElementById('calculate-investment-btn');
+            if (calculateInvestmentBtn) {
+                calculateInvestmentBtn.addEventListener('click', calculateInvestment);
+            }
+
+            const calculateTargetBtn = document.getElementById('calculate-target-btn');
+            if (calculateTargetBtn) {
+                calculateTargetBtn.addEventListener('click', calculateTarget);
+            }
+
+            const calculateCreditCardBtn = document.getElementById('calculate-credit-card-btn');
+            if (calculateCreditCardBtn) {
+                calculateCreditCardBtn.addEventListener('click', calculateCreditCard);
+            }
+
+            // 投资明细视图切换按钮
+            document.querySelectorAll('.period-button[data-view-type="investment"]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const period = this.getAttribute('data-period');
+                    switchInvestmentView(period);
+                });
+            });
+
+            // 目标规划明细视图切换按钮
+            document.querySelectorAll('.period-button[data-view-type="target"]').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const period = this.getAttribute('data-period');
+                    switchTargetView(period);
+                });
+            });
+
+            // 目标规划周期选择器变化事件
+            const targetPeriodSelect = document.getElementById('targetPeriod');
+            if (targetPeriodSelect) {
+                targetPeriodSelect.addEventListener('change', updatePeriodInput);
+            }
+
+            // 页面加载时初始化
             loadInputs();
             saveInputs();
-        }
+        });
 
         // 添加表格横向滚动处理
         function handleTableScroll() {
@@ -1433,9 +1477,21 @@
             });
         }
 
-        // 页面加载和窗口调整时检查表格是否需要滚动
+        // 节流函数（用于 resize 事件）
+        function throttle(func, limit = 100) {
+            let inThrottle;
+            return function(...args) {
+                if (!inThrottle) {
+                    func.apply(this, args);
+                    inThrottle = true;
+                    setTimeout(() => { inThrottle = false; }, limit);
+                }
+            };
+        }
+
+        // 页面加载和窗口调整时检查表格是否需要滚动（resize 使用节流）
         window.addEventListener('load', handleTableScroll);
-        window.addEventListener('resize', handleTableScroll);
+        window.addEventListener('resize', throttle(handleTableScroll, 100));
     </script>
 </body>
 </html>

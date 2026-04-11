@@ -3,8 +3,16 @@
  * 负责管理库存数据、分类数据的存储和操作
  */
 
-// 存储键名常量
-const STORAGE_KEYS = {
+// 使用统一的存储键名管理（降级处理：如果全局未定义，使用本地常量）
+const STORAGE_KEYS = (typeof window !== 'undefined' && window.StorageKeys) ? {
+    INVENTORY_ITEMS: window.StorageKeys.INVENTORY_ITEMS,
+    CATEGORIES: window.StorageKeys.INVENTORY_CATEGORIES,
+    BRANDS: window.StorageKeys.INVENTORY_BRANDS,
+    SETTINGS: window.StorageKeys.INVENTORY_SETTINGS,
+    HISTORY: window.StorageKeys.INVENTORY_HISTORY,
+    SHOPPING_LIST: window.StorageKeys.INVENTORY_SHOPPING_LIST
+} : {
+    // 降级处理：如果全局 StorageKeys 未加载，使用本地常量
     INVENTORY_ITEMS: 'inventory-items',
     CATEGORIES: 'inventory-categories',
     BRANDS: 'inventory-brands',
