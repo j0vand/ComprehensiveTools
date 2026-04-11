@@ -26,9 +26,7 @@ class StorageManager {
                 settings: {
                     voiceRate: 1.0,
                     voiceVolume: 1.0,
-                    prepareTime: 10,
-                    transitionInterval: 5,  // 休息结束到训练开始之间的准备间隔（秒）
-                    countdownStart: 10      // 倒计时开始秒数
+                    prepareTime: 10
                 }
             };
             this.saveData(initialData);
