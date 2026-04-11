@@ -30,7 +30,10 @@ const STORAGE_KEYS = {
     
     // 理财计算器
     FINANCE_CALCULATOR_DATA: 'financeCalculator_data',
-    FINANCE_CALCULATOR_INPUTS: 'financeCalculator_inputs' // 用于保存输入值
+    FINANCE_CALCULATOR_INPUTS: 'financeCalculator_inputs', // 用于保存输入值
+
+    // 出行清单
+    TRAVEL_CHECKLIST: 'travelChecklist_data'
 };
 
 // 导出到全局作用域

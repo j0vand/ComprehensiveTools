@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0d9488">
+    <title>出行清单 - 综合工具箱</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <a href="../../index.html" class="back-to-home">← 返回主页</a>
+            <h1>出行清单</h1>
+            <p class="subtitle">出行前逐项确认必备物品与必做事项</p>
+        </header>
+
+        <section class="list-toolbar" aria-label="清单选择与操作">
+            <div class="list-switcher-row">
+                <label for="list-switcher" class="visually-hidden">当前清单</label>
+                <select id="list-switcher" aria-label="选择当前清单"></select>
+                <button type="button" id="new-list-btn" class="btn btn-secondary" aria-label="新建清单">新建清单</button>
+                <button type="button" id="duplicate-list-btn" class="btn btn-secondary" aria-label="复制当前清单">复制清单</button>
+                <div class="management-wrap">
+                    <button type="button" id="rename-list-btn" class="btn btn-ghost" aria-label="重命名当前清单">重命名</button>
+                    <button type="button" id="delete-list-btn" class="btn btn-ghost" aria-label="删除当前清单">删除</button>
+                </div>
+            </div>
+        </section>
+
+        <div class="progress-row" aria-live="polite" aria-atomic="true">
+            <span id="progress-text">0 / 0</span>
+            <span id="progress-all-done" class="progress-all-done hidden">全部完成</span>
+        </div>
+
+        <section class="add-row" aria-label="添加一项">
+            <label for="new-item-input" class="visually-hidden">新增项内容</label>
+            <input type="text" id="new-item-input" placeholder="添加物品或事项…" maxlength="200" autocomplete="off">
+            <span id="type-options-container" class="type-options" role="group" aria-label="类型"></span>
+            <button type="button" id="manage-types-btn" class="btn btn-types-manage" aria-label="类型管理">类型管理</button>
+            <button type="button" id="add-btn" class="btn btn-primary" aria-label="添加">添加</button>
+        </section>
+
+        <div id="checklist-wrapper" class="checklist-wrapper">
+            <section id="section-pending" class="checklist-section" aria-label="待完成">
+                <h2 class="section-title">待完成</h2>
+                <div id="pending-subsections"></div>
+            </section>
+            <section id="section-done" class="checklist-section" aria-label="已完成">
+                <h2 class="section-title">已完成</h2>
+                <div id="done-subsections"></div>
+            </section>
+        </div>
+
+        <div class="action-row">
+            <button type="button" id="reset-btn" class="btn btn-secondary" aria-label="重置勾选">重置勾选</button>
+            <button type="button" id="export-btn" class="btn btn-secondary" aria-label="导出当前清单">导出当前</button>
+            <button type="button" id="export-all-btn" class="btn btn-secondary" aria-label="导出全部清单">导出全部</button>
+            <button type="button" id="import-btn" class="btn btn-secondary" aria-label="导入">导入</button>
+            <input type="file" id="import-file" accept=".json" class="visually-hidden" aria-hidden="true">
+        </div>
+    </div>
+
+    <!-- 新建清单弹层 -->
+    <div id="modal-new-list" class="modal hidden" role="dialog" aria-labelledby="modal-new-list-title" aria-modal="true">
+        <div class="modal-content">
+            <h3 id="modal-new-list-title" class="modal-title">新建清单</h3>
+            <label for="new-list-name">名称</label>
+            <input type="text" id="new-list-name" placeholder="例如：周末出游" maxlength="50" autocomplete="off">
+            <div class="modal-option">
+                <span>内容</span>
+                <label><input type="radio" name="new-list-source" value="default" checked> 仅默认五项</label>
+                <label><input type="radio" name="new-list-source" value="template"> 从模板</label>
+            </div>
+            <select id="new-list-template" class="modal-template-select" aria-label="选择模板">
+                <option value="">请选择模板</option>
+            </select>
+            <div class="modal-actions">
+                <button type="button" id="modal-new-list-cancel" class="btn btn-ghost">取消</button>
+                <button type="button" id="modal-new-list-confirm" class="btn btn-primary">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 复制清单弹层 -->
+    <div id="modal-duplicate" class="modal hidden" role="dialog" aria-labelledby="modal-duplicate-title" aria-modal="true">
+        <div class="modal-content">
+            <h3 id="modal-duplicate-title" class="modal-title">复制清单</h3>
+            <label for="duplicate-list-name">新清单名称</label>
+            <input type="text" id="duplicate-list-name" placeholder="例如：我的清单 副本" maxlength="50" autocomplete="off">
+            <div class="modal-actions">
+                <button type="button" id="modal-duplicate-cancel" class="btn btn-ghost">取消</button>
+                <button type="button" id="modal-duplicate-confirm" class="btn btn-primary">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 类型管理弹层 -->
+    <div id="modal-types" class="modal hidden" role="dialog" aria-labelledby="modal-types-title" aria-modal="true">
+        <div class="modal-content modal-content-wide">
+            <h3 id="modal-types-title" class="modal-title">类型管理（绑定当前清单，复制清单时一并复制）</h3>
+            <p class="modal-hint">至少保留两种类型。删除类型时，该类型下的项会归入第一种类型。</p>
+            <ul id="modal-types-list" class="modal-types-ul"></ul>
+            <div class="modal-type-add">
+                <input type="text" id="modal-types-new-name" placeholder="新类型名称" maxlength="20" autocomplete="off">
+                <button type="button" id="modal-types-add-btn" class="btn btn-secondary">添加类型</button>
+            </div>
+            <div class="modal-actions">
+                <button type="button" id="modal-types-close" class="btn btn-primary">返回</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="../../utils/storage-keys.js"></script>
+    <script src="../../utils/common.js"></script>
+    <script src="travel-checklist.js"></script>
+</body>
+</html>

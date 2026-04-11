@@ -1,18 +1,19 @@
-/* 弹窗样式增强 */
+/* 弹窗样式增强（设计系统变量见 main.css :root） */
 .modal-content {
-    border: none;
-    border-radius: 12px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
 }
 
 .modal-header {
-    border-bottom: 1px solid #e9ecef;
+    border-bottom: 1px solid var(--border-color);
     padding: 1.25rem 1.5rem;
 }
 
 .modal-title {
+    font-family: var(--font-heading);
     font-weight: 600;
-    color: #333;
+    color: var(--text);
 }
 
 .modal-body {
@@ -20,35 +21,36 @@
 }
 
 .modal-footer {
-    border-top: 1px solid #e9ecef;
+    border-top: 1px solid var(--border-color);
     padding: 1rem 1.5rem;
 }
 
 /* 表单样式 */
 .form-label {
     font-weight: 500;
-    color: #495057;
+    color: var(--text);
     margin-bottom: 0.5rem;
 }
 
 .form-control,
 .form-select {
-    border-radius: 8px;
-    border: 1px solid #ced4da;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-color);
     padding: 0.625rem 0.875rem;
     transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 }
 
 .form-control:focus,
 .form-select:focus {
-    border-color: #86b7fe;
-    box-shadow: 0 0 0 0.25rem rgba(13,110,253,.25);
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.2rem rgba(13, 148, 136, 0.2);
 }
 
 /* 单选按钮组样式 */
 .btn-check:checked + .btn-outline-primary {
-    background-color: #0d6efd;
+    background-color: var(--primary);
     color: white;
+    border-color: var(--primary);
 }
 
 /* 输入验证样式 */

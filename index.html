@@ -4,12 +4,32 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>综合工具箱</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=DM+Sans:ital,wght@0,400;0,500;0,600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #4CAF50;
-            --hover-color: #45a049;
-            --background-color: #f5f5f5;
-            --card-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            /* 字体 */
+            --font-heading: 'Outfit', sans-serif;
+            --font-body: 'DM Sans', -apple-system, sans-serif;
+            /* 色彩：清爽专业 / 青绿主色 */
+            --primary: #0d9488;
+            --primary-hover: #0f766e;
+            --bg: #f8f9f7;
+            --card-bg: #ffffff;
+            --text: #1a1d1a;
+            --text-muted: #5c615c;
+            --border: #e5e7e5;
+            --accent: #059669;
+            /* 阴影：双层层次 */
+            --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
+            --shadow-card-hover: 0 4px 12px rgba(13, 148, 136, 0.12), 0 2px 4px rgba(0, 0, 0, 0.06);
+            /* 圆角与留白 */
+            --radius: 12px;
+            --radius-icon: 10px;
+            --space-md: 24px;
+            --space-lg: 40px;
+            --gap-grid: 20px;
         }
 
         * {
@@ -19,11 +39,12 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            font-family: var(--font-body);
             line-height: 1.6;
-            background-color: var(--background-color);
-            color: #333;
-            padding: 20px;
+            background: linear-gradient(180deg, #fafbf9 0%, var(--bg) 12%, var(--bg) 100%);
+            color: var(--text);
+            padding: var(--space-md);
+            min-height: 100vh;
         }
 
         .container {
@@ -31,70 +52,123 @@
             margin: 0 auto;
         }
 
+        /* 标题区：左对齐 + 主/副标题层级 + 装饰线 */
         .header {
-            text-align: center;
-            margin-bottom: 40px;
-            padding: 20px;
+            text-align: left;
+            margin-bottom: var(--space-lg);
+            padding: 0 0 var(--space-md) 0;
+            border-bottom: 3px solid var(--primary);
         }
 
         .header h1 {
-            font-size: 2.5em;
-            color: #333;
-            margin-bottom: 10px;
+            font-family: var(--font-heading);
+            font-weight: 700;
+            font-size: 2.25rem;
+            color: var(--text);
+            margin-bottom: 8px;
+            letter-spacing: -0.02em;
         }
 
         .header p {
-            color: #666;
-            font-size: 1.1em;
+            font-weight: 500;
+            font-size: 1rem;
+            color: var(--text-muted);
         }
 
         .tools-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-            gap: 20px;
-            padding: 20px;
+            gap: var(--gap-grid);
+            padding: var(--space-md) 0;
         }
 
         .tool-card {
-            background: white;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: var(--card-shadow);
-            transition: all 0.3s ease;
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: var(--space-md);
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-card);
+            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.2s ease;
             cursor: pointer;
             text-decoration: none;
             color: inherit;
+            animation: card-enter 0.45s ease-out backwards;
+        }
+
+        .tool-card:nth-child(1) { animation-delay: 0.02s; }
+        .tool-card:nth-child(2) { animation-delay: 0.06s; }
+        .tool-card:nth-child(3) { animation-delay: 0.10s; }
+        .tool-card:nth-child(4) { animation-delay: 0.14s; }
+        .tool-card:nth-child(5) { animation-delay: 0.18s; }
+        .tool-card:nth-child(6) { animation-delay: 0.22s; }
+        .tool-card:nth-child(7) { animation-delay: 0.26s; }
+        .tool-card:nth-child(8) { animation-delay: 0.30s; }
+
+        @keyframes card-enter {
+            from {
+                opacity: 0;
+                transform: translateY(12px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
 
         .tool-card:hover {
             transform: translateY(-4px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: var(--shadow-card-hover);
+            border-color: rgba(13, 148, 136, 0.2);
+        }
+
+        .tool-card:hover .tool-icon {
+            transform: scale(1.05);
         }
 
         .tool-icon {
             width: 48px;
             height: 48px;
-            background-color: var(--primary-color);
-            border-radius: 12px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
+            border-radius: var(--radius-icon);
             margin-bottom: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
             color: white;
             font-size: 24px;
+            transition: transform 0.25s ease;
         }
 
         .tool-title {
-            font-size: 1.25em;
+            font-family: var(--font-heading);
+            font-size: 1.2em;
             font-weight: 600;
             margin-bottom: 8px;
-            color: #333;
+            color: var(--text);
         }
 
         .tool-description {
-            color: #666;
+            color: var(--text-muted);
             font-size: 0.95em;
             line-height: 1.5;
+        }
+
+        /* 可访问性：减弱动效 */
+        @media (prefers-reduced-motion: reduce) {
+            .tool-card,
+            .tool-icon {
+                animation: none;
+                transition: none;
+            }
+            .tool-card {
+                animation-delay: 0s;
+            }
+            .tool-card:hover {
+                transform: none;
+            }
+            .tool-card:hover .tool-icon {
+                transform: none;
+            }
         }
 
         @media (max-width: 768px) {
@@ -103,17 +177,17 @@
             }
 
             .header {
-                margin-bottom: 24px;
+                margin-bottom: var(--space-md);
             }
 
             .header h1 {
-                font-size: 2em;
+                font-size: 1.75rem;
             }
 
             .tools-grid {
                 grid-template-columns: 1fr;
                 gap: 16px;
-                padding: 16px;
+                padding: 16px 0;
             }
         }
     </style>
@@ -166,6 +240,12 @@
                 <div class="tool-icon">👵</div>
                 <h2 class="tool-title">养老金计算器</h2>
                 <p class="tool-description">基于中国养老保险制度，估算退休后可领取的养老金金额</p>
+            </a>
+
+            <a href="pages/travel-checklist/travelChecklist.html" class="tool-card">
+                <div class="tool-icon">🧳</div>
+                <h2 class="tool-title">出行清单</h2>
+                <p class="tool-description">出行前逐项确认必备物品与必做事项，支持多份清单、导出导入与重置勾选</p>
             </a>
         </div>
     </div>

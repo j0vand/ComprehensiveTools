@@ -1,16 +1,40 @@
-/* 训练项卡片样式 */
+/* 训练项卡片样式（设计系统变量见 main.css :root） */
 .exercise-card {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
     margin-bottom: 1rem;
     padding: 1rem;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.2s ease;
+    animation: card-enter 0.4s ease-out backwards;
+}
+
+.exercise-card:nth-child(1) { animation-delay: 0.02s; }
+.exercise-card:nth-child(2) { animation-delay: 0.06s; }
+.exercise-card:nth-child(3) { animation-delay: 0.10s; }
+.exercise-card:nth-child(4) { animation-delay: 0.14s; }
+.exercise-card:nth-child(5) { animation-delay: 0.18s; }
+.exercise-card:nth-child(6) { animation-delay: 0.22s; }
+.exercise-card:nth-child(7) { animation-delay: 0.26s; }
+.exercise-card:nth-child(8) { animation-delay: 0.30s; }
+.exercise-card:nth-child(n+9) { animation-delay: 0.34s; }
+
+@keyframes card-enter {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .exercise-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-card-hover);
+    border-color: rgba(13, 148, 136, 0.2);
 }
 
 .exercise-card-header {
@@ -21,9 +45,10 @@
 }
 
 .exercise-card-title {
-    font-size: 1.25rem;
+    font-family: var(--font-heading);
+    font-size: 1.2rem;
     font-weight: 600;
-    color: #333;
+    color: var(--text);
     margin: 0;
     flex: 1;
 }
@@ -44,7 +69,7 @@
 }
 
 .card-action-btn:hover {
-    color: #0d6efd;
+    color: var(--primary);
 }
 
 .card-action-btn.delete:hover {
@@ -61,13 +86,13 @@
 }
 
 .type-duration {
-    background-color: #e7f5ff;
-    color: #0c63e4;
+    background-color: rgba(13, 148, 136, 0.12);
+    color: var(--primary);
 }
 
 .type-reps {
-    background-color: #e7f5e7;
-    color: #198754;
+    background-color: rgba(5, 150, 105, 0.12);
+    color: var(--success);
 }
 
 .exercise-card-details {
@@ -81,27 +106,27 @@
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    color: #666;
+    color: var(--text-muted);
     font-size: 0.95rem;
 }
 
 .detail-item i {
-    color: #0d6efd;
+    color: var(--primary);
     font-size: 1.1rem;
 }
 
 .detail-value {
     font-weight: 600;
-    color: #333;
+    color: var(--text);
 }
 
 .exercise-card-description {
-    color: #6c757d;
+    color: var(--text-muted);
     font-size: 0.9rem;
     line-height: 1.5;
     margin: 0;
     padding-top: 0.75rem;
-    border-top: 1px solid #e9ecef;
+    border-top: 1px solid var(--border-color);
 }
 
 /* 拖拽样式 */
@@ -115,16 +140,16 @@
 }
 
 .exercise-card.drag-over {
-    border: 2px dashed #0d6efd;
-    background-color: #f0f8ff;
+    border: 2px dashed var(--primary);
+    background-color: rgba(13, 148, 136, 0.06);
 }
 
 .exercise-card.drag-over-top {
-    border-top: 3px solid #0d6efd;
+    border-top: 3px solid var(--primary);
 }
 
 .exercise-card.drag-over-bottom {
-    border-bottom: 3px solid #0d6efd;
+    border-bottom: 3px solid var(--primary);
 }
 
 /* 按钮区域不触发拖拽 */
@@ -136,9 +161,9 @@
 /* 占位符样式（触摸拖拽用） */
 .exercise-card-placeholder {
     height: 80px;
-    background: #e9ecef;
-    border: 2px dashed #0d6efd;
-    border-radius: 12px;
+    background: rgba(13, 148, 136, 0.06);
+    border: 2px dashed var(--primary);
+    border-radius: var(--radius);
     margin-bottom: 1rem;
 }
 
@@ -154,7 +179,7 @@
     justify-content: center;
     width: 28px;
     height: 28px;
-    background: #0d6efd;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
     color: white;
     border-radius: 50%;
     font-size: 0.85rem;
@@ -164,12 +189,12 @@
 
 /* 管理界面样式 */
 .manage-exercise-item {
-    background: white;
+    background: var(--card-bg);
     transition: background-color 0.2s ease;
 }
 
 .manage-exercise-item:hover {
-    background-color: #f8f9fa;
+    background-color: var(--light-bg);
 }
 
 .manage-exercise-item.dragging {
@@ -177,9 +202,9 @@
 }
 
 .plan-exercise-list.drag-over {
-    background-color: #e7f5ff;
-    border: 2px dashed #0d6efd;
-    border-radius: 8px;
+    background-color: rgba(13, 148, 136, 0.08);
+    border: 2px dashed var(--primary);
+    border-radius: var(--radius-sm);
     min-height: 50px;
 }
 

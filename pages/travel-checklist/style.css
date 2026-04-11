@@ -1,0 +1,628 @@
+/* ==========================================
+   出行清单 - 样式（SKILL：清爽可靠、出行场景）
+   ========================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+:root {
+    --tc-bg: #f8f9f7;
+    --tc-bg-card: #ffffff;
+    --tc-text: #1a1d1a;
+    --tc-text-muted: #5c615c;
+    --tc-primary: #0d9488;
+    --tc-primary-hover: #0f766e;
+    --tc-accent-done: #059669;
+    --tc-border: #e5e7e5;
+    --tc-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    --tc-shadow-hover: 0 4px 12px rgba(13, 148, 136, 0.12);
+    --tc-radius: 10px;
+    --tc-radius-sm: 6px;
+    --tc-font-heading: 'Outfit', sans-serif;
+    --tc-font-body: 'DM Sans', -apple-system, sans-serif;
+    --tc-touch-min: 44px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: var(--tc-font-body);
+    font-size: 16px;
+    line-height: 1.5;
+    background-color: var(--tc-bg);
+    color: var(--tc-text);
+    min-height: 100vh;
+    padding: 16px;
+}
+
+.container {
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+/* ----- 标题区 ----- */
+.header {
+    margin-bottom: 24px;
+}
+
+.back-to-home {
+    display: inline-block;
+    font-size: 0.9rem;
+    color: var(--tc-primary);
+    text-decoration: none;
+    margin-bottom: 12px;
+    transition: color 0.2s;
+}
+
+.back-to-home:hover {
+    color: var(--tc-primary-hover);
+}
+
+.header h1 {
+    font-family: var(--tc-font-heading);
+    font-weight: 700;
+    font-size: 1.75rem;
+    color: var(--tc-text);
+    margin-bottom: 4px;
+}
+
+.subtitle {
+    font-size: 0.95rem;
+    color: var(--tc-text-muted);
+}
+
+/* ----- 清单选择区 ----- */
+.list-toolbar {
+    margin-bottom: 16px;
+}
+
+.list-switcher-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+}
+
+#list-switcher {
+    flex: 1;
+    min-width: 120px;
+    max-width: 220px;
+    padding: 10px 12px;
+    font-family: var(--tc-font-body);
+    font-size: 0.95rem;
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-sm);
+    background: var(--tc-bg-card);
+    color: var(--tc-text);
+}
+
+#list-switcher:focus {
+    outline: 2px solid var(--tc-primary);
+    outline-offset: 2px;
+}
+
+.management-wrap {
+    display: flex;
+    gap: 4px;
+}
+
+/* ----- 按钮通用 ----- */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--tc-touch-min);
+    padding: 0 16px;
+    font-family: var(--tc-font-body);
+    font-size: 0.9rem;
+    font-weight: 500;
+    border: none;
+    border-radius: var(--tc-radius-sm);
+    cursor: pointer;
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.btn:focus-visible {
+    outline: 2px solid var(--tc-primary);
+    outline-offset: 2px;
+}
+
+.btn-primary {
+    background-color: var(--tc-primary);
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background-color: var(--tc-primary-hover);
+}
+
+.btn-secondary {
+    background-color: var(--tc-bg-card);
+    color: var(--tc-text);
+    border: 1px solid var(--tc-border);
+}
+
+.btn-secondary:hover {
+    border-color: var(--tc-primary);
+    color: var(--tc-primary);
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--tc-text-muted);
+}
+
+.btn-ghost:hover {
+    color: var(--tc-primary);
+}
+
+.btn-danger-small {
+    padding: 4px 10px;
+    min-height: 32px;
+    font-size: 0.8rem;
+    background: transparent;
+    color: var(--tc-text-muted);
+    border: 1px solid var(--tc-border);
+}
+
+.btn-danger-small:hover {
+    color: #b91c1c;
+    border-color: #fca5a5;
+}
+
+.item-edit {
+    padding: 4px 10px;
+    min-height: 32px;
+    font-size: 0.8rem;
+}
+
+/* 类型管理按钮：更醒目，便于发现可增删类型 */
+.btn-types-manage {
+    min-height: var(--tc-touch-min);
+    padding: 0 14px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--tc-primary);
+    background: rgba(13, 148, 136, 0.08);
+    border: 1px solid var(--tc-primary);
+}
+
+.btn-types-manage:hover {
+    background: rgba(13, 148, 136, 0.14);
+    border-color: var(--tc-primary-hover);
+    color: var(--tc-primary-hover);
+}
+
+/* ----- 进度区 ----- */
+.progress-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+    font-size: 0.95rem;
+    color: var(--tc-text-muted);
+}
+
+#progress-text {
+    font-weight: 500;
+    color: var(--tc-text);
+}
+
+.progress-all-done {
+    font-weight: 600;
+    color: var(--tc-accent-done);
+}
+
+.progress-all-done.hidden {
+    display: none;
+}
+
+/* ----- 添加区 ----- */
+.add-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+#new-item-input {
+    flex: 1;
+    min-width: 0;
+    min-height: var(--tc-touch-min);
+    padding: 10px 14px;
+    font-family: var(--tc-font-body);
+    font-size: 1rem;
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-sm);
+    background: var(--tc-bg-card);
+}
+
+#new-item-input:focus {
+    outline: 2px solid var(--tc-primary);
+    outline-offset: 0;
+}
+
+/* 类型：物品/事项 平铺可选，不收起 */
+.type-options {
+    display: flex;
+    gap: 0;
+    border-radius: var(--tc-radius-sm);
+    border: 1px solid var(--tc-border);
+    background: var(--tc-bg-card);
+    overflow: hidden;
+}
+
+.type-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--tc-touch-min);
+    min-width: 56px;
+    padding: 0 14px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    border-right: 1px solid var(--tc-border);
+    transition: background 0.2s, color 0.2s;
+}
+
+.type-option:last-child {
+    border-right: none;
+}
+
+.type-option input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.type-option:has(input:checked) {
+    background: var(--tc-primary);
+    color: #fff;
+}
+
+.type-option:not(:has(input:checked)):hover {
+    background: var(--tc-bg);
+    color: var(--tc-text);
+}
+
+/* ----- 列表容器与分区 ----- */
+.checklist-wrapper {
+    margin-bottom: 24px;
+}
+
+.checklist-section {
+    background: var(--tc-bg-card);
+    border-radius: var(--tc-radius);
+    box-shadow: var(--tc-shadow);
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.section-title {
+    font-family: var(--tc-font-heading);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--tc-text-muted);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--tc-border);
+}
+
+.subsection {
+    margin-bottom: 16px;
+}
+
+.subsection:last-child {
+    margin-bottom: 0;
+}
+
+.subsection-title {
+    font-family: var(--tc-font-body);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--tc-text-muted);
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+}
+
+.checklist-ul {
+    list-style: none;
+}
+
+.checklist-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--tc-border);
+    animation: itemReveal 0.25s ease-out;
+}
+
+.checklist-item:last-child {
+    border-bottom: none;
+}
+
+.checklist-item.checked {
+    opacity: 0.85;
+}
+
+.checklist-item.checked .item-text {
+    text-decoration: line-through;
+    color: var(--tc-text-muted);
+}
+
+@keyframes itemReveal {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.item-checkbox {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    accent-color: var(--tc-primary);
+    cursor: pointer;
+}
+
+.item-type-tag {
+    flex-shrink: 0;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: var(--tc-bg);
+    color: var(--tc-text-muted);
+}
+
+.item-type-tag.task {
+    background: #e0f2fe;
+    color: #0369a1;
+}
+
+.item-label-wrap {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+}
+
+.item-text {
+    flex: 1;
+    min-width: 0;
+    font-size: 0.95rem;
+    word-break: break-word;
+    transition: color 0.2s, text-decoration 0.2s;
+}
+
+.item-text.inline-edit {
+    display: none;
+}
+
+.item-edit-input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    font-family: var(--tc-font-body);
+    font-size: 0.95rem;
+    border: 1px solid var(--tc-primary);
+    border-radius: var(--tc-radius-sm);
+    display: none;
+}
+
+.item-edit-input.show {
+    display: block;
+}
+
+.empty-hint {
+    font-size: 0.9rem;
+    color: var(--tc-text-muted);
+    padding: 16px 0;
+    text-align: center;
+}
+
+.empty-hint.hidden {
+    display: none;
+}
+
+/* ----- 操作区 ----- */
+.action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+/* ----- 弹层 ----- */
+.modal {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(0, 0, 0, 0.4);
+    animation: modalFade 0.2s ease-out;
+}
+
+.modal.hidden {
+    display: none;
+}
+
+@keyframes modalFade {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+.modal-content {
+    background: var(--tc-bg-card);
+    border-radius: var(--tc-radius);
+    box-shadow: var(--tc-shadow-hover);
+    padding: 24px;
+    width: 100%;
+    max-width: 360px;
+}
+
+.modal-title {
+    font-family: var(--tc-font-heading);
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin-bottom: 16px;
+}
+
+.modal-content label {
+    display: block;
+    font-size: 0.9rem;
+    color: var(--tc-text-muted);
+    margin-bottom: 6px;
+}
+
+.modal-content input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    font-family: var(--tc-font-body);
+    font-size: 1rem;
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-sm);
+    margin-bottom: 16px;
+}
+
+.modal-option {
+    margin-bottom: 12px;
+}
+
+.modal-option label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-right: 16px;
+    margin-bottom: 0;
+    cursor: pointer;
+}
+
+.modal-template-select {
+    width: 100%;
+    padding: 10px 12px;
+    font-family: var(--tc-font-body);
+    font-size: 0.95rem;
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-sm);
+    margin-bottom: 20px;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
+.modal-content-wide {
+    max-width: 420px;
+}
+
+.modal-hint {
+    font-size: 0.85rem;
+    color: var(--tc-text-muted);
+    margin-bottom: 12px;
+    line-height: 1.4;
+}
+
+.modal-type-add {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.modal-type-add input {
+    flex: 1;
+    padding: 8px 12px;
+    font-family: var(--tc-font-body);
+    font-size: 0.95rem;
+    border: 1px solid var(--tc-border);
+    border-radius: var(--tc-radius-sm);
+}
+
+.modal-types-ul {
+    list-style: none;
+    margin-bottom: 16px;
+}
+
+.modal-type-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--tc-border);
+}
+
+.modal-type-row:last-child {
+    border-bottom: none;
+}
+
+.modal-type-name {
+    flex: 1;
+    font-weight: 500;
+}
+
+/* ----- 无障碍 ----- */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+}
+
+/* ----- 响应式 ----- */
+@media (max-width: 768px) {
+    body {
+        padding: 12px;
+    }
+
+    .list-switcher-row {
+        gap: 6px;
+    }
+
+    #list-switcher {
+        max-width: none;
+    }
+
+    .add-row {
+        flex-direction: column;
+    }
+
+    #new-item-input {
+        width: 100%;
+    }
+
+    .action-row .btn {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .section-title {
+        font-size: 0.95rem;
+    }
+
+    .checklist-section {
+        padding: 12px;
+    }
+}
