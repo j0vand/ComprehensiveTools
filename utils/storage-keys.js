@@ -33,7 +33,10 @@ const STORAGE_KEYS = {
     FINANCE_CALCULATOR_INPUTS: 'financeCalculator_inputs', // 用于保存输入值
 
     // 出行清单
-    TRAVEL_CHECKLIST: 'travelChecklist_data'
+    TRAVEL_CHECKLIST: 'travelChecklist_data',
+
+    // FIRE 退休规划器
+    RETIREMENT_CALCULATOR: 'retirementCalculator_data'
 };
 
 // 导出到全局作用域

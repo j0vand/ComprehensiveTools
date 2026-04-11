@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="format-detection" content="telephone=no">
+    <meta name="theme-color" content="#1e88e5">
+    <title>FIRE 退休资金规划器 - 提早退休需要多少钱</title>
+    <link rel="stylesheet" href="../pension-calculator/style.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-back">
+                <a href="../../index.html" class="back-to-home">← 返回主页</a>
+            </div>
+            <h1>FIRE 退休规划器</h1>
+            <p class="subtitle">综合测算通胀与收益，找到您的最早可退休年龄</p>
+            <div class="page-guide">
+                <span>1. 完整填写参数</span>
+                <span>2. 一键测算退休年龄</span>
+                <span>3. 对照图表优化方案</span>
+            </div>
+        </header>
+
+        <main>
+            <div class="calculator-layout">
+                <!-- 输入区域 -->
+                <section class="input-section">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2>基本信息</h2>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="current-age">当前年龄</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="current-age" min="18" max="70" value="30">
+                                        <span class="unit">岁</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="life-expectancy">预期寿命</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="life-expectancy" min="50" max="120" value="85">
+                                        <span class="unit">岁</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>性别</label>
+                                <div class="radio-group">
+                                    <label class="radio-label">
+                                        <input type="radio" name="gender" value="male" checked>
+                                        <span class="radio-custom"></span>
+                                        <span>男 (默认63岁领退休金)</span>
+                                    </label>
+                                    <label class="radio-label">
+                                        <input type="radio" name="gender" value="female">
+                                        <span class="radio-custom"></span>
+                                        <span>女 (默认58岁领退休金)</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2>资产与储蓄</h2>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="current-assets">当前已有资产</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="current-assets" min="0" value="500000" step="10000">
+                                        <span class="unit">元</span>
+                                    </div>
+                                    <small class="form-helper">目前已经准备好的可投资本金</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="annual-savings">每年可存金额</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="annual-savings" min="0" value="100000" step="1000">
+                                        <span class="unit">元/年</span>
+                                    </div>
+                                    <small class="form-helper">从现在到退休前，每年能存下的钱</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h2>退休后开销与补充收入</h2>
+                        </div>
+                        <div class="panel-body">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="monthly-expense">期望月生活费 (按当前物价)</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="monthly-expense" min="0" value="8000" step="500">
+                                        <span class="unit">元/月</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="medical-reserve">医疗备用金 (按当前物价)</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="medical-reserve" min="0" value="500000" step="10000">
+                                        <span class="unit">元</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="expected-pension">预计可领社保退休金</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="expected-pension" min="0" value="4000" step="100">
+                                        <span class="unit">元/月</span>
+                                    </div>
+                                    <small class="form-helper">可使用首页“个人养老金计算器”测算</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="pension-age">退休金开始领取年龄</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="pension-age" min="50" max="70" value="63">
+                                        <span class="unit">岁</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="medical-monthly-expense">当前月医疗支出（按当前物价）</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="medical-monthly-expense" min="0" value="1200" step="100">
+                                        <span class="unit">元/月</span>
+                                    </div>
+                                    <small class="form-helper">按当前价格输入，未来会像医疗备用金一样按通货膨胀率增长</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="target-retire-age">目标退休年龄（用于反推）<span class="optional-badge">选填</span></label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="target-retire-age" class="optional-input" min="30" max="80" placeholder="可留空，例如 55" step="1">
+                                        <span class="unit">岁</span>
+                                    </div>
+                                    <small class="form-helper">这是可选项；留空则不执行目标反推</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel advanced-settings">
+                        <div class="advanced-settings-title">经济假设参数</div>
+                        <div class="advanced-content">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="inflation-rate">预期年通货膨胀率</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="inflation-rate" min="0" max="10" value="3.0" step="0.1">
+                                        <span class="unit">%</span>
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <label for="investment-return">预期投资年化收益率
+                                        <span class="tip-icon" title="用于将未来支出折现到退休当年的估值。实际收益率可近似理解为：(1+投资收益率)/(1+通胀率)-1">?</span>
+                                    </label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="investment-return" min="0" max="15" value="1.5" step="0.1">
+                                        <span class="unit">%</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="pension-growth-rate">退休金年增长比例</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="pension-growth-rate" min="0" max="10" value="0" step="0.1">
+                                        <span class="unit">%</span>
+                                    </div>
+                                    <small class="form-helper">可设为 0%，表示退休金不增长</small>
+                                </div>
+                                <div class="form-group"></div>
+                            </div>
+                            <small class="form-helper" style="margin-top: -10px;">注：投资收益率代表长期平均年化收益。生活费、月医疗支出、医疗备用金都按通货膨胀率增长；退休金按“退休金年增长比例”增长。</small>
+                        </div>
+                    </div>
+
+                    <div class="button-group">
+                        <button id="calculate-btn" class="btn btn-primary">测算可退休年龄</button>
+                        <button id="reset-btn" class="btn btn-secondary">重置</button>
+                    </div>
+                </section>
+
+                <!-- 结果区域 -->
+                <section class="result-section hidden" id="result-section">
+                    <div class="panel result-panel">
+                        <div class="result-header">
+                            <h3>FIRE 测算核心结论</h3>
+                        </div>
+                        <div class="section-layer-title">关键结论</div>
+
+                        <!-- 成功：可以提早退休 -->
+                        <div id="result-success" class="hidden">
+                            <div class="total-pension-card success-card">
+                                <div class="label">最早可退休年龄</div>
+                                <div class="value">
+                                    <span id="res-fire-age">0</span> <span class="value-unit">岁</span>
+                                </div>
+                                <div class="sub-text">
+                                    届时您将攒下本金约: ¥ <span id="res-fire-assets">0</span>
+                                </div>
+                                <div class="sub-text">
+                                    折算当前购买力约: ¥ <span id="res-fire-assets-real">0</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 失败：到预期寿命都无法退休（资金断裂）或当前设定过于苛刻 -->
+                        <div id="result-fail" class="hidden">
+                            <div class="total-pension-card warning-card">
+                                <div class="label">预警提示</div>
+                                <div class="value warning-value">
+                                    按当前设定可能资金不足
+                                </div>
+                                <div class="sub-text">
+                                    建议: 提高年存款、降低开销或提高收益率
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="section-layer-title">核心指标</div>
+                        <div class="data-cards metric-grid">
+                            <div class="data-card">
+                                <h4>到达目标还需要存钱</h4>
+                                <div class="data-value"><span id="res-years-to-fire">0</span> 年</div>
+                            </div>
+                            <div class="data-card">
+                                <h4>退休金开始抵扣年龄</h4>
+                                <div class="data-value"><span id="res-pension-age-display">0</span> 岁</div>
+                            </div>
+                            <div class="data-card">
+                                <h4>退休时医疗备用金（分段通胀后）</h4>
+                                <div class="data-value">¥ <span id="res-medical-reserve-inflated">0</span></div>
+                                <div class="data-desc">按 <span id="res-medical-age">0</span> 岁退休测算</div>
+                            </div>
+                            <div class="data-card" id="target-reverse-card">
+                                <h4>目标反推：每年需存</h4>
+                                <div class="data-value">¥ <span id="res-target-annual-savings">0</span></div>
+                                <div class="data-desc" id="res-target-desc">按目标退休年龄反推</div>
+                            </div>
+                            <div class="data-card">
+                                <h4>退休当年资金缺口</h4>
+                                <div class="data-value">¥ <span id="res-gap-amount">0</span></div>
+                                <div class="data-desc">当前购买力约 ¥ <span id="res-gap-amount-real">0</span></div>
+                            </div>
+                            <div class="data-card">
+                                <h4>实际收益率（估算）</h4>
+                                <div class="data-value"><span id="res-real-return-rate">0</span>%</div>
+                                <div class="data-desc">按投资收益率与通胀率推算</div>
+                            </div>
+                        </div>
+
+                        <div class="section-layer-title">趋势与明细</div>
+                        <div class="year-details-table result-block">
+                            <h4>资产与需求折线图</h4>
+                            <canvas id="trend-chart" height="150"></canvas>
+                            <div class="table-note">
+                                蓝线为累积资产，红线为退休所需资金，曲线首次相交点即首次可退休年龄。
+                            </div>
+                        </div>
+
+                        <!-- 趋势表格 -->
+                        <div class="year-details-table result-block">
+                            <h4>各年龄退休资金缺口分析</h4>
+                            <div class="table-wrapper">
+                                <table id="trend-table">
+                                    <thead>
+                                        <tr>
+                                            <th>假定退休年龄</th>
+                                            <th>届时累积资产</th>
+                                            <th>退休所需总资金 <span class="tip-icon" title="该值是把退休后每年的净支出折现到退休当年，再加上一次性医疗备用金得到。">?</span></th>
+                                            <th>状态</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="trend-table-body">
+                                        <!-- JS填充 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <ul class="table-note note-list">
+                                <li><strong>届时累积资产</strong> = 当前资产 + 年储蓄，按投资收益率复利增长。</li>
+                                <li><strong>退休所需总资金</strong> = 通胀后净支出现值 + 通胀后医疗备用金。</li>
+                                <li>当【累积资产】≥【所需资金】时，即可实现 FIRE。</li>
+                                <li>表格高亮关键拐点：首次可退休年龄、退休金起领年龄、资金最紧张年龄。</li>
+                            </ul>
+                        </div>
+
+                        <div class="year-details-table result-block" id="post-retirement-section">
+                            <h4 id="post-retirement-title">退休后月度开销明细</h4>
+                            <div class="table-wrapper">
+                                <table id="post-retirement-table">
+                                    <thead>
+                                        <tr>
+                                            <th>年龄</th>
+                                            <th>当年月生活费</th>
+                                            <th>当年月医疗支出</th>
+                                            <th>当年月退休金</th>
+                                            <th>每月净支出</th>
+                                            <th>每月净支出（当前购买力）</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="post-retirement-body">
+                                        <!-- JS 填充 -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <ul class="table-note note-list">
+                                <li>表中金额均为对应年龄当年的名义金额（已计入通胀）。</li>
+                                <li><strong>每月净支出</strong> = 月生活费 + 月医疗支出 - 月退休金（最低按 0 计）。</li>
+                                <li>用于解释退休后不同年龄阶段的真实月度现金流压力。</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+    
+    <script src="../../utils/storage-keys.js"></script>
+    <script src="../../utils/common.js"></script>
+    <script src="calculator-storage.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="calculator.js"></script>
+</body>
+</html>
