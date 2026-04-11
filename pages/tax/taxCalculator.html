@@ -340,6 +340,57 @@
             color: var(--danger);
         }
 
+        /* 社保公积金明细区 */
+        .insurance-detail-section {
+            margin-bottom: 20px;
+            padding: 16px;
+            background: #f8fafc;
+            border-radius: var(--radius-sm);
+            border: 1px solid #f1f5f9;
+        }
+        .insurance-detail-table table {
+            font-size: 12px;
+        }
+        .insurance-detail-table th,
+        .insurance-detail-table td {
+            padding: 8px 6px;
+        }
+        /* 个人列底色：医保个人、养老个人、公积金个人、个人合计 */
+        .insurance-detail-table th:nth-child(2),
+        .insurance-detail-table th:nth-child(4),
+        .insurance-detail-table th:nth-child(6),
+        .insurance-detail-table th:nth-child(8),
+        .insurance-detail-table td:nth-child(2),
+        .insurance-detail-table td:nth-child(4),
+        .insurance-detail-table td:nth-child(6),
+        .insurance-detail-table td:nth-child(8) {
+            background: #ecfdf5;
+        }
+        /* 公司列底色：医保公司、养老公司、公积金公司、公司合计 */
+        .insurance-detail-table th:nth-child(3),
+        .insurance-detail-table th:nth-child(5),
+        .insurance-detail-table th:nth-child(7),
+        .insurance-detail-table th:nth-child(9),
+        .insurance-detail-table td:nth-child(3),
+        .insurance-detail-table td:nth-child(5),
+        .insurance-detail-table td:nth-child(7),
+        .insurance-detail-table td:nth-child(9) {
+            background: #eff6ff;
+        }
+        /* 全年合计行保持原样，仅列底色生效 */
+        .insurance-detail-table tr:last-child td:nth-child(2),
+        .insurance-detail-table tr:last-child td:nth-child(4),
+        .insurance-detail-table tr:last-child td:nth-child(6),
+        .insurance-detail-table tr:last-child td:nth-child(8) {
+            background: #d1fae5;
+        }
+        .insurance-detail-table tr:last-child td:nth-child(3),
+        .insurance-detail-table tr:last-child td:nth-child(5),
+        .insurance-detail-table tr:last-child td:nth-child(7),
+        .insurance-detail-table tr:last-child td:nth-child(9) {
+            background: #dbeafe;
+        }
+
         /* 结果表格优化 */
         .table-container {
             overflow-x: auto;
@@ -718,13 +769,51 @@
                 <div class="input-group">
                     <div class="label-row">
                         <label class="input-label">公积金比例</label>
+                        <span class="input-hint-badge">5-12%</span>
                     </div>
                     <div class="input-wrapper">
                         <input type="number" id="fundRate" class="input-field" placeholder="5-12" value="5">
                         <span class="input-unit">%</span>
                     </div>
                 </div>
+
+                <!-- 医保个人比例 -->
+                <div class="input-group">
+                    <div class="label-row">
+                        <label class="input-label">医保个人比例</label>
+                        <span class="input-hint-badge">成都2%</span>
+                    </div>
+                    <div class="input-wrapper">
+                        <input type="number" id="medicalPersonalRate" class="input-field" placeholder="2" value="2" min="0" max="100" step="0.1">
+                        <span class="input-unit">%</span>
+                    </div>
+                </div>
+
+                <!-- 医保单位比例 -->
+                <div class="input-group">
+                    <div class="label-row">
+                        <label class="input-label">医保单位比例</label>
+                        <span class="input-hint-badge">7.55%</span>
+                    </div>
+                    <div class="input-wrapper">
+                        <input type="number" id="medicalCompanyRate" class="input-field" placeholder="7.55" value="7.55" min="0" max="100" step="0.01">
+                        <span class="input-unit">%</span>
+                    </div>
+                </div>
+
+                <!-- 其他社保个人比例（养老+失业） -->
+                <div class="input-group">
+                    <div class="label-row">
+                        <label class="input-label">其他社保个人比例</label>
+                        <span class="input-hint-badge">成都养老+失业8.4%</span>
+                    </div>
+                    <div class="input-wrapper">
+                        <input type="number" id="otherSocialPersonalRate" class="input-field" placeholder="8.4" value="8.4" min="0" max="100" step="0.1">
+                        <span class="input-unit">%</span>
+                    </div>
+                </div>
             </div>
+            <p style="font-size:11px;color:var(--text-sub);margin-top:8px;">* 默认按成都职工社保比例，实际以当地政策为准</p>
         </div>
 
         <!-- 奖金设置卡片 -->
@@ -815,6 +904,33 @@
                                 <span class="input-unit">元</span>
                             </div>
                         </div>
+
+                        <!-- 新公司医保个人比例 -->
+                        <div class="input-group">
+                            <label class="input-label">新医保个人比例</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="newMedicalPersonalRate" class="input-field" placeholder="同原比例">
+                                <span class="input-unit">%</span>
+                            </div>
+                        </div>
+
+                        <!-- 新公司医保单位比例 -->
+                        <div class="input-group">
+                            <label class="input-label">新医保单位比例</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="newMedicalCompanyRate" class="input-field" placeholder="同原比例">
+                                <span class="input-unit">%</span>
+                            </div>
+                        </div>
+
+                        <!-- 新公司其他社保个人比例 -->
+                        <div class="input-group">
+                            <label class="input-label">新其他社保个人比例</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="newOtherSocialPersonalRate" class="input-field" placeholder="同原比例">
+                                <span class="input-unit">%</span>
+                            </div>
+                        </div>
                     </div>
                     <p style="font-size:12px;color:var(--text-sub);margin-top:12px;">* 未填写的项目将默认沿用旧公司标准</p>
                 </div>
@@ -875,6 +991,31 @@
                 </div>
             </div>
 
+            <!-- 社保公积金明细（单月 + 全年合计；换工作时为原公司/新公司单月 + 全年合计） -->
+            <div id="insuranceDetailSection" class="insurance-detail-section" style="display:none;">
+                <div class="card-title" style="margin-bottom:8px;">社保公积金明细</div>
+                <div class="table-container insurance-detail-table">
+                    <table id="insuranceDetailTable">
+                        <thead>
+                            <tr>
+                                <th>项目</th>
+                                <th>医保个人</th>
+                                <th>医保公司</th>
+                                <th>养老个人</th>
+                                <th>养老公司</th>
+                                <th>公积金个人</th>
+                                <th>公积金公司</th>
+                                <th>个人合计</th>
+                                <th>公司合计</th>
+                            </tr>
+                        </thead>
+                        <tbody id="insuranceDetailBody">
+                            <!-- JS 填充 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
             <div class="table-container">
                 <table id="resultTable">
                     <thead>
@@ -930,6 +1071,14 @@
                     <strong>政策说明：</strong>全年一次性奖金可选择单独计税（通常更省税）或并入综合所得。
                     <br><strong>计算方法：</strong>奖金÷12找税率，用奖金总额×税率-速算扣除数
                     <br><strong>建议：</strong>年终奖36000元以下，单独计税一定更优；超过则需对比计算
+                </dd>
+            </div>
+            <div class="help-item">
+                <dt>🏥 五险一金与个税</dt>
+                <dd>
+                    <strong>专项扣除：</strong>个税税前只能扣除<strong>个人</strong>缴纳的社保与公积金（医保个人+养老/失业个人+公积金个人），不含单位缴纳部分。
+                    <br><strong>医保/公积金比例：</strong>本计算器默认医保个人2%、单位7.55%（按基数5000个人100、公司377.5）；其他社保（养老8%+失业0.4%）个人8.4%；公积金个人与单位同比例（5%–12%可设）。实际以当地政策为准。
+                    <br><strong>明细表：</strong>计算结果下方会展示「社保公积金明细」，包含单月（或换工作时的原公司/新公司单月）及全年合计的个人/公司缴纳金额。
                 </dd>
             </div>
             <div class="help-item">

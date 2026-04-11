@@ -713,6 +713,7 @@ function calculatePension(data, retirementInfo) {
         totalYears,
         paymentMonths,
         futureAvgSalary,
+        currentAvgSalary: data.avgSalary,
         weightedAvgIndex,
         balanceFutureValue,
         futureContributionTotal,
@@ -950,12 +951,17 @@ function renderResults(result, retirementInfo) {
     // 计算替代率 (相对于退休时的预估社平工资)
     const replaceRate = (result.totalPension / result.futureAvgSalary) * 100;
     setText('res-replace-rate', replaceRate.toFixed(1));
+    // 按当前购买力约相当于（当前社平 × 替代率）
+    const equivalentNow = result.futureAvgSalary > 0 && isFinite(result.futureAvgSalary)
+        ? result.currentAvgSalary * (result.totalPension / result.futureAvgSalary)
+        : 0;
+    setText('res-equivalent-now', formatMoney(equivalentNow));
     
     // 渲染详细计算说明
     renderCalculationDetails(result, retirementInfo);
     
     // 渲染年度明细表格
-    renderYearDetailsTable(result.yearDetails);
+    renderYearDetailsTable(result.yearDetails, result.futureAvgSalary, result.currentAvgSalary);
 }
 
 /**
@@ -1043,13 +1049,17 @@ function renderCalculationDetails(result, retirementInfo) {
 
 /**
  * 渲染年度明细表格
+ * @param {Array} yearDetails - 年度明细数据
+ * @param {number} futureAvgSalary - 退休时社平工资（用于计算替代率）
+ * @param {number} currentAvgSalary - 当前社平工资（用于计算「相当于现在」）
  */
-function renderYearDetailsTable(yearDetails) {
+function renderYearDetailsTable(yearDetails, futureAvgSalary, currentAvgSalary) {
     const tableContainer = document.getElementById('year-details-table');
     if (!tableContainer) return;
 
     // 养老金领取的最低缴费年限（设置为20年以确保更稳定的养老保障）
     const MIN_PAYMENT_YEARS = 20;
+    const hasValidFutureAvg = futureAvgSalary > 0 && isFinite(futureAvgSalary);
 
     // 找到第一个满足最低缴费年限的行的索引
     let firstValidIndex = yearDetails.findIndex(detail => detail.accumulatedYears >= MIN_PAYMENT_YEARS);
@@ -1088,6 +1098,7 @@ function renderYearDetailsTable(yearDetails) {
                             <th>年份</th>
                             <th>年龄</th>
                             <th>如停止缴费<br/>月领养老金</th>
+                            <th>相当于现在<br/>(元/月)</th>
                             <th>社平工资<br/>(元/月)</th>
                             <th>最低基数<br/>(60%)</th>
                             <th>缴费基数<br/>(元/月)</th>
@@ -1107,11 +1118,21 @@ function renderYearDetailsTable(yearDetails) {
         const hiddenClass = isHidden ? 'hidden-row' : '';
         const combinedClass = [rowClass, hiddenClass].filter(c => c).join(' ');
 
+        // 相当于现在(元/月) = 当前社平 × (pensionIfStop / futureAvgSalary)
+        let equivalentNowCell = '-';
+        if (detail.pensionIfStop > 0 && detail.accumulatedYears >= MIN_PAYMENT_YEARS && hasValidFutureAvg) {
+            const equivalentNow = currentAvgSalary * (detail.pensionIfStop / futureAvgSalary);
+            equivalentNowCell = formatMoney(equivalentNow);
+        } else if (detail.accumulatedYears < MIN_PAYMENT_YEARS) {
+            equivalentNowCell = '<span style="color: #f44336;">不满20年</span>';
+        }
+
         html += `
             <tr ${combinedClass ? `class="${combinedClass}"` : ''} ${isHidden ? 'style="display: none;"' : ''}>
                 <td>${detail.year}</td>
                 <td>${detail.age}岁</td>
                 <td>${detail.pensionIfStop > 0 ? formatMoney(detail.pensionIfStop) : (detail.accumulatedYears < MIN_PAYMENT_YEARS ? '<span style="color: #f44336;">不满20年</span>' : '-')}</td>
+                <td>${equivalentNowCell}</td>
                 <td>${formatMoney(detail.currentYearAvgSalary)}</td>
                 <td>${formatMoney(detail.minBase)}</td>
                 <td ${detail.isRaisedByMinBase ? 'style="color: #f44336; font-weight: 600;" title="因满足最低缴费下限(60%)而提高"' : ''}>${formatMoney(detail.yearBase)}${detail.isRaisedByMinBase ? ' ⬆' : ''}</td>
@@ -1129,6 +1150,7 @@ function renderYearDetailsTable(yearDetails) {
             </div>
             <p class="table-note">
                 注：表格显示如果从某一年开始停止缴费，到退休时的账户余额和月领养老金金额。<br>
+                相当于现在(元/月) = 当前社平工资 × 替代率，用于理解未来养老金按当前购买力的大致水平。<br>
                 <strong style="color: #f44336;">红色标注：</strong>累计缴费年限不满${MIN_PAYMENT_YEARS}年时建议继续缴费以获得更稳定的养老保障。
             </p>
         </div>

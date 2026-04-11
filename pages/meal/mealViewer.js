@@ -762,3 +762,4 @@
             displayMeals();
             displayTodayMeals();
             startAutoRefresh(); // 启动自动刷新
+        });

@@ -11,10 +11,8 @@
 <body>
     <div class="container">
         <header>
-            <div style="text-align: left; margin-bottom: 10px;">
-                <a href="../../index.html" style="color: white; text-decoration: none; font-size: 14px; opacity: 0.9; display: inline-flex; align-items: center;">
-                    ← 返回主页
-                </a>
+            <div class="header-back">
+                <a href="../../index.html" class="back-to-home">← 返回主页</a>
             </div>
             <h1>个人养老金计算器</h1>
             <p class="subtitle">基于社保新规，科学估算您的退休待遇</p>
@@ -165,9 +163,9 @@
                                 <small class="form-helper">缴费满此年龄后停止，账户资金继续复利至退休</small>
                             </div>
 
-                            <!-- 高级设置折叠 -->
-                            <details class="advanced-settings">
-                                <summary>高级参数设置 (点击展开)</summary>
+                            <!-- 高级参数设置（默认显示，不折叠） -->
+                            <div class="advanced-settings">
+                                <div class="advanced-settings-title">高级参数设置</div>
                                 <div class="advanced-content">
                                     <div class="form-row">
                                         <div class="form-group">
@@ -194,7 +192,7 @@
                                         <small class="form-helper">近年社保记账利率约在 3%~8% 之间<br>本计算器采用按年复利方式计算账户余额增长</small>
                                     </div>
                                 </div>
-                            </details>
+                            </div>
                         </div>
                     </div>
 
@@ -223,6 +221,9 @@
                             </div>
                             <div class="sub-text">
                                 相当于退休时社会平均工资的 <span id="res-replace-rate">0</span>%
+                            </div>
+                            <div class="sub-text">
+                                按当前购买力约相当于 ¥ <span id="res-equivalent-now">0</span>/月
                             </div>
                         </div>
 

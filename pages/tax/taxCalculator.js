@@ -1,3 +1,4 @@
+        /**
          * 个税计算器逻辑核心
          * 基于中国个人所得税法实现累计预扣预缴法计算
          * @namespace TaxCalculator
@@ -29,8 +30,20 @@
                 { limit: Infinity, rate: 0.45, deduction: 15160 }
             ],
 
-            // 社保比例配置 (仅供参考，实际各地区不同)
-            SOCIAL_RATE: 0.105,
+            // 五险一金比例配置（默认按成都：实际以当地政策为准）
+            // 医保：个人 2%（基数5000实缴100），单位 7.55% + 大额医疗补助 0.75%（基数5000单位共415）
+            MEDICAL_PERSONAL_RATE: 0.02,
+            MEDICAL_COMPANY_RATE: 0.0755,
+            MAJOR_MEDICAL_COMPANY_RATE: 0.0075, // 大额医疗费用补助，单位缴纳
+            // 养老保险：个人 8%，单位 16%
+            PENSION_PERSONAL_RATE: 0.08,
+            PENSION_COMPANY_RATE: 0.16,
+            // 失业保险：个人 0.4%，单位 0.6%
+            UNEMPLOYMENT_PERSONAL_RATE: 0.004,
+            UNEMPLOYMENT_COMPANY_RATE: 0.006,
+            // 其他社保合计（养老+失业，用于兼容）：个人 8.4%，单位 16.6%
+            OTHER_SOCIAL_PERSONAL_RATE: 0.084,
+            OTHER_SOCIAL_COMPANY_RATE: 0.166,
 
             /**
              * 计算单月个税（基于累计预扣预缴法）
@@ -40,6 +53,9 @@
              * @param {number} config.socialBase - 社保基数
              * @param {number} config.fundBase - 公积金基数
              * @param {number} config.fundRate - 公积金比例
+             * @param {number} config.medicalPersonalRate - 医保个人比例(0-100)
+             * @param {number} config.medicalCompanyRate - 医保单位比例(0-100)
+             * @param {number} config.otherSocialPersonalRate - 其他社保个人比例(0-100)
              * @param {string} config.bonusTaxMonth - 年终奖计税月份
              * @param {Object} config.bonuses - 各月奖金
              * @param {boolean} config.isJobChange - 是否换工作
@@ -54,11 +70,13 @@
                 let cumulativeAdditional = 0; // 累计专项附加扣除
                 let cumulativeTaxPaid = 0; // 累计已缴纳税额
 
-                // 1. 计算五险一金 (初始状态)
-                // 计算社保和公积金详情 (用于汇总显示)
+                // 1. 五险一金参数 (初始为原公司)
                 let currentSocialBase = config.socialBase;
                 let currentFundBase = config.fundBase || config.baseSalary;
                 let currentFundRate = config.fundRate;
+                let currentMedicalPersonalRate = (config.medicalPersonalRate != null && config.medicalPersonalRate !== '') ? (config.medicalPersonalRate / 100) : this.MEDICAL_PERSONAL_RATE;
+                let currentMedicalCompanyRate = (config.medicalCompanyRate != null && config.medicalCompanyRate !== '') ? (config.medicalCompanyRate / 100) : this.MEDICAL_COMPANY_RATE;
+                let currentOtherSocialPersonalRate = (config.otherSocialPersonalRate != null && config.otherSocialPersonalRate !== '') ? (config.otherSocialPersonalRate / 100) : this.OTHER_SOCIAL_PERSONAL_RATE;
                 let currentSpecialDeduction = config.specialDeduction;
                 let currentBaseSalary = config.baseSalary;
 
@@ -82,12 +100,24 @@
                         if (config.newFundBase) currentFundBase = config.newFundBase;
                         if (config.newFundRate) currentFundRate = config.newFundRate;
                         if (config.newSpecialDeduction) currentSpecialDeduction = config.newSpecialDeduction;
+                        if (config.newMedicalPersonalRate != null && config.newMedicalPersonalRate !== '') currentMedicalPersonalRate = config.newMedicalPersonalRate / 100;
+                        if (config.newMedicalCompanyRate != null && config.newMedicalCompanyRate !== '') currentMedicalCompanyRate = config.newMedicalCompanyRate / 100;
+                        if (config.newOtherSocialPersonalRate != null && config.newOtherSocialPersonalRate !== '') currentOtherSocialPersonalRate = config.newOtherSocialPersonalRate / 100;
                     }
 
-                    // 计算当月五险一金
-                    const socialDetail = currentSocialBase * this.SOCIAL_RATE;
-                    const fundDetail = currentFundBase * (currentFundRate / 100);
-                    const monthlyInsurance = socialDetail + fundDetail;
+                    // 医保基数与社保基数一致
+                    const medicalBase = currentSocialBase;
+                    const medicalPersonal = medicalBase * currentMedicalPersonalRate;
+                    const medicalCompany = medicalBase * currentMedicalCompanyRate + medicalBase * this.MAJOR_MEDICAL_COMPANY_RATE;
+                    const pensionPersonal = currentSocialBase * this.PENSION_PERSONAL_RATE;
+                    const pensionCompany = currentSocialBase * this.PENSION_COMPANY_RATE;
+                    const unemploymentPersonal = currentSocialBase * this.UNEMPLOYMENT_PERSONAL_RATE;
+                    const unemploymentCompany = currentSocialBase * this.UNEMPLOYMENT_COMPANY_RATE;
+                    const otherSocialPersonal = pensionPersonal + unemploymentPersonal;
+                    const otherSocialCompany = pensionCompany + unemploymentCompany;
+                    const fundPersonal = currentFundBase * (currentFundRate / 100);
+                    const fundCompany = fundPersonal; // 公积金单位与个人同比例
+                    const monthlyInsurance = medicalPersonal + pensionPersonal + unemploymentPersonal + fundPersonal;
 
                     const isBonusTaxMonth = config.bonusTaxMonth == month;
                     
@@ -128,16 +158,26 @@
                         month,
                         income: monthIncome,
                         insurance: monthlyInsurance,
-                        socialDetail: socialDetail, // 社保部分
-                        fundDetail: fundDetail,     // 公积金部分
+                        socialDetail: medicalPersonal + otherSocialPersonal, // 个人社保部分(用于兼容)
+                        fundDetail: fundPersonal,
+                        medicalPersonal,
+                        medicalCompany,
+                        pensionPersonal,
+                        pensionCompany,
+                        unemploymentPersonal,
+                        unemploymentCompany,
+                        otherSocialPersonal,
+                        otherSocialCompany,
+                        fundPersonal,
+                        fundCompany,
                         taxableIncome,
                         tax: currentTaxFixed,
-                        actual: Number(actualIncome.toFixed(2)), // 实际到手也保留两位
+                        actual: Number(actualIncome.toFixed(2)),
                         rate: this.getRate(taxableIncome),
                         isBonusMonth: isBonusTaxMonth,
                         bonusSeparate: bonusForSeparate,
-                        segments: segmentDetails, // 纳税分段详情
-                        isJobChangeMonth: config.isJobChange && config.jobChangeMonth == month // 标记换工作月份
+                        segments: segmentDetails,
+                        isJobChangeMonth: config.isJobChange && config.jobChangeMonth == month
                     });
                 }
                 return results;
@@ -274,6 +314,9 @@
                 socialBase: 5000,
                 fundBase: '',
                 fundRate: 5,
+                medicalPersonalRate: 2,
+                medicalCompanyRate: 7.55,
+                otherSocialPersonalRate: 8.4,
                 bonusTaxMonth: '',
                 bonuses: {},
                 jobChangeMonth: '',
@@ -282,7 +325,10 @@
                 newSocialBase: '',
                 newFundBase: '',
                 newFundRate: '',
-                newSpecialDeduction: ''
+                newSpecialDeduction: '',
+                newMedicalPersonalRate: '',
+                newMedicalCompanyRate: '',
+                newOtherSocialPersonalRate: ''
             },
             
             isBonusVisible: false,
@@ -358,7 +404,7 @@
                 }
 
                 // 新公司相关输入框变化事件（添加验证）
-                const newCompanyInputs = ['newBaseSalary', 'newSocialBase', 'newFundBase', 'newFundRate', 'newSpecialDeduction'];
+                const newCompanyInputs = ['newBaseSalary', 'newSocialBase', 'newFundBase', 'newFundRate', 'newSpecialDeduction', 'newMedicalPersonalRate', 'newMedicalCompanyRate', 'newOtherSocialPersonalRate'];
                 newCompanyInputs.forEach(id => {
                     const input = document.getElementById(id);
                     if (input) {
@@ -387,7 +433,7 @@
                 }
 
                 // 其他基础输入框变化事件（添加验证）
-                const basicInputs = ['socialBase', 'fundBase', 'fundRate'];
+                const basicInputs = ['socialBase', 'fundBase', 'fundRate', 'medicalPersonalRate', 'medicalCompanyRate', 'otherSocialPersonalRate'];
                 basicInputs.forEach(id => {
                     const input = document.getElementById(id);
                     if (input) {
@@ -437,6 +483,12 @@
                 this.state.socialBase = getElementVal('socialBase', 'float', 0);
                 this.state.fundBase = getElementVal('fundBase', 'float', 0);
                 this.state.fundRate = getElementVal('fundRate', 'float', 0);
+                const mp = getVal('medicalPersonalRate');
+                this.state.medicalPersonalRate = mp === '' ? '' : (isNaN(parseFloat(mp)) ? 2 : parseFloat(mp));
+                const mc = getVal('medicalCompanyRate');
+                this.state.medicalCompanyRate = mc === '' ? '' : (isNaN(parseFloat(mc)) ? 7.55 : parseFloat(mc));
+                const os = getVal('otherSocialPersonalRate');
+                this.state.otherSocialPersonalRate = os === '' ? '' : (isNaN(parseFloat(os)) ? 8.4 : parseFloat(os));
                 this.state.bonusTaxMonth = getVal('bonusTaxMonth');
                 this.state.jobChangeMonth = getVal('jobChangeMonth');
 
@@ -446,6 +498,12 @@
                 this.state.newFundBase = getElementVal('newFundBase', 'float', 0);
                 this.state.newFundRate = getElementVal('newFundRate', 'float', 0);
                 this.state.newSpecialDeduction = getElementVal('newSpecialDeduction', 'float', 0);
+                const nmp = getVal('newMedicalPersonalRate');
+                this.state.newMedicalPersonalRate = nmp === '' ? '' : (isNaN(parseFloat(nmp)) ? '' : parseFloat(nmp));
+                const nmc = getVal('newMedicalCompanyRate');
+                this.state.newMedicalCompanyRate = nmc === '' ? '' : (isNaN(parseFloat(nmc)) ? '' : parseFloat(nmc));
+                const nos = getVal('newOtherSocialPersonalRate');
+                this.state.newOtherSocialPersonalRate = nos === '' ? '' : (isNaN(parseFloat(nos)) ? '' : parseFloat(nos));
 
                 for(let i=1; i<=12; i++) {
                     this.state.bonuses[i] = getElementVal(`bonus_m${i}`, 'float', 0);
@@ -496,6 +554,9 @@
                 setVal('socialBase', this.state.socialBase);
                 setVal('fundBase', this.state.fundBase);
                 setVal('fundRate', this.state.fundRate);
+                setVal('medicalPersonalRate', this.state.medicalPersonalRate !== undefined && this.state.medicalPersonalRate !== '' ? this.state.medicalPersonalRate : '');
+                setVal('medicalCompanyRate', this.state.medicalCompanyRate !== undefined && this.state.medicalCompanyRate !== '' ? this.state.medicalCompanyRate : '');
+                setVal('otherSocialPersonalRate', this.state.otherSocialPersonalRate !== undefined && this.state.otherSocialPersonalRate !== '' ? this.state.otherSocialPersonalRate : '');
                 setVal('bonusTaxMonth', this.state.bonusTaxMonth);
                 setVal('jobChangeMonth', this.state.jobChangeMonth); 
                 
@@ -505,6 +566,9 @@
                 setVal('newFundBase', this.state.newFundBase);
                 setVal('newFundRate', this.state.newFundRate);
                 setVal('newSpecialDeduction', this.state.newSpecialDeduction);
+                setVal('newMedicalPersonalRate', this.state.newMedicalPersonalRate !== undefined && this.state.newMedicalPersonalRate !== '' ? this.state.newMedicalPersonalRate : '');
+                setVal('newMedicalCompanyRate', this.state.newMedicalCompanyRate !== undefined && this.state.newMedicalCompanyRate !== '' ? this.state.newMedicalCompanyRate : '');
+                setVal('newOtherSocialPersonalRate', this.state.newOtherSocialPersonalRate !== undefined && this.state.newOtherSocialPersonalRate !== '' ? this.state.newOtherSocialPersonalRate : '');
                 
                 for(let i=1; i<=12; i++) {
                     if(this.state.bonuses[i]) {
@@ -622,6 +686,9 @@
                     socialBase: Number(this.state.socialBase),
                     fundBase: Number(this.state.fundBase) || Number(this.state.baseSalary),
                     fundRate: Number(this.state.fundRate),
+                    medicalPersonalRate: (this.state.medicalPersonalRate !== '' && this.state.medicalPersonalRate != null) ? Number(this.state.medicalPersonalRate) : undefined,
+                    medicalCompanyRate: (this.state.medicalCompanyRate !== '' && this.state.medicalCompanyRate != null) ? Number(this.state.medicalCompanyRate) : undefined,
+                    otherSocialPersonalRate: (this.state.otherSocialPersonalRate !== '' && this.state.otherSocialPersonalRate != null) ? Number(this.state.otherSocialPersonalRate) : undefined,
                     bonusTaxMonth: this.state.bonusTaxMonth,
                     bonuses: this.state.bonuses,
                     isJobChange: !!this.state.jobChangeMonth,
@@ -631,7 +698,10 @@
                     newSocialBase: Number(this.state.newSocialBase),
                     newFundBase: Number(this.state.newFundBase),
                     newFundRate: Number(this.state.newFundRate),
-                    newSpecialDeduction: Number(this.state.newSpecialDeduction)
+                    newSpecialDeduction: Number(this.state.newSpecialDeduction),
+                    newMedicalPersonalRate: (this.state.newMedicalPersonalRate !== '' && this.state.newMedicalPersonalRate != null) ? Number(this.state.newMedicalPersonalRate) : undefined,
+                    newMedicalCompanyRate: (this.state.newMedicalCompanyRate !== '' && this.state.newMedicalCompanyRate != null) ? Number(this.state.newMedicalCompanyRate) : undefined,
+                    newOtherSocialPersonalRate: (this.state.newOtherSocialPersonalRate !== '' && this.state.newOtherSocialPersonalRate != null) ? Number(this.state.newOtherSocialPersonalRate) : undefined
                 };
 
                 const monthlyResults = TaxCalculator.calculate(config);
@@ -640,8 +710,12 @@
                 let totalTax = 0;
                 let totalActual = 0;
                 let totalInsurance = 0;
-                let totalSocial = 0; // 社保总计
-                let totalFund = 0;   // 公积金总计
+                let totalSocial = 0;
+                let totalFund = 0;
+                let totalMedicalPersonal = 0, totalMedicalCompany = 0;
+                let totalPensionPersonal = 0, totalPensionCompany = 0;
+                let totalFundPersonal = 0, totalFundCompany = 0;
+                let totalOtherSocialPersonal = 0, totalOtherSocialCompany = 0;
 
                 let tableHtml = '';
 
@@ -652,6 +726,14 @@
                     totalInsurance += Number(res.insurance.toFixed(2));
                     totalSocial += Number(res.socialDetail.toFixed(2));
                     totalFund += Number(res.fundDetail.toFixed(2));
+                    totalMedicalPersonal += Number((res.medicalPersonal || 0).toFixed(2));
+                    totalMedicalCompany += Number((res.medicalCompany || 0).toFixed(2));
+                    totalPensionPersonal += Number((res.pensionPersonal || 0).toFixed(2));
+                    totalPensionCompany += Number((res.pensionCompany || 0).toFixed(2));
+                    totalFundPersonal += Number((res.fundPersonal != null ? res.fundPersonal : res.fundDetail || 0).toFixed(2));
+                    totalFundCompany += Number((res.fundCompany || 0).toFixed(2));
+                    totalOtherSocialPersonal += Number((res.otherSocialPersonal || 0).toFixed(2));
+                    totalOtherSocialCompany += Number((res.otherSocialCompany || 0).toFixed(2));
 
                     // 判断是否跨档位
                     const isCrossBracket = res.segments && res.segments.length > 1;
@@ -807,10 +889,41 @@
                 document.getElementById('summaryInsurance').innerHTML = `
                     <div>${this.formatMoney(totalInsurance)}</div>
                     <div style="font-size:11px;color:var(--text-sub);margin-top:2px;">
-                        (社保 ${this.formatMoney(totalSocial)} + 公积金 ${this.formatMoney(totalFund)})
+                        (个人扣除合计，含医保/社保/公积金)
                     </div>
                 `;
-                
+
+                // 社保公积金明细表：无换工作 2 行（每月、全年合计），有换工作 3 行（原公司单月、新公司单月、全年合计）
+                const jobChangeMonthNum = config.isJobChange && config.jobChangeMonth ? parseInt(config.jobChangeMonth, 10) : 0;
+                const firstMonth = monthlyResults[0];
+                const afterJobChangeMonth = jobChangeMonthNum > 0 ? monthlyResults.find(r => r.month === jobChangeMonthNum) : null;
+                const detailCells = (r) => {
+                    const personalTotal = (r.medicalPersonal || 0) + (r.otherSocialPersonal || 0) + (r.fundPersonal != null ? r.fundPersonal : r.fundDetail || 0);
+                    const companyTotal = (r.medicalCompany || 0) + (r.otherSocialCompany || 0) + (r.fundCompany || 0);
+                    return `<td>${this.formatMoney(r.medicalPersonal || 0)}</td><td>${this.formatMoney(r.medicalCompany || 0)}</td><td>${this.formatMoney(r.pensionPersonal || 0)}</td><td>${this.formatMoney(r.pensionCompany || 0)}</td><td>${this.formatMoney(r.fundPersonal != null ? r.fundPersonal : r.fundDetail || 0)}</td><td>${this.formatMoney(r.fundCompany || 0)}</td><td>${this.formatMoney(personalTotal)}</td><td>${this.formatMoney(companyTotal)}</td>`;
+                };
+                let detailRows = '';
+                if (!config.isJobChange || !jobChangeMonthNum) {
+                    detailRows += `<tr><td>每月</td>${detailCells(firstMonth)}</tr>`;
+                } else {
+                    if (jobChangeMonthNum > 1) {
+                        const beforeJob = monthlyResults.find(r => r.month === jobChangeMonthNum - 1);
+                        if (beforeJob) detailRows += `<tr><td>原公司（单月）</td>${detailCells(beforeJob)}</tr>`;
+                    }
+                    if (afterJobChangeMonth) {
+                        detailRows += `<tr><td>新公司（单月）</td>${detailCells(afterJobChangeMonth)}</tr>`;
+                    }
+                }
+                const personalTotalYear = totalMedicalPersonal + totalOtherSocialPersonal + totalFundPersonal;
+                const companyTotalYear = totalMedicalCompany + totalOtherSocialCompany + totalFundCompany;
+                detailRows += `<tr style="font-weight:600;background:#f1f5f9;"><td>全年合计</td><td>${this.formatMoney(totalMedicalPersonal)}</td><td>${this.formatMoney(totalMedicalCompany)}</td><td>${this.formatMoney(totalPensionPersonal)}</td><td>${this.formatMoney(totalPensionCompany)}</td><td>${this.formatMoney(totalFundPersonal)}</td><td>${this.formatMoney(totalFundCompany)}</td><td>${this.formatMoney(personalTotalYear)}</td><td>${this.formatMoney(companyTotalYear)}</td></tr>`;
+                const detailSection = document.getElementById('insuranceDetailSection');
+                const detailBody = document.getElementById('insuranceDetailBody');
+                if (detailSection && detailBody) {
+                    detailBody.innerHTML = detailRows;
+                    detailSection.style.display = 'block';
+                }
+
                 document.getElementById('resultBody').innerHTML = tableHtml;
                 
                 const resultSection = document.getElementById('resultSection');
@@ -881,3 +994,4 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             app.init();
+        });
