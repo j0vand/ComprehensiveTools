@@ -17,6 +17,9 @@ class UIManager {
         // 当前筛选条件
         this.filters = {
             category: '',
+            brand: '',
+            name: '',
+            storage: '',
             status: 'all'
         };
         
@@ -50,6 +53,9 @@ class UIManager {
         // 加载设置
         this.loadSettings();
         
+        // 初始化筛选器
+        this.initFilters();
+        
         // 渲染初始内容
         this.renderContent();
     }
@@ -72,6 +78,9 @@ class UIManager {
             searchInput: document.getElementById('searchInput'),
             searchResults: document.getElementById('searchResults'),
             categoryFilter: document.getElementById('categoryFilter'),
+            brandFilter: document.getElementById('brandFilter'),
+            nameFilter: document.getElementById('nameFilter'),
+            storageFilter: document.getElementById('storageFilter'),
             statusFilters: document.getElementsByName('statusFilter'),
             sortOption: document.getElementById('sortOption'),
             
@@ -87,6 +96,15 @@ class UIManager {
             totalItemsCount: document.getElementById('totalItemsCount'),
             totalBatchesCount: document.getElementById('totalBatchesCount'),
             totalValue: document.getElementById('totalValue'),
+            needToBuyCount: document.getElementById('needToBuyCount'),
+            expiringSoonCount: document.getElementById('expiringSoonCount'),
+            recentItemsCount: document.getElementById('recentItemsCount'),
+            
+            // 购物清单和提醒
+            shoppingListButton: document.getElementById('shoppingListButton'),
+            remindersButton: document.getElementById('remindersButton'),
+            shoppingListBadge: document.getElementById('shoppingListBadge'),
+            remindersBadge: document.getElementById('remindersBadge'),
             
             // 空状态显示
             emptyState: document.getElementById('emptyState'),
@@ -136,6 +154,33 @@ class UIManager {
             });
         }
         
+        // 品牌筛选事件
+        if (this.elements.brandFilter) {
+            this.elements.brandFilter.addEventListener('change', () => {
+                this.filters.brand = this.elements.brandFilter.value;
+                this.pagination.currentPage = 1;
+                this.renderContent();
+            });
+        }
+        
+        // 商品名称筛选事件
+        if (this.elements.nameFilter) {
+            this.elements.nameFilter.addEventListener('input', Utils.debounce(() => {
+                this.filters.name = this.elements.nameFilter.value.trim();
+                this.pagination.currentPage = 1;
+                this.renderContent();
+            }, 300));
+        }
+        
+        // 存放位置筛选事件
+        if (this.elements.storageFilter) {
+            this.elements.storageFilter.addEventListener('input', Utils.debounce(() => {
+                this.filters.storage = this.elements.storageFilter.value.trim();
+                this.pagination.currentPage = 1;
+                this.renderContent();
+            }, 300));
+        }
+        
         // 状态筛选事件
         if (this.elements.statusFilters) {
             for (const radio of this.elements.statusFilters) {
@@ -160,18 +205,24 @@ class UIManager {
         // 添加商品事件
         if (this.elements.addItemButton) {
             this.elements.addItemButton.addEventListener('click', () => {
-                ModalsManager.openAddItemModal();
+                if (window.ModalsManager) {
+                    window.ModalsManager.openAddItemModal();
+                } else {
+                    console.error('ModalsManager is not initialized');
+                }
             });
         }
         
         // 高级筛选事件
         if (this.elements.advancedFilterButton) {
             this.elements.advancedFilterButton.addEventListener('click', () => {
-                ModalsManager.openAdvancedFilterModal(this.filters, (newFilters) => {
-                    this.filters = { ...this.filters, ...newFilters };
-                    this.pagination.currentPage = 1;
-                    this.renderContent();
-                });
+                if (window.ModalsManager) {
+                    window.ModalsManager.openAdvancedFilterModal(this.filters, (newFilters) => {
+                        this.filters = { ...this.filters, ...newFilters };
+                        this.pagination.currentPage = 1;
+                        this.renderContent();
+                    });
+                }
             });
         }
         
@@ -181,6 +232,127 @@ class UIManager {
                 this.refreshData();
             });
         }
+        
+        // 购物清单按钮事件
+        if (this.elements.shoppingListButton) {
+            this.elements.shoppingListButton.addEventListener('click', () => {
+                if (window.ModalsManager) {
+                    window.ModalsManager.openShoppingListModal();
+                }
+            });
+        }
+        
+        // 提醒按钮事件
+        if (this.elements.remindersButton) {
+            this.elements.remindersButton.addEventListener('click', () => {
+                if (window.ModalsManager) {
+                    window.ModalsManager.openRemindersModal();
+                }
+            });
+        }
+        
+        // 快速筛选按钮事件（使用事件委托，因为按钮是动态创建的）
+        document.addEventListener('click', (e) => {
+            if (e.target.classList.contains('quick-filter-btn')) {
+                const filter = e.target.dataset.filter;
+                this.handleQuickFilter(filter);
+            }
+        });
+        
+        // 清除筛选按钮事件
+        const clearFiltersButton = document.getElementById('clearFiltersButton');
+        if (clearFiltersButton) {
+            clearFiltersButton.addEventListener('click', () => {
+                this.clearAllFilters();
+            });
+        }
+    }
+    
+    /**
+     * 清除所有筛选条件
+     */
+    clearAllFilters() {
+        // 重置筛选条件
+        this.filters = {
+            category: '',
+            brand: '',
+            name: '',
+            storage: '',
+            status: 'all',
+            expiringSoon: false,
+            fromDate: undefined
+        };
+        
+        // 重置UI元素
+        if (this.elements.categoryFilter) {
+            this.elements.categoryFilter.value = '';
+        }
+        if (this.elements.brandFilter) {
+            this.elements.brandFilter.value = '';
+        }
+        if (this.elements.nameFilter) {
+            this.elements.nameFilter.value = '';
+        }
+        if (this.elements.storageFilter) {
+            this.elements.storageFilter.value = '';
+        }
+        if (this.elements.searchInput) {
+            this.elements.searchInput.value = '';
+        }
+        
+        // 重置状态筛选
+        if (this.elements.statusFilters) {
+            const allRadio = Array.from(this.elements.statusFilters).find(r => r.value === 'all');
+            if (allRadio) allRadio.checked = true;
+        }
+        
+        // 重置快速筛选按钮
+        document.querySelectorAll('.quick-filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        // 重新渲染
+        this.pagination.currentPage = 1;
+        this.renderContent();
+        
+        Utils.showNotification('已清除所有筛选条件', 'success');
+    }
+    
+    /**
+     * 处理快速筛选
+     * @param {string} filter - 筛选类型
+     */
+    handleQuickFilter(filter) {
+        const btn = document.querySelector(`[data-filter="${filter}"]`);
+        const isActive = btn && btn.classList.contains('active');
+        
+        // 移除所有快速筛选按钮的active状态
+        document.querySelectorAll('.quick-filter-btn').forEach(b => {
+            b.classList.remove('active');
+        });
+        
+        // 如果点击的是已激活的按钮，则取消筛选
+        if (isActive) {
+            this.filters.fromDate = undefined;
+            this.filters.expiringSoon = false;
+        } else {
+            // 激活当前按钮
+            if (btn) btn.classList.add('active');
+            
+            // 应用筛选
+            if (filter === 'recent') {
+                const sevenDaysAgo = new Date();
+                sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+                this.filters.fromDate = sevenDaysAgo.toISOString().split('T')[0];
+                this.filters.expiringSoon = false;
+            } else if (filter === 'expiring') {
+                this.filters.expiringSoon = true;
+                this.filters.fromDate = undefined;
+            }
+        }
+        
+        this.pagination.currentPage = 1;
+        this.renderContent();
     }
     
     /**
@@ -290,7 +462,9 @@ class UIManager {
             resultItem.addEventListener('click', () => {
                 this.elements.searchResults.style.display = 'none';
                 this.elements.searchInput.value = '';
-                ModalsManager.openItemDetailsModal(item.id);
+                if (window.ModalsManager) {
+                    window.ModalsManager.openItemDetailsModal(item.id);
+                }
             });
             
             this.elements.searchResults.appendChild(resultItem);
@@ -332,8 +506,9 @@ class UIManager {
         // 重新渲染内容
         this.renderContent();
         
-        // 更新分类下拉框
+        // 更新筛选下拉框
         this.renderCategoryFilter();
+        this.renderBrandFilter();
         
         Utils.showNotification('数据已刷新', 'success');
     }
@@ -367,13 +542,56 @@ class UIManager {
     }
     
     /**
+     * 渲染品牌筛选下拉框
+     */
+    renderBrandFilter() {
+        if (!this.elements.brandFilter) return;
+        
+        const brands = InventoryData.getAllBrands();
+        const items = InventoryData.getAllItems();
+        
+        // 统计每个品牌的商品数量
+        const brandCounts = {};
+        items.forEach(item => {
+            if (item.brand) {
+                brandCounts[item.brand] = (brandCounts[item.brand] || 0) + 1;
+            }
+        });
+        
+        // 保存当前选择的值
+        const currentValue = this.elements.brandFilter.value;
+        
+        // 清空下拉框
+        this.elements.brandFilter.innerHTML = `<option value="">全部品牌</option>`;
+        
+        // 按品牌名称排序
+        const sortedBrands = brands.sort((a, b) => a.localeCompare(b));
+        
+        // 添加品牌选项
+        sortedBrands.forEach(brand => {
+            const count = brandCounts[brand] || 0;
+            const option = document.createElement('option');
+            option.value = brand;
+            option.textContent = `${brand}${count > 0 ? ` (${count})` : ''}`;
+            this.elements.brandFilter.appendChild(option);
+        });
+        
+        // 恢复选择的值
+        if (currentValue && brands.includes(currentValue)) {
+            this.elements.brandFilter.value = currentValue;
+        }
+    }
+    
+    /**
      * 渲染摘要信息
      */
     renderSummary() {
         const stats = InventoryData.getInventoryStats();
+        const overview = InventoryData.getQuickOverview();
+        const reminders = InventoryData.getReminders();
         
         if (this.elements.totalItemsCount) {
-            this.elements.totalItemsCount.textContent = stats.totalItems;
+            this.elements.totalItemsCount.textContent = overview.totalItems;
         }
         
         if (this.elements.totalBatchesCount) {
@@ -382,6 +600,41 @@ class UIManager {
         
         if (this.elements.totalValue) {
             this.elements.totalValue.textContent = Utils.formatPrice(stats.totalValue);
+        }
+        
+        if (this.elements.needToBuyCount) {
+            this.elements.needToBuyCount.textContent = overview.needToBuyCount;
+        }
+        
+        if (this.elements.expiringSoonCount) {
+            this.elements.expiringSoonCount.textContent = overview.expiringSoonCount;
+        }
+        
+        if (this.elements.recentItemsCount) {
+            this.elements.recentItemsCount.textContent = overview.recentItemsCount;
+        }
+        
+        // 更新购物清单和提醒徽章
+        const shoppingList = InventoryData.getShoppingList();
+        const unpurchasedCount = shoppingList.filter(item => !item.purchased).length;
+        const totalReminders = reminders.expiringSoon.length + reminders.needToBuy.length;
+        
+        if (this.elements.shoppingListBadge) {
+            if (unpurchasedCount > 0) {
+                this.elements.shoppingListBadge.textContent = unpurchasedCount;
+                this.elements.shoppingListBadge.style.display = 'inline-block';
+            } else {
+                this.elements.shoppingListBadge.style.display = 'none';
+            }
+        }
+        
+        if (this.elements.remindersBadge) {
+            if (totalReminders > 0) {
+                this.elements.remindersBadge.textContent = totalReminders;
+                this.elements.remindersBadge.style.display = 'inline-block';
+            } else {
+                this.elements.remindersBadge.style.display = 'none';
+            }
         }
     }
     
@@ -392,10 +645,22 @@ class UIManager {
         // 获取并筛选商品
         let items = [];
         
+        // 构建筛选条件
+        const searchFilters = {
+            category: this.filters.category || undefined,
+            brand: this.filters.brand || undefined,
+            name: this.filters.name || undefined,
+            storage: this.filters.storage || undefined,
+            status: this.filters.status === 'all' ? undefined : this.filters.status,
+            expiringSoon: this.filters.expiringSoon || undefined,
+            fromDate: this.filters.fromDate || undefined
+        };
+        
+        // 如果搜索框有内容，使用搜索；否则使用筛选
         if (this.filters.searchQuery) {
-            items = InventoryData.searchItems(this.filters.searchQuery, this.filters);
+            items = InventoryData.searchItems(this.filters.searchQuery, searchFilters);
         } else {
-            items = InventoryData.searchItems('', this.filters);
+            items = InventoryData.searchItems('', searchFilters);
         }
         
         // 排序
@@ -426,6 +691,14 @@ class UIManager {
         if (this.elements.emptyState) {
             this.elements.emptyState.style.display = items.length === 0 ? 'flex' : 'none';
         }
+    }
+    
+    /**
+     * 初始化时渲染所有筛选器
+     */
+    initFilters() {
+        this.renderCategoryFilter();
+        this.renderBrandFilter();
     }
     
     /**
@@ -553,6 +826,9 @@ class UIManager {
             </div>
             
             <div class="card-actions">
+                <button class="card-action-button card-action-quick-decrease" data-action="quick-decrease" title="快速减少1">➖</button>
+                <button class="card-action-button card-action-add-to-list" data-action="add-to-list" title="添加到购物清单">🛒</button>
+                <button class="card-action-button card-action-mark-empty" data-action="mark-empty" title="标记为用完">✓</button>
                 <button class="card-action-button card-action-edit" data-action="edit" title="编辑商品">✏️</button>
                 <button class="card-action-button card-action-adjust" data-action="adjust" title="调整数量">🔄</button>
                 <button class="card-action-button card-action-delete" data-action="delete" title="删除商品">🗑️</button>
@@ -567,14 +843,37 @@ class UIManager {
                 const action = button.dataset.action;
                 
                 switch (action) {
+                    case 'quick-decrease':
+                        if (item.quantity > 0) {
+                            InventoryData.adjustQuantity(item.id, -1, null, '快速减少');
+                            this.renderContent();
+                            Utils.showNotification(`${item.name} 数量已减少1`, 'success');
+                        }
+                        break;
+                    case 'add-to-list':
+                        const reason = item.quantity <= 0 ? '已用完' : '低库存';
+                        if (InventoryData.addToShoppingList(item.id, reason)) {
+                            Utils.showNotification(`${item.name} 已添加到购物清单`, 'success');
+                            this.renderSummary();
+                        } else {
+                            Utils.showNotification(`${item.name} 已在购物清单中`, 'info');
+                        }
+                        break;
+                    case 'mark-empty':
+                        if (confirm(`确定将 ${item.name} 标记为用完吗？`)) {
+                            InventoryData.adjustQuantity(item.id, -item.quantity, null, '标记为用完');
+                            this.renderContent();
+                            Utils.showNotification(`${item.name} 已标记为用完`, 'success');
+                        }
+                        break;
                     case 'edit':
-                        ModalsManager.openEditItemModal(item.id);
+                        if (window.ModalsManager) window.ModalsManager.openEditItemModal(item.id);
                         break;
                     case 'adjust':
-                        ModalsManager.openAdjustQuantityModal(item.id);
+                        if (window.ModalsManager) window.ModalsManager.openAdjustQuantityModal(item.id);
                         break;
                     case 'delete':
-                        ModalsManager.openDeleteItemModal(item.id);
+                        if (window.ModalsManager) window.ModalsManager.openDeleteItemModal(item.id);
                         break;
                 }
             });
@@ -582,7 +881,9 @@ class UIManager {
         
         // 点击卡片查看详情
         card.addEventListener('click', () => {
-            ModalsManager.openItemDetailsModal(item.id);
+            if (window.ModalsManager) {
+                window.ModalsManager.openItemDetailsModal(item.id);
+            }
         });
         
         return card;
@@ -662,13 +963,13 @@ class UIManager {
                 
                 switch (action) {
                     case 'edit':
-                        ModalsManager.openEditItemModal(item.id);
+                        if (window.ModalsManager) window.ModalsManager.openEditItemModal(item.id);
                         break;
                     case 'adjust':
-                        ModalsManager.openAdjustQuantityModal(item.id);
+                        if (window.ModalsManager) window.ModalsManager.openAdjustQuantityModal(item.id);
                         break;
                     case 'delete':
-                        ModalsManager.openDeleteItemModal(item.id);
+                        if (window.ModalsManager) window.ModalsManager.openDeleteItemModal(item.id);
                         break;
                 }
             });

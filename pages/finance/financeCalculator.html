@@ -409,6 +409,50 @@
                 font-size: 0.85em;
             }
         }
+        
+        /* Toast提示样式 */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: toastSlideUp 0.3s ease-out;
+            max-width: 90%;
+            text-align: center;
+        }
+        
+        .toast.success {
+            background-color: var(--primary-color);
+        }
+        
+        .toast.error {
+            background-color: #f44336;
+        }
+        
+        .toast.warning {
+            background-color: #ff9800;
+        }
+        
+        .toast.info {
+            background-color: #2196F3;
+        }
+        
+        @keyframes toastSlideUp {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
     </style>
 </head>
 <body>
@@ -418,11 +462,11 @@
         </header>
 
         <div class="calculator-types">
-            <button class="type-button active" onclick="switchCalculator('compound')">复利计算</button>
-            <button class="type-button" onclick="switchCalculator('loan')">贷款计算</button>
-            <button class="type-button" onclick="switchCalculator('investment')">定投收益</button>
-            <button class="type-button" onclick="switchCalculator('target')">目标规划</button>
-            <button class="type-button" onclick="switchCalculator('creditCard')">信用卡免息</button>
+            <button class="type-button active" onclick="switchCalculator('compound', event)">复利计算</button>
+            <button class="type-button" onclick="switchCalculator('loan', event)">贷款计算</button>
+            <button class="type-button" onclick="switchCalculator('investment', event)">定投收益</button>
+            <button class="type-button" onclick="switchCalculator('target', event)">目标规划</button>
+            <button class="type-button" onclick="switchCalculator('creditCard', event)">信用卡免息</button>
         </div>
 
         <!-- 复利计算器 -->
@@ -591,9 +635,9 @@
                 
                 <div class="yearly-details">
                     <div class="period-selector">
-                        <button class="period-button active" onclick="switchInvestmentView('year')">年度明细</button>
-                        <button class="period-button" onclick="switchInvestmentView('quarter')">季度明细</button>
-                        <button class="period-button" onclick="switchInvestmentView('month')">月度明细</button>
+                        <button class="period-button active" onclick="switchInvestmentView('year', event)">年度明细</button>
+                        <button class="period-button" onclick="switchInvestmentView('quarter', event)">季度明细</button>
+                        <button class="period-button" onclick="switchInvestmentView('month', event)">月度明细</button>
                     </div>
                     <div class="table-container">
                         <table id="investmentTable">
@@ -667,10 +711,10 @@
                 
                 <div class="yearly-details">
                     <div class="period-selector">
-                        <button class="period-button active" onclick="switchTargetView('year')">年度明细</button>
-                        <button class="period-button" onclick="switchTargetView('quarter')">季度明细</button>
-                        <button class="period-button" onclick="switchTargetView('month')">月度明细</button>
-                        <button class="period-button" onclick="switchTargetView('week')">周明细</button>
+                        <button class="period-button active" onclick="switchTargetView('year', event)">年度明细</button>
+                        <button class="period-button" onclick="switchTargetView('quarter', event)">季度明细</button>
+                        <button class="period-button" onclick="switchTargetView('month', event)">月度明细</button>
+                        <button class="period-button" onclick="switchTargetView('week', event)">周明细</button>
                     </div>
                     <div class="table-container">
                         <table id="targetTable">
@@ -755,7 +799,7 @@
     </div>
 
     <script>
-        function switchCalculator(type) {
+        function switchCalculator(type, event) {
             // 隐藏所有计算器
             document.querySelectorAll('.calculator-section').forEach(section => {
                 section.classList.remove('active');
@@ -768,7 +812,16 @@
             document.querySelectorAll('.type-button').forEach(button => {
                 button.classList.remove('active');
             });
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                // 如果没有event，通过type找到对应按钮
+                document.querySelectorAll('.type-button').forEach(button => {
+                    if (button.getAttribute('onclick') && button.getAttribute('onclick').includes(type)) {
+                        button.classList.add('active');
+                    }
+                });
+            }
         }
 
         function formatMoney(number) {
@@ -776,6 +829,32 @@
                 minimumFractionDigits: 2,
                 maximumFractionDigits: 2
             }).format(number);
+        }
+        
+        // Toast提示函数
+        function showToast(message, type = 'info') {
+            // 移除已存在的toast
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+            
+            // 创建新的toast
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(-50%) translateY(20px)';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
         }
 
         // 复利计算
@@ -786,7 +865,7 @@
             
             // 验证输入
             if (principal <= 0 || years <= 0) {
-                alert('请输入有效的本金和投资年限');
+                showToast('请输入有效的本金和投资年限', 'error');
                 return;
             }
             
@@ -925,14 +1004,23 @@
         }
 
         // 切换投资明细视图
-        function switchInvestmentView(viewType) {
+        function switchInvestmentView(viewType, event) {
             if (!window.investmentData) return;
 
             // 更新按钮状态
             document.querySelectorAll('.period-button').forEach(btn => {
                 btn.classList.remove('active');
             });
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                // 如果没有event，通过viewType找到对应按钮
+                document.querySelectorAll('.period-button').forEach(btn => {
+                    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(viewType)) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
 
             const { periodData, periodsPerYear, period } = window.investmentData;
             const tbody = document.getElementById('investmentTable').getElementsByTagName('tbody')[0];
@@ -1003,7 +1091,7 @@
                         });
                     });
                 } else {
-                    alert('数据过多，请选择年度或季度视图');
+                    showToast('数据过多，请选择年度或季度视图', 'warning');
                     return;
                 }
             }
@@ -1031,7 +1119,7 @@
             
             // 验证输入
             if (target <= 0 || duration <= 0) {
-                alert('请输入有效的目标金额和时间');
+                showToast('请输入有效的目标金额和时间', 'error');
                 return;
             }
 
@@ -1107,14 +1195,23 @@
         }
 
         // 切换目标规划明细视图
-        function switchTargetView(viewType) {
+        function switchTargetView(viewType, event) {
             if (!window.targetData) return;
 
             // 更新按钮状态
             document.querySelectorAll('.period-button').forEach(btn => {
                 btn.classList.remove('active');
             });
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                // 如果没有event，通过viewType找到对应按钮
+                document.querySelectorAll('.period-button').forEach(btn => {
+                    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(viewType)) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
 
             const { periodData, periodsPerYear, period, target } = window.targetData;
             const tbody = document.getElementById('targetTable').getElementsByTagName('tbody')[0];
@@ -1194,50 +1291,88 @@
         // 添加信用卡免息期计算
         function calculateCreditCard() {
             const amount = parseFloat(document.getElementById('creditAmount').value) || 0;
-            const purchaseDate = new Date(document.getElementById('purchaseDate').value);
-            const billingDay = parseInt(document.getElementById('billingDay').value) || 1;
-            const repaymentDay = parseInt(document.getElementById('repaymentDay').value) || 1;
+            const periods = parseInt(document.getElementById('creditPeriods').value) || 0;
             const interestRate = parseFloat(document.getElementById('creditRate').value) || 0;
             
             // 验证输入
-            if (amount <= 0 || isNaN(purchaseDate.getTime())) {
-                alert('请输入有效的消费金额和日期');
+            if (amount <= 0 || periods <= 0) {
+                showToast('请输入有效的消费金额和免息期数', 'error');
                 return;
             }
             
-            // 计算账单日
-            let billingDate = new Date(purchaseDate);
-            billingDate.setDate(billingDay);
-            // 如果购买日期在本月账单日之后，账单日要到下个月
-            if (purchaseDate.getDate() > billingDay) {
-                billingDate.setMonth(billingDate.getMonth() + 1);
+            if (interestRate <= 0) {
+                showToast('请输入有效的年化收益率', 'error');
+                return;
             }
             
-            // 计算还款日
-            let repaymentDate = new Date(billingDate);
-            repaymentDate.setDate(repaymentDay);
-            // 如果账单日在本月还款日之后，还款日要到下个月
-            if (billingDate.getDate() > repaymentDay) {
-                repaymentDate.setMonth(repaymentDate.getMonth() + 1);
+            // 计算每期应还金额（等额分期）
+            const monthlyPayment = amount / periods;
+            
+            // 计算总收益
+            // 假设资金在免息期内持续产生收益
+            // 每期还款后，剩余本金减少，收益也相应减少
+            let totalInterest = 0;
+            let remainingPrincipal = amount;
+            const monthlyRate = interestRate / 100 / 12; // 月利率
+            const daysPerPeriod = 30; // 假设每期30天
+            
+            // 生成还款计划明细
+            const schedule = [];
+            let cumulativeInterest = 0;
+            
+            for (let i = 1; i <= periods; i++) {
+                const periodStartPrincipal = remainingPrincipal;
+                const periodPayment = monthlyPayment;
+                
+                // 计算当期收益（基于剩余本金和月利率）
+                // 假设资金在整个免息期内平均使用
+                const periodInterest = periodStartPrincipal * monthlyRate * (daysPerPeriod / 30);
+                cumulativeInterest += periodInterest;
+                
+                remainingPrincipal -= periodPayment;
+                
+                // 计算资金使用率（剩余本金/原始金额）
+                const usageRate = (periodStartPrincipal / amount * 100).toFixed(2);
+                
+                schedule.push({
+                    period: i,
+                    startPrincipal: periodStartPrincipal,
+                    payment: periodPayment,
+                    remainingPrincipal: Math.max(0, remainingPrincipal),
+                    periodInterest: periodInterest,
+                    cumulativeInterest: cumulativeInterest,
+                    usageRate: usageRate
+                });
             }
             
-            // 计算免息天数
-            const daysBetween = Math.round((repaymentDate - purchaseDate) / (1000 * 60 * 60 * 24));
+            totalInterest = cumulativeInterest;
             
-            // 计算节省的利息（按日利率计算）
-            const dailyRate = interestRate / 100 / 365;
-            const savedInterest = parseFloat((amount * dailyRate * daysBetween).toFixed(2));
+            // 计算有效年化收益率
+            // 总收益 / 原始金额 / (期数/12) * 100
+            const effectiveRate = (totalInterest / amount / (periods / 12) * 100).toFixed(2);
             
-            // 更新结果
+            // 更新总体结果
             document.getElementById('creditResult').style.display = 'block';
-            document.getElementById('billingDateResult').textContent = formatDate(billingDate);
-            document.getElementById('repaymentDateResult').textContent = formatDate(repaymentDate);
-            document.getElementById('freeDaysResult').textContent = daysBetween + '天';
-            document.getElementById('savedInterestResult').textContent = formatMoney(savedInterest) + '元';
-        }
-        
-        function formatDate(date) {
-            return `${date.getFullYear()}年${date.getMonth() + 1}月${date.getDate()}日`;
+            document.getElementById('creditMonthlyPayment').textContent = formatMoney(monthlyPayment) + '元';
+            document.getElementById('creditTotalInterest').textContent = formatMoney(totalInterest) + '元';
+            document.getElementById('creditEffectiveRate').textContent = effectiveRate + '%';
+            
+            // 更新还款计划表格
+            const tbody = document.getElementById('creditTable').getElementsByTagName('tbody')[0];
+            tbody.innerHTML = '';
+            
+            schedule.forEach(item => {
+                const row = tbody.insertRow();
+                row.innerHTML = `
+                    <td>第${item.period}期</td>
+                    <td>${formatMoney(item.startPrincipal)}元</td>
+                    <td>${formatMoney(item.payment)}元</td>
+                    <td>${formatMoney(item.remainingPrincipal)}元</td>
+                    <td>${formatMoney(item.periodInterest)}元</td>
+                    <td>${formatMoney(item.cumulativeInterest)}元</td>
+                    <td>${item.usageRate}%</td>
+                `;
+            });
         }
 
         // 更新周期单位显示

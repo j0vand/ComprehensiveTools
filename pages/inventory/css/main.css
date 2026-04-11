@@ -233,6 +233,19 @@ ul, ol {
     font-size: 1.25em;
 }
 
+.header-badge {
+    display: inline-block;
+    background-color: rgba(255, 255, 255, 0.3);
+    color: var(--text-on-primary);
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-left: 4px;
+    min-width: 18px;
+    text-align: center;
+}
+
 /* 主内容区域 */
 .main-content {
     display: flex;
@@ -454,6 +467,28 @@ ul, ol {
     margin-bottom: var(--spacing-xs);
 }
 
+.filter-input {
+    width: 100%;
+    padding: var(--spacing-sm);
+    border: 1px solid var(--divider-color);
+    border-radius: var(--border-radius);
+    background-color: var(--card-color);
+    color: var(--text-primary);
+    font-size: var(--font-size-normal);
+    margin-bottom: var(--spacing-xs);
+    transition: all var(--transition-fast);
+}
+
+.filter-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
+}
+
+.filter-input::placeholder {
+    color: var(--text-secondary);
+}
+
 .filter-select:focus {
     outline: none;
     border-color: var(--primary-color);
@@ -489,9 +524,89 @@ ul, ol {
     border-color: var(--primary-light);
 }
 
+.quick-overview {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.overview-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--spacing-sm);
+    border-radius: var(--border-radius);
+    background-color: var(--hover-color);
+    transition: all var(--transition-fast);
+}
+
+.overview-item:hover {
+    background-color: rgba(46, 125, 50, 0.1);
+}
+
+.overview-item.highlight {
+    background-color: rgba(255, 152, 0, 0.1);
+    border: 1px solid var(--warning-color);
+}
+
+.overview-item.warning {
+    background-color: rgba(156, 39, 176, 0.1);
+    border: 1px solid #9c27b0;
+}
+
+.overview-label {
+    font-size: var(--font-size-small);
+    color: var(--text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.overview-value {
+    font-size: var(--font-size-large);
+    font-weight: 600;
+    color: var(--primary-color);
+}
+
+.overview-item.highlight .overview-value {
+    color: var(--warning-color);
+}
+
+.overview-item.warning .overview-value {
+    color: #9c27b0;
+}
+
+.quick-filters {
+    display: flex;
+    gap: var(--spacing-xs);
+    flex-wrap: wrap;
+}
+
+.quick-filter-btn {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    background-color: transparent;
+    border: 1px solid var(--divider-color);
+    border-radius: var(--border-radius);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: var(--font-size-small);
+}
+
+.quick-filter-btn:hover {
+    background-color: var(--hover-color);
+    border-color: var(--primary-light);
+    color: var(--primary-color);
+}
+
+.quick-filter-btn.active {
+    background-color: var(--primary-color);
+    color: var(--text-on-primary);
+    border-color: var(--primary-color);
+}
+
 .inventory-summary {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: var(--spacing-md);
     margin-bottom: var(--spacing-md);
 }
@@ -866,4 +981,148 @@ ul, ol {
 .loading-text {
     margin-top: var(--spacing-md);
     color: var(--text-primary);
+}
+
+/* 购物清单样式 */
+.shopping-list-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+}
+
+.shopping-list-section {
+    margin-bottom: var(--spacing-lg);
+}
+
+.section-title {
+    font-size: var(--font-size-medium);
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-primary);
+}
+
+.shopping-list-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.shopping-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    background-color: var(--card-color);
+    border: 1px solid var(--divider-color);
+    border-radius: var(--border-radius);
+    transition: all var(--transition-fast);
+}
+
+.shopping-list-item:hover {
+    background-color: var(--hover-color);
+    border-color: var(--primary-light);
+}
+
+.shopping-list-item.purchased {
+    opacity: 0.6;
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.shopping-item-info {
+    flex: 1;
+}
+
+.shopping-item-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.shopping-item-reason {
+    font-size: var(--font-size-small);
+    color: var(--text-secondary);
+}
+
+.shopping-item-date {
+    font-size: var(--font-size-small);
+    color: var(--text-secondary);
+}
+
+.shopping-item-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+}
+
+/* 提醒样式 */
+.reminder-section {
+    margin-bottom: var(--spacing-lg);
+}
+
+.reminder-title {
+    font-size: var(--font-size-medium);
+    font-weight: 600;
+    margin-bottom: var(--spacing-sm);
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 2px solid var(--divider-color);
+}
+
+.reminder-title.warning {
+    color: var(--warning-color);
+    border-bottom-color: var(--warning-color);
+}
+
+.reminder-title.highlight {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+.reminder-items {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-xs);
+}
+
+.reminder-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-md);
+    background-color: var(--card-color);
+    border: 1px solid var(--divider-color);
+    border-radius: var(--border-radius);
+    transition: all var(--transition-fast);
+}
+
+.reminder-item:hover {
+    background-color: var(--hover-color);
+    border-color: var(--primary-light);
+}
+
+.reminder-item-name {
+    font-weight: 500;
+    color: var(--text-primary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.reminder-item-detail {
+    font-size: var(--font-size-small);
+    color: var(--text-secondary);
+}
+
+.action-icon-add {
+    background-color: rgba(46, 125, 50, 0.1);
+    color: var(--primary-color);
+}
+
+.action-icon-add:hover {
+    background-color: rgba(46, 125, 50, 0.2);
+}
+
+.action-icon-check {
+    background-color: rgba(76, 175, 80, 0.1);
+    color: var(--success-color);
+}
+
+.action-icon-check:hover {
+    background-color: rgba(76, 175, 80, 0.2);
 } 

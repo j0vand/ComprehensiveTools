@@ -171,9 +171,10 @@
 
 .card-actions {
     display: flex;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-xs);
     justify-content: flex-end;
     margin-top: var(--spacing-md);
+    flex-wrap: wrap;
 }
 
 .card-action-button {
@@ -214,6 +215,33 @@
 
 .card-action-adjust:hover {
     background-color: rgba(76, 175, 80, 0.2);
+}
+
+.card-action-quick-decrease {
+    background-color: rgba(255, 152, 0, 0.1);
+    color: var(--warning-color);
+}
+
+.card-action-quick-decrease:hover {
+    background-color: rgba(255, 152, 0, 0.2);
+}
+
+.card-action-add-to-list {
+    background-color: rgba(46, 125, 50, 0.1);
+    color: var(--primary-color);
+}
+
+.card-action-add-to-list:hover {
+    background-color: rgba(46, 125, 50, 0.2);
+}
+
+.card-action-mark-empty {
+    background-color: rgba(156, 39, 176, 0.1);
+    color: #9c27b0;
+}
+
+.card-action-mark-empty:hover {
+    background-color: rgba(156, 39, 176, 0.2);
 }
 
 .card-note {

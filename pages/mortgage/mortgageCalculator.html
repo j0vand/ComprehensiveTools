@@ -255,6 +255,50 @@
                 grid-template-columns: 1fr 1fr;
             }
         }
+        
+        /* Toast提示样式 */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: toastSlideUp 0.3s ease-out;
+            max-width: 90%;
+            text-align: center;
+        }
+        
+        .toast.success {
+            background-color: var(--primary-color);
+        }
+        
+        .toast.error {
+            background-color: #ef4444;
+        }
+        
+        .toast.warning {
+            background-color: #f59e0b;
+        }
+        
+        .toast.info {
+            background-color: var(--secondary-color);
+        }
+        
+        @keyframes toastSlideUp {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
+        }
     </style>
 </head>
 <body>
@@ -267,9 +311,9 @@
         <div class="calculator-container">
             <div class="input-card">
                 <div class="loan-type-selector">
-                    <button class="loan-type-button active" onclick="switchLoanType('commercial')">商业贷款</button>
-                    <button class="loan-type-button" onclick="switchLoanType('fund')">公积金贷款</button>
-                    <button class="loan-type-button" onclick="switchLoanType('combined')">组合贷款</button>
+                    <button class="loan-type-button active" onclick="switchLoanType('commercial', event)">商业贷款</button>
+                    <button class="loan-type-button" onclick="switchLoanType('fund', event)">公积金贷款</button>
+                    <button class="loan-type-button" onclick="switchLoanType('combined', event)">组合贷款</button>
                 </div>
 
                 <!-- 商业贷款输入 -->
@@ -383,8 +427,8 @@
 
                 <div class="tab-container">
                     <div class="tab-buttons">
-                        <button class="tab-button active" onclick="switchTab('schedule')">还款计划</button>
-                        <button class="tab-button" onclick="switchTab('chart')">还款分析</button>
+                        <button class="tab-button active" onclick="switchTab('schedule', event)">还款计划</button>
+                        <button class="tab-button" onclick="switchTab('chart', event)">还款分析</button>
                     </div>
 
                     <div id="schedule-tab">
@@ -417,14 +461,54 @@
     <script>
         let currentLoanType = 'commercial';
         let chart = null;
+        
+        // Toast提示函数
+        function showToast(message, type = 'info') {
+            // 移除已存在的toast
+            const existingToast = document.querySelector('.toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+            
+            // 创建新的toast
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(-50%) translateY(20px)';
+                setTimeout(() => {
+                    if (toast.parentNode) {
+                        toast.parentNode.removeChild(toast);
+                    }
+                }, 300);
+            }, 3000);
+        }
+        
+        // 统一函数名，供按钮调用
+        function calculateMortgage() {
+            calculate();
+        }
 
         // 切换贷款类型
-        function switchLoanType(type) {
+        function switchLoanType(type, event) {
             currentLoanType = type;
             document.querySelectorAll('.loan-type-button').forEach(btn => {
                 btn.classList.remove('active');
             });
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                // 如果没有event，通过type找到对应按钮
+                document.querySelectorAll('.loan-type-button').forEach(btn => {
+                    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(type)) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
 
             // 隐藏所有输入区域
             document.querySelectorAll('#commercial-inputs, #fund-inputs, #combined-inputs').forEach(div => {
@@ -436,11 +520,20 @@
         }
 
         // 切换标签页
-        function switchTab(tab) {
+        function switchTab(tab, event) {
             document.querySelectorAll('.tab-button').forEach(btn => {
                 btn.classList.remove('active');
             });
-            event.target.classList.add('active');
+            if (event && event.target) {
+                event.target.classList.add('active');
+            } else {
+                // 如果没有event，通过tab找到对应按钮
+                document.querySelectorAll('.tab-button').forEach(btn => {
+                    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes(tab)) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
 
             document.getElementById('schedule-tab').style.display = tab === 'schedule' ? 'block' : 'none';
             document.getElementById('chart-tab').style.display = tab === 'chart' ? 'block' : 'none';
@@ -463,11 +556,53 @@
 
         // 修改计算函数
         function calculate() {
-            const paymentMethod = document.querySelector('input[name="paymentMethod"]:checked').value;
+            // 修复：从select元素获取还款方式
+            const repaymentMethodSelect = document.getElementById('repaymentMethod');
+            const paymentMethod = repaymentMethodSelect ? repaymentMethodSelect.value : 'equal';
             let loanType = currentLoanType;
             
-            // 清空结果和图表
-            document.getElementById('result').style.display = 'block';
+            // 验证输入
+            let isValid = true;
+            let errorMessage = '';
+            
+            if (loanType === 'commercial') {
+                const amount = parseFloat(document.getElementById('commercialAmount').value) || 0;
+                const years = parseInt(document.getElementById('commercialYears').value) || 0;
+                const rate = parseFloat(document.getElementById('commercialRate').value) || 0;
+                if (amount <= 0 || years <= 0 || rate <= 0) {
+                    isValid = false;
+                    errorMessage = '请输入有效的贷款金额、年限和利率';
+                }
+            } else if (loanType === 'fund') {
+                const amount = parseFloat(document.getElementById('fundAmount').value) || 0;
+                const years = parseInt(document.getElementById('fundYears').value) || 0;
+                const rate = parseFloat(document.getElementById('fundRate').value) || 0;
+                if (amount <= 0 || years <= 0 || rate <= 0) {
+                    isValid = false;
+                    errorMessage = '请输入有效的贷款金额、年限和利率';
+                }
+            } else if (loanType === 'combined') {
+                const commercialAmount = parseFloat(document.getElementById('combinedCommercialAmount').value) || 0;
+                const fundAmount = parseFloat(document.getElementById('combinedFundAmount').value) || 0;
+                const years = parseInt(document.getElementById('combinedYears').value) || 0;
+                const commercialRate = parseFloat(document.getElementById('combinedCommercialRate').value) || 0;
+                const fundRate = parseFloat(document.getElementById('combinedFundRate').value) || 0;
+                if ((commercialAmount <= 0 && fundAmount <= 0) || years <= 0 || commercialRate <= 0 || fundRate <= 0) {
+                    isValid = false;
+                    errorMessage = '请输入有效的贷款金额、年限和利率';
+                }
+            }
+            
+            if (!isValid) {
+                showToast(errorMessage, 'error');
+                return;
+            }
+            
+            // 显示结果区域
+            const resultCard = document.querySelector('.result-card');
+            if (resultCard) {
+                resultCard.style.display = 'block';
+            }
             
             // 根据贷款类型获取输入参数
             let loanAmount = 0;
@@ -496,14 +631,8 @@
                 loanAmount = commercialAmount + fundAmount;
             }
             
-            // 显示贷款类型
-            document.getElementById('displayLoanType').textContent = 
-                loanType === 'commercial' ? '商业贷款' : 
-                loanType === 'fund' ? '公积金贷款' : '组合贷款';
-            
-            // 显示还款方式
-            document.getElementById('displayPaymentMethod').textContent = 
-                paymentMethod === 'principal_interest' ? '等额本息' : '等额本金';
+            // 注意：displayLoanType 和 displayPaymentMethod 元素不存在，已移除相关代码
+            // 还款方式信息已通过select元素显示，无需额外显示
             
             // 计算月供和还款总额
             let schedule = [];
@@ -585,7 +714,7 @@
             let remainingPrincipal = loanAmount;
             let monthlyPayment = 0;
             
-            if (paymentMethod === 'principal_interest') {
+            if (paymentMethod === 'equal') {
                 // 等额本息
                 monthlyPayment = loanAmount * monthlyRate * Math.pow(1 + monthlyRate, months) / (Math.pow(1 + monthlyRate, months) - 1);
                 

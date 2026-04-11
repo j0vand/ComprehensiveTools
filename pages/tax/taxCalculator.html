@@ -1,2708 +1,1574 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="theme-color" content="#4CAF50">
-    <link rel="manifest" href="manifest.json">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#10b981">
     <title>个税计算器</title>
     <style>
         :root {
-            --primary-color: #4CAF50;
-            --primary-dark: #388E3C;
-            --text-color: #333;
-            --border-color: #ddd;
-            --background-color: #f5f5f5;
-            --safe-area-inset-top: env(safe-area-inset-top);
-            --safe-area-inset-bottom: env(safe-area-inset-bottom);
+            --primary: #10b981;
+            --primary-dark: #059669;
+            --primary-light: #d1fae5;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+            --text-main: #111827;
+            --text-sub: #6b7280;
+            --bg-body: #f3f4f6;
+            --bg-card: #ffffff;
+            --border: #e5e7eb;
+            --radius: 16px;
+            --radius-sm: 8px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            margin: 0;
+            padding: 0;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            margin: 0;
-            padding: calc(16px + var(--safe-area-inset-top)) 16px calc(16px + var(--safe-area-inset-bottom));
-            background-color: var(--background-color);
-            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
             line-height: 1.6;
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-            position: static;
-            height: auto;
-            overflow: auto;
+            padding-bottom: 40px;
         }
 
-        h1 {
-            color: var(--primary-color);
-            font-size: 24px;
-            margin-bottom: 24px;
-            text-align: center;
+        /* 顶部导航区 */
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            padding: 20px 20px 60px; /* 底部留白给卡片重叠 */
+            color: white;
+            border-bottom-left-radius: 24px;
+            border-bottom-right-radius: 24px;
+            margin-bottom: -40px; /* 让下方内容上浮 */
+            position: relative;
+            z-index: 0;
         }
 
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .help-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            backdrop-filter: blur(4px);
+            cursor: pointer;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 16px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* 卡片通用样式 */
         .card {
-            background: white;
-            border-radius: 12px;
-            padding: 16px;
+            background: var(--bg-card);
+            border-radius: var(--radius);
+            padding: 20px;
             margin-bottom: 16px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: var(--shadow);
+            border: 1px solid rgba(255,255,255,0.5);
         }
 
-        .input-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 20px;
+        .card-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-main);
             margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title::before {
+            content: '';
+            display: block;
+            width: 4px;
+            height: 16px;
+            background: var(--primary);
+            border-radius: 2px;
+        }
+
+        /* 表单样式 */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+        }
+
+        @media (min-width: 600px) {
+            .form-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         .input-group {
             position: relative;
         }
 
+        .label-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
         .input-label {
-            color: #666;
             font-size: 14px;
-            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-main);
+        }
+
+        .input-hint-badge {
+            font-size: 11px;
+            color: var(--text-sub);
+            background: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-field {
+            width: 100%;
+            height: 44px;
+            padding: 0 40px 0 12px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 16px; /* 防止iOS缩放 */
+            background: #f9fafb;
+            transition: all 0.2s;
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: #fff;
+            box-shadow: 0 0 0 3px var(--primary-light);
+        }
+        
+        .input-field:invalid {
+            border-color: var(--danger);
+        }
+        
+        .input-field:invalid:focus {
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
+        }
+        
+        .input-error {
+            font-size: 12px;
+            color: var(--danger);
+            margin-top: 4px;
+            display: none;
+        }
+        
+        .input-group.error .input-error {
+            display: block;
+        }
+        
+        .input-group.error .input-field {
+            border-color: var(--danger);
+        }
+
+        .input-unit {
+            position: absolute;
+            right: 12px;
+            color: var(--text-sub);
+            font-size: 14px;
+            pointer-events: none;
+        }
+
+        /* 奖金区域折叠 */
+        .bonus-toggle {
+            width: 100%;
+            background: #fff;
+            border: 1px dashed var(--border);
+            padding: 12px;
+            border-radius: var(--radius-sm);
+            color: var(--primary);
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .bonus-toggle:hover {
+            background: var(--primary-light);
+            border-color: var(--primary);
+        }
+
+        .bonus-section {
+            display: none;
+            margin-top: 16px;
+            padding-top: 16px;
+            border-top: 1px dashed var(--border);
+        }
+
+        .bonus-section.show {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .bonus-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+        
+        @media (min-width: 600px) {
+            .bonus-grid {
+                grid-template-columns: repeat(6, 1fr);
+            }
+        }
+
+        .bonus-item label {
+            display: block;
+            font-size: 12px;
+            color: var(--text-sub);
+            margin-bottom: 4px;
+            text-align: center;
+        }
+
+        .bonus-item input {
+            text-align: center;
+            padding: 0 4px;
+            font-size: 13px;
+        }
+
+        /* 主按钮 */
+        .btn-main {
+            width: 100%;
+            height: 50px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            font-size: 18px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+            transition: transform 0.1s, box-shadow 0.2s;
+            margin-top: 8px;
+        }
+
+        .btn-main:active {
+            transform: scale(0.98);
+            box-shadow: 0 2px 6px rgba(16, 185, 129, 0.2);
+        }
+
+        /* 结果展示区 */
+        .result-section {
+            display: none;
+            margin-top: 24px;
+        }
+        
+        .result-section.show {
             display: block;
         }
 
-        .input-field {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-
-        .input-field input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 1px solid #e0e0e0;
-            border-radius: 12px;
-            font-size: 15px;
-            background: #f8f9fa;
-            transition: all 0.3s ease;
-            padding-right: 40px;
-            /* 为单位留出空间 */
-        }
-
-        .input-field input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
-        }
-
-        .unit {
-            position: absolute;
-            right: 12px;
-            color: #666;
-            font-size: 14px;
-            pointer-events: none;
-        }
-
-        .toggle-button {
-            width: 100%;
-            padding: 12px;
-            background: #f8f9fa;
-            border: 1px solid #e0e0e0;
-            border-radius: 12px;
-            color: #666;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin: 16px 0;
-        }
-
-        .toggle-button:hover {
-            background: #f0f0f0;
-        }
-
-        .toggle-button::after {
-            content: '';
-            width: 10px;
-            height: 10px;
-            border-right: 2px solid #666;
-            border-bottom: 2px solid #666;
-            transform: rotate(45deg);
-            transition: transform 0.3s ease;
-            margin-left: 8px;
-        }
-
-        .toggle-button.active::after {
-            transform: rotate(-135deg);
-        }
-
-        #advancedOptions {
-            overflow: hidden;
-            transition: all 0.3s ease;
-            max-height: 0;
-        }
-
-        #advancedOptions.show {
-            max-height: 500px;
-            margin-top: 16px;
-        }
-
-        .calculate-button {
-            background: linear-gradient(45deg, #2196F3, #1976D2);
-            color: white;
-            border: none;
-            padding: 14px 24px;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 500;
-            width: 100%;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 12px rgba(33, 150, 243, 0.2);
-        }
-
-        .calculate-button:active {
-            transform: translateY(1px);
-            box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
-        }
-
-        /* 添加输入框动画效果 */
-        @keyframes slideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .input-group {
-            animation: slideDown 0.3s ease-out forwards;
-        }
-
-        /* 更新输入框卡片样式 */
-        .input-card {
-            background: white;
-            border-radius: 16px;
-            padding: 16px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s ease;
-        }
-
-        .input-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .input-label {
-            color: var(--primary-color);
-            font-weight: 500;
-            font-size: 14px;
-            margin-bottom: 8px;
-        }
-
-        .input-field {
-            width: 100%;
-            background: #f8f9fa;
-            border: 1px solid #e0e0e0;
-            border-radius: 12px;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            transition: all 0.3s ease;
-        }
-
-        .input-field input {
-            flex: 1;
-            border: none;
-            padding: 12px 16px;
-            font-size: 15px;
-            background: transparent;
-            color: #333;
-        }
-
-        .input-field input:focus {
-            outline: none;
-        }
-
-        .input-field .unit {
-            padding: 12px 16px;
-            color: #666;
-            background: #e9ecef;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .input-field:focus-within {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
-        }
-
-        /* 更新按样式 */
-        .button {
-            border: none;
-            padding: 14px 24px;
-            border-radius: 12px;
-            font-size: 15px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
-
-        .primary-button {
-            background: linear-gradient(135deg, #4CAF50, #45a049);
-            color: white;
-            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.2);
-        }
-
-        .primary-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 16px rgba(76, 175, 80, 0.3);
-        }
-
-        .primary-button:active {
-            transform: translateY(1px);
-        }
-
-        .secondary-button {
-            background: #f8f9fa;
-            color: #666;
-            border: 1px solid #e0e0e0;
-        }
-
-        .secondary-button:hover {
-            background: #f0f0f0;
-        }
-
-        .toggle-button {
-            width: 100%;
-            background: #f8f9fa;
-            color: #666;
-            border: 1px solid #e0e0e0;
-            border-radius: 12px;
-            padding: 12px 20px;
-            font-size: 14px;
-            font-weight: 500;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            margin: 16px 0;
-        }
-
-        .toggle-button:hover {
-            background: #f0f0f0;
-        }
-
-        .toggle-button::after {
-            content: '';
-            width: 8px;
-            height: 8px;
-            border-right: 2px solid #666;
-            border-bottom: 2px solid #666;
-            transform: rotate(45deg);
-            transition: transform 0.3s ease;
-        }
-
-        .toggle-button.active::after {
-            transform: rotate(-135deg);
-        }
-
-        /* 更新输入框网格布局 */
-        .input-grid {
+        /* 摘要卡片网格 */
+        .summary-cards {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-        }
-
-        /* 移除输入框的上下微调按钮 */
-        input[type="number"] {
-            -moz-appearance: textfield;
-            /* Firefox */
-        }
-
-        input[type="number"]::-webkit-outer-spin-button,
-        input[type="number"]::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
-        /* 保所有数字输入框都应用这个样式 */
-        .input-field input[type="number"],
-        .bonus-input[type="number"] {
-            -moz-appearance: textfield;
-        }
-
-        .input-field input[type="number"]::-webkit-outer-spin-button,
-        .input-field input[type="number"]::-webkit-inner-spin-button,
-        .bonus-input[type="number"]::-webkit-outer-spin-button,
-        .bonus-input[type="number"]::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
-        /* 统一所有输入框的基础样式 */
-        .input-group,
-        .bonus-card {
-            background: white;
-            border-radius: 12px;
-            padding: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        }
-
-        .input-card:hover,
-        .bonus-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .input-label,
-        .month-label {
-            color: var(--primary-color);
-            font-weight: 500;
-            font-size: 14px;
-            margin-bottom: 8px;
-        }
-
-        /* 统一输入框样式 */
-        .input-field input,
-        .bonus-input {
-            width: 100%;
-            padding: 8px 32px 8px 12px;
-            font-size: 14px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            background: #f8f9fa;
-        }
-
-        .input-field input:focus,
-        .bonus-input:focus {
-            outline: none;
-            border-color: var(--primary-color);
-            background: white;
-            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.1);
-        }
-
-        /* 统一单位显示 */
-        .input-field,
-        .bonus-field {
-            position: relative;
-            display: flex;
-            align-items: center;
-        }
-
-        .unit {
-            position: absolute;
-            right: 8px;
-            color: #666;
-            font-size: 13px;
-            pointer-events: none;
-        }
-
-        /* 修改奖金输入表格的样式 */
-        .bonus-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        /* 移动端适配 */
-        @media (max-width: 480px) {
-
-            .input-card,
-            .bonus-card {
-                padding: 12px;
-            }
-
-            .input-field input,
-            .bonus-input {
-                padding: 10px 14px;
-                font-size: 14px;
-            }
-
-            .bonus-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 8px;
-            }
-        }
-
-        /* 移除旧的输入框样式 */
-        .input-card,
-        .input-field,
-        .input-label {
-            display: none;
-        }
-
-        /* 调整布局间距 */
-        .input-section {
-            margin-bottom: 20px;
-        }
-
-        .bonus-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: 1fr 1fr;
             gap: 12px;
             margin-bottom: 20px;
-        }
-
-        /* 确保所有卡片样 */
-        .bonus-card {
-            background: white;
-            border-radius: 12px;
-            padding: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            transition: all 0.3s ease;
-        }
-
-        .bonus-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        }
-
-        .bonus-actions {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-top: 16px;
-        }
-
-        .bonus-actions .button {
-            margin: 0;
-            flex: 0 0 auto;
-            min-width: 120px;
-            /* 固定宽度 */
-        }
-
-        .select-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            flex: 0 0 auto;
-        }
-
-        .select-wrapper label {
-            color: #666;
-            font-size: 14px;
-            margin: 0;
-            white-space: nowrap;
-        }
-
-        .select-wrapper select {
-            width: 100px;
-            padding: 10px 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 14px;
-            color: #333;
-            background: white;
-            cursor: pointer;
-        }
-
-        /* 移动端适配 */
-        @media (max-width: 480px) {
-            .bonus-actions {
-                flex-wrap: wrap;
-                gap: 12px;
-            }
-
-            .select-wrapper {
-                width: auto;
-            }
-
-            .bonus-actions .button {
-                width: auto;
-            }
-        }
-
-        .salary-row {
-            display: flex;
-            align-items: flex-start;
-            gap: 16px;
-            margin-bottom: 16px;
-        }
-
-        .salary-row .bonus-card {
-            flex: 0 0 200px;
-            /* 固定宽度 */
-            margin: 0;
-        }
-
-        .salary-row .toggle-button {
-            margin: 0;
-            align-self: flex-end;
-            /* 与输入框底部对齐 */
-            height: 42px;
-            /* 与输入框高度 */
-            padding: 0 20px;
-            min-width: 100px;
-            /* 减小最小宽度 */
-            width: auto;
-            /* 让按钮宽度自应 */
-            background: #f8f9fa;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            /* 稍微减小圆角 */
-            font-size: 14px;
-            color: #666;
-            display: inline-flex;
-            /* 改为 inline-flex */
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-            white-space: nowrap;
-            /* 防止字换行 */
-        }
-
-        .salary-row .toggle-button::after {
-            content: '';
-            width: 8px;
-            height: 8px;
-            border-right: 2px solid #666;
-            border-bottom: 2px solid #666;
-            transform: rotate(45deg);
-            transition: transform 0.3s ease;
-            margin-left: 4px;
-            /* 减小箭头和文字的间距 */
-        }
-
-        .salary-row .toggle-button.active::after {
-            transform: rotate(-135deg);
-        }
-
-        .salary-row .toggle-button:hover {
-            background: #f0f0f0;
-        }
-
-        /* 移动端适 */
-        @media (max-width: 480px) {
-            .salary-row {
-                flex-direction: column;
-                gap: 12px;
-            }
-
-            .salary-row .bonus-card {
-                width: 100%;
-                flex: none;
-            }
-
-            .salary-row .toggle-button {
-                width: 100%;
-            }
-        }
-
-        /* 4. 优化数字示 */
-        td:nth-child(n+2) {
-            font-family: 'SF Mono', Monaco, Consolas, monospace;
-            text-align: center;
-            /* 改为居中显示 */
-        }
-
-        /* 3. 添加结果摘要样式 */
-        .result-summary {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)) !important;
-            gap: 6px !important;
-            margin: 6px !important;
         }
 
         .summary-card {
-            background: white;
-            border-radius: 8px;
-            padding: 8px;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-        }
-
-        .summary-label {
-            color: #666;
-            font-size: 12px;
-            margin-bottom: 4px;
-        }
-
-        .summary-value {
-            color: var(--primary-color);
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        /* 4. 优化移动端显 */
-        @media (max-width: 480px) {
-            .result-summary {
-                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)) !important;
-                gap: 4px !important;
-                padding: 4px !important;
-            }
-            
-            .summary-card {
-                padding: 6px;
-            }
-            
-            .summary-value {
-                font-size: 13px;
-            }
-        }
-
-        /* 优化表格布局 */
-        .table-container table {
-            table-layout: fixed; /* 改为固定布局 */
-            width: auto; /* 让表格宽度由内容决定 */
-            border-collapse: collapse;
-            margin: 0;
-            font-size: 13px; /* 稍微减小字体 */
-        }
-
-        /* 极简的元样式 */
-        .table-container td,
-        .table-container th {
-            padding: 2px 4px; /* 减小内边距 */
-            white-space: nowrap;
-        }
-
-        /* 更紧凑的列宽 */
-        .table-container th:nth-child(1) { width: 20px; }  /* 月份 */
-        .table-container th:nth-child(2) { width: 45px; }  /* 税率 */
-        .table-container th:nth-child(3) { width: 40px; }  /* 个税 */
-        .table-container th:nth-child(4) { width: 50px; }  /* 累计个税 */
-        .table-container th:nth-child(5) { width: 50px; }  /* 实际到 */
-        .table-container th:nth-child(6) { width: 50px; }  /* 累计到手 */
-
-        /* 数字对齐 */
-        .table-container td:not(:first-child),
-        .table-container th:not(:first-child) {
-            text-align: right;
-            padding-left: 2px; /* 减小左边距 */
-            padding-right: 2px; /* 减小右边距 */
-        }
-
-        /* 月份列中且紧凑 */
-        .table-container td:first-child,
-        .table-container th:first-child {
+            background: #f8fafc;
+            padding: 16px;
+            border-radius: var(--radius-sm);
             text-align: center;
-            padding: 2px;
+            border: 1px solid #f1f5f9;
         }
 
-        /* 移除表格容器的多余空间 */
-        .table-container {
-            overflow-x: auto;
-            margin: 8px 0;
-            padding: 0;
+        .summary-card.highlight {
+            background: var(--primary-light);
+            border-color: rgba(16, 185, 129, 0.2);
         }
 
-        /* 优化税率显示 */
-        .table-container td:nth-child(2) {
+        .summary-card .label {
             font-size: 12px;
+            color: var(--text-sub);
+            margin-bottom: 4px;
         }
 
-        /* 税率项目样式 */
-        .tax-rate-item {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            font-size: 12px;
-        }
-
-        /* 税率项目中的金额显示 */
-        .tax-rate-item span:first-child {
-            color: #333; /* 工资金额显示为正常颜色 */
-        }
-
-        /* 税率百分比显示 */
-        .tax-rate-item span:last-child {
-            color: #ff4444; /* 只有税率显示为红色 */
-            margin-left: 8px; /* 添加一些间距 */
-        }
-
-        /* 确保单独计税奖金行的样式正确 */
-        .bonus-row .tax-rate-item span:first-child {
-            color: #ff4444; /* 保持奖金行的金额为红色 */
-        }
-
-        /* 确保数字对齐 */
-        .table-container td:not(:first-child):not(:nth-child(2)) {
-            font-feature-settings: "tnum";
-            font-variant-numeric: tabular-nums;
-        }
-
-        /* 移动端适配 */
-        @media (max-width: 480px) {
-            .table-container table {
-                font-size: 12px; /* 在移动端进一步减小字体 */
-            }
-            
-            /* 在移动端进一步减小列宽 */
-            .table-container th:nth-child(1) { width: 18px; }
-            .table-container th:nth-child(2) { width: 40px; }
-            .table-container th:nth-child(3) { width: 35px; }
-            .table-container th:nth-child(4) { width: 45px; }
-            .table-container th:nth-child(5) { width: 45px; }
-            .table-container th:nth-child(6) { width: 45px; }
-        }
-
-        /* 优化滚动条样式 */
-        .table-container::-webkit-scrollbar {
-            height: 6px;
-        }
-
-        .table-container::-webkit-scrollbar-track {
-            background: #f1f1f1;
-        }
-
-        .table-container::-webkit-scrollbar-thumb {
-            background: #ccc;
-            border-radius: 3px;
-        }
-
-        .table-container::-webkit-scrollbar-thumb:hover {
-            background: #999;
-        }
-
-        /* 基础样式调整 */
-        :root {
-            --safe-area-inset-top: env(safe-area-inset-top);
-            --safe-area-inset-bottom: env(safe-area-inset-bottom);
-        }
-
-        body {
-            padding: calc(16px + var(--safe-area-inset-top)) 16px calc(16px + var(--safe-area-inset-bottom));
-            -webkit-touch-callout: none;
-            -webkit-user-select: none;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
-        }
-
-        /* 输入框样式优 */
-        .bonus-input {
-            font-size: 16px;
-            /* 防 iOS 自动缩放 */
-            height: 44px;
-            /* 更适合触摸的高度 */
-            border-radius: 8px;
-        }
-
-        /* 钮样式优化 */
-        .button {
-            min-height: 44px;
-            padding: 12px 24px;
-            touch-action: manipulation;
-        }
-
-        /* 移动端表格优化 */
-        @media (max-width: 768px) {
-            .table-container {
-                margin: 0 -16px;
-                padding: 0;
-                border-radius: 0;
-            }
-
-            .table-container table {
-                font-size: 12px;
-            }
-
-            .table-container th,
-            .table-container td {
-                padding: 8px 4px;
-            }
-        }
-
-        /* 添加触反馈 */
-        @media (hover: none) {
-            .button:active {
-                opacity: 0.7;
-                transform: scale(0.98);
-            }
-        }
-
-        /* 修改奖金输入的整容器样式 */
-        #bonusGrid,
-        .bonus-grid {
-            display: grid !important;
-            /* 使用 !important 确保覆盖其他样式 */
-            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)) !important;
-            /* 减小宽度，自动填充 */
-            gap: 6px !important;
-            /* 减小间距 */
-            margin: 6px !important;
-        }
-
-        /* 修改每个月份的容器样式 */
-        .bonus-month {
-            max-width: none !important;
-            width: 100% !important;
-            margin: 0 !important;
-        }
-
-        /* 修改月份标签样式 */
-        .bonus-month-label {
-            font-size: 12px !important;
-            /* 减小字体 */
-            margin-bottom: 2px !important;
-            /* 减小底部间距 */
-            color: #666 !important;
-        }
-
-        /* 修改输入框样式 */
-        .bonus-input {
-            width: 100% !important;
-            max-width: none !important;
-            height: 32px !important;
-            /* 减小高度 */
-            padding: 4px 20px 4px 4px !important;
-            /* 减小内边 */
-            font-size: 13px !important;
-            /* 减小字体 */
-            min-width: 0 !important;
-            /* 允许输入框小 */
-        }
-
-        /* 调整单位标签 */
-        .unit {
-            right: 4px !important;
-            font-size: 12px !important;
-        }
-
-        /* 移端适配 */
-        @media (max-width: 480px) {
-
-            #bonusGrid,
-            .bonus-grid {
-                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)) !important;
-                /* 在手机上进一步减小 */
-                gap: 4px !important;
-                padding: 4px !important;
-            }
-        }
-
-        /* 优键盘弹出时的布局 */
-        @media (max-height: 600px) {
-            .card {
-                margin-bottom: 8px;
-            }
-
-            h1 {
-                font-size: 20px;
-                margin-bottom: 16px;
-            }
-        }
-
-        .bonus-summary {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .bonus-month {
-            background: white;
-            border-radius: 12px;
-            padding: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .bonus-month-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .bonus-month-label {
-            color: var(--primary-color);
-            font-weight: 500;
-            font-size: 14px;
-        }
-
-        .remove-bonus {
-            background: none;
-            border: none;
-            color: #666;
-            padding: 4px;
-            cursor: pointer;
+        .summary-card .value {
             font-size: 18px;
+            font-weight: 700;
+            color: var(--text-main);
+            word-break: break-all;
         }
 
-        .remove-bonus:hover {
-            color: #ff4444;
+        .summary-card.highlight .value {
+            color: var(--primary-dark);
         }
 
-        /* 优化税率列的显示 */
-        .table-container td:nth-child(3) {
-            color: #1976D2;
-            font-weight: bold;
-            line-height: 1.4;
-            /* 增加行高 */
+        .summary-card .value.danger {
+            color: var(--danger);
         }
 
-        /* 使 flex 布局优化税率显示 */
-        .tax-rate {
-            display: flex;
-            flex-direction: column;
-            align-items: flex-end;
-            gap: 2px;
-            /* 增加间距 */
-        }
-
-        .tax-rate-item {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            font-size: 12px;
-            /* 减小字体 */
-            color: #ff4444;
-        }
-
-        .tax-rate-item span {
-            color: #ff4444;
-        }
-
-        /* 调整列宽比例 */
-        .table-container th:nth-child(1) {
-            width: 35px;
-        }
-
-        /* 月份 */
-        .table-container th:nth-child(2) {
-            width: 55px;
-        }
-
-        /* 税率 */
-        .table-container th:nth-child(3) {
-            width: 60px;
-        }
-
-        /* 个税 */
-        .table-container th:nth-child(4) {
-            width: 70px;
-        }
-
-        /* 累计个税 */
-        .table-container th:nth-child(5) {
-            width: 75px;
-        }
-
-        /* 实际到手 */
-        .table-container th:nth-child(6) {
-            width: 85px;
-        }
-
-        /* 累计到手 */
-
-        /* 修改奖金输入表格的样式 */
-        .bonus-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
-            margin-bottom: 16px;
-        }
-
-        /* 调整奖金卡片样式 */
-        .bonus-card {
-            background: white;
-            border-radius: 8px;
-            padding: 8px;
-            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
-        }
-
-        /* 调整月份标签样式 */
-        .bonus-month-label {
-            color: var(--primary-color);
-            font-size: 13px;
-            margin-bottom: 4px;
-        }
-
-        /* 调整输入框样式 */
-        .bonus-input {
-            width: 100%;
-            padding: 8px 24px 8px 8px;
-            font-size: 14px;
-            height: 36px;
-        }
-
-        /* 整单位标签位置 */
-        .unit {
-            right: 8px;
-            font-size: 12px;
-        }
-
-        /* 移动端特别优化 */
-        @media (max-width: 480px) {
-            .bonus-grid {
-                grid-template-columns: repeat(2, 1fr);
-                gap: 6px;
-            }
-
-            .bonus-card {
-                padding: 6px;
-            }
-        }
-
-        /* 修改奖金输入的整容器样式 */
-        #bonusGrid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            /* 强制2列布局 */
-            gap: 8px;
-            padding: 8px;
-        }
-
-        /* 修改每个月份的容器样式 */
-        .bonus-month {
-            background: white;
-            border-radius: 8px;
-            padding: 8px;
-            margin: 0;
-            /* 移外边距 */
-            width: auto;
-            /* 移除固定宽度 */
-        }
-
-        /* 修改输入框样式 */
-        .bonus-field {
-            position: relative;
-            width: 100%;
-        }
-
-        .bonus-input {
-            width: 100%;
-            height: 36px;
-            padding: 4px 24px 4px 8px;
-            font-size: 14px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            background: #f8f9fa;
-        }
-
-        /* 修改月份标签样式 */
-        .bonus-month-label {
-            font-size: 13px;
-            margin-bottom: 4px;
-            color: #666;
-        }
-
-        /* 单位样式 */
-        .unit {
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 12px;
-            color: #666;
-        }
-
-        /* 移动端适配 */
-        @media (max-width: 480px) {
-            #bonusGrid {
-                gap: 6px;
-                padding: 6px;
-            }
-
-            .bonus-month {
-                padding: 6px;
-            }
-        }
-
-        /* 统一所有奖金输入框的样式，包括已置和未设置的 */
-        .bonus-summary,
-        #bonusGrid,
-        .bonus-grid {
-            display: grid !important;
-            grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)) !important;
-            gap: 6px !important;
-            margin: 6px !important;
-        }
-
-        /* 统一所有月份容器样式 */
-        .bonus-month,
-        .bonus-card {
-            max-width: none !important;
-            width: 100% !important;
-            margin: 0 !important;
-            padding: 4px !important;
-        }
-
-        /* 统一月份标签样式 */
-        .bonus-month-label,
-        .month-label {
-            font-size: 12px !important;
-            margin-bottom: 2px !important;
-            color: #666 !important;
-        }
-
-        /* 统一所有输入框样式 */
-        .bonus-input,
-        .bonus-field input {
-            width: 100% !important;
-            max-width: none !important;
-            height: 32px !important;
-            padding: 4px 20px 4px 4px !important;
-            font-size: 13px !important;
-            min-width: 0 !important;
-        }
-
-        /* 统一单位标签样式 */
-        .unit {
-            right: 4px !important;
-            font-size: 12px !important;
-        }
-
-        /* 移动端适配 */
-        @media (max-width: 480px) {
-
-            .bonus-summary,
-            #bonusGrid,
-            .bonus-grid {
-                grid-template-columns: repeat(auto-fill, minmax(80px, 1fr)) !important;
-                gap: 4px !important;
-                padding: 4px !important;
-            }
-        }
-
-        /* 优化删除按钮样式 */
-        .remove-bonus {
-            position: absolute !important;
-            right: -4px !important;
-            top: -4px !important;
-            padding: 4px !important;
-            font-size: 12px !important;
-            background: none !important;
-            border: none !important;
-            color: #666 !important;
-        }
-
-        /* 修改基础工资部分的布局 */
-        .salary-row {
-            display: flex !important;
-            align-items: flex-start !important;
-            gap: 16px !important;
-            margin-bottom: 16px !important;
-        }
-
-        /* 调整资输入框容器的样式 */
-        .salary-row .input-group {
-            flex: 0 0 140px !important;
-            /* 固定宽度 */
-            margin: 0 !important;
-        }
-
-        /* 统一输入框样式 */
-        .input-field input,
-        .bonus-input {
-            width: 100%;
-            padding: 8px 32px 8px 12px;
-            font-size: 14px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            background: #f8f9fa;
-        }
-
-        /* 统一标签样式 */
-        .month-label,
-        .input-label {
-            color: #666;
-            font-size: 13px;
-            margin-bottom: 4px;
-        }
-
-        /* 调整更多按钮样式 */
-        .salary-row .toggle-button {
-            margin: 0 !important;
-            height: 36px !important;
-            padding: 0 16px !important;
-            font-size: 14px !important;
-            border-radius: 8px !important;
-            white-space: nowrap !important;
-            align-self: flex-end !important;
-            /* 与输入框底部齐 */
-            margin-bottom: 4px !important;
-            /* 微调对齐 */
-        }
-
-        /* 统一单位样式 */
-        .unit {
-            position: absolute;
-            right: 8px;
-            color: #666;
-            font-size: 13px;
-            pointer-events: none;
-        }
-
-        /* 一所有卡片样式 */
-        .bonus-card {
-            background: white;
-            border-radius: 12px;
-            padding: 12px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-        }
-
-        /* 调整工资输入行布局 */
-        .salary-row {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 16px;
-        }
-
-        .salary-row .bonus-card {
-            flex: 0 0 200px;
-            margin: 0;
-        }
-
-        /* 统一所有输入框样式 */
-        .bonus-field {
-            position: relative;
-            width: 100%;
-        }
-
-        .bonus-input {
-            width: 100%;
-            height: 36px;
-            padding: 8px 32px 8px 12px;
-            font-size: 14px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            background: #f8f9fa;
-        }
-
-        /* 统一标签样式 */
-        .month-label {
-            color: #666;
-            font-size: 13px;
-            margin-bottom: 4px;
-        }
-
-        /* 调整更多按钮样式 */
-        .toggle-button {
-            height: 36px;
-            padding: 0 16px;
-            background: #f8f9fa;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            color: #666;
-            font-size: 14px;
-            cursor: pointer;
-            white-space: nowrap;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* 统一位样 */
-        .unit {
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #666;
-            font-size: 13px;
-            pointer-events: none;
-        }
-
-        /* 移动端适配 */
-        @media (max-width: 480px) {
-            .salary-row {
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .salary-row .bonus-card {
-                width: 100%;
-                flex: none;
-            }
-
-            .toggle-button {
-                width: 100%;
-                margin-top: 0;
-            }
-        }
-
-        /* 调整工资输入行布局 */
-        .salary-row {
-            margin-bottom: 16px;
-        }
-
-        .salary-row .month-label {
-            color: #666;
-            font-size: 13px;
-            margin-bottom: 4px;
-        }
-
-        /* 输入框和按钮的装 */
-        .input-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        /* 输入框容器 */
-        .bonus-field {
-            position: relative;
-            flex: 0 0 200px;
-        }
-
-        /* 输入框样式 */
-        .bonus-input {
-            width: 100%;
-            height: 36px;
-            padding: 8px 32px 8px 12px;
-            font-size: 14px;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            background: #f8f9fa;
-        }
-
-        /* 更多按钮样式 */
-        .toggle-button {
-            height: 36px;
-            padding: 0 16px;
-            background: #f8f9fa;
-            border: 1px solid #e0e0e0;
-            border-radius: 8px;
-            color: #666;
-            font-size: 14px;
-            cursor: pointer;
-            white-space: nowrap;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        /* 单位样式 */
-        .unit {
-            position: absolute;
-            right: 8px;
-            top: 50%;
-            transform: translateY(-50%);
-            color: #666;
-            font-size: 13px;
-            pointer-events: none;
-        }
-
-        /* 动端适配 */
-        @media (max-width: 480px) {
-            .input-wrapper {
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .bonus-field {
-                width: 100%;
-                flex: none;
-            }
-
-            .toggle-button {
-                width: 100%;
-            }
-        }
-
-        /* 基础工资相关的所有元素都变红 */
-        .bonus-card .month-label.salary-label {
-            color: #ff4444 !important;
-        }
-
-        /* 基础工资输入框的文字颜色 */
-        .bonus-card .salary-input {
-            color: #ff4444 !important;
-        }
-
-        /* 基础工的单位颜色 */
-        .bonus-card .salary-unit {
-            color: #ff4444 !important;
-        }
-
-        /* 确保所有容器都不会有独立滚动 */
-        .card, 
-        #result,
+        /* 结果表格优化 */
         .table-container {
-            position: static;
-            overflow: visible;
-        }
-
-        /* 调整表格容器样式 */
-        .table-container {
-            margin: 16px 0;
-            width: 100%;
             overflow-x: auto;
-            overflow-y: visible;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: white;
         }
 
-        .bonus-actions {
-            display: flex;
-            align-items: center;
-            gap: 16px;
-            margin-top: 16px;
-        }
-
-        .select-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .select-wrapper label {
-            color: #666;
-            font-size: 14px;
-            margin: 0;
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
             white-space: nowrap;
         }
 
-        .select-wrapper select {
-            width: 100px;
-            padding: 10px 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 14px;
-            color: #333;
-            background: white;
-            cursor: pointer;
+        th {
+            background: #f9fafb;
+            color: var(--text-sub);
+            font-weight: 600;
+            padding: 12px 10px;
+            text-align: right;
+            border-bottom: 1px solid var(--border);
         }
 
-        /* 移动端适配 */
-        @media (max-width: 480px) {
-            .bonus-actions {
-                flex-wrap: wrap;
-                gap: 12px;
-            }
-            
-            .select-wrapper {
-                width: 100%;
-            }
-            
-            .select-wrapper select {
-                flex: 1;
-            }
+        td {
+            padding: 12px 10px;
+            text-align: right;
+            border-bottom: 1px solid #f3f4f6;
+            color: var(--text-main);
         }
 
-        /* 优化税率显示 */
-        .table-container td:nth-child(2) {
-            font-size: 12px;
+        /* 固定首列 */
+        th:first-child, td:first-child {
+            position: sticky;
+            left: 0;
+            background: inherit;
+            text-align: center;
+            font-weight: 500;
+            border-right: 1px solid #f3f4f6;
+            z-index: 2;
+        }
+        
+        tbody tr:nth-child(even) td:first-child { background: #fafafa; }
+        tbody tr:nth-child(odd) td:first-child { background: #fff; }
+
+        .bonus-row {
+            background-color: #eff6ff !important; /* Blue 50 */
+        }
+        .bonus-row td {
+            color: #1d4ed8;
+            font-weight: 500;
+        }
+        
+        /* 跨档位样式 */
+        .cross-bracket-row td {
+            background-color: #fffbeb !important; /* Amber 50 */
+        }
+        
+        .tax-details {
+            font-size: 11px;
+            color: var(--text-sub);
+            margin-top: 4px;
+        }
+        
+        .tax-segment {
+            white-space: nowrap;
         }
 
-        /* 税率项目样式 */
-        .tax-rate-item {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            font-size: 12px;
-        }
-
-        /* 税率项目中的金额显示 */
-        .tax-rate-item span:first-child {
-            color: #333; /* 工资金额显示为正常颜色 */
-        }
-
-        /* 税率百分比显示 */
-        .tax-rate-item span:last-child {
-            color: #ff4444; /* 只有税率显示为红色 */
-            margin-left: 8px; /* 添加一些间距 */
-        }
-
-        /* 确保单独计税奖金行的样式正确 */
-        .bonus-row .tax-rate-item span:first-child {
-            color: #ff4444; /* 保持奖金行的金额为红色 */
-        }
-
-        /* 添加帮助按钮和面板样式 */
-        .help-button {
-            position: fixed;
-            bottom: 70px;
-            right: 20px;
-            width: 36px;
-            height: 36px;
-            background: var(--primary-color);
+        .rate-badge {
+            display: inline-block;
+            background: var(--warning);
             color: white;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            cursor: pointer;
-            z-index: 100;
-            font-weight: bold;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        /* 换工作相关样式 */
+        .job-change-row td {
+            border-top: 2px solid var(--primary);
+            position: relative;
+        }
+        
+        .job-change-badge {
+            display: inline-block;
+            font-size: 10px;
+            color: white;
+            background: var(--primary);
+            padding: 1px 4px;
+            border-radius: 4px;
+            margin-top: 2px;
         }
 
-        .help-panel {
+        /* 模态框 */
+        .modal-overlay {
             position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            width: 90%;
-            max-width: 320px;
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4);
+            backdrop-filter: blur(2px);
             z-index: 1000;
-            padding: 0;
-            overflow: hidden;
+            display: none;
+            justify-content: center;
+            align-items: flex-end; /* Mobile bottom sheet style */
         }
 
-        .help-header {
-            background: var(--primary-color);
-            color: white;
-            padding: 10px 15px;
+        .modal-overlay.show {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
         }
 
-        .help-header h3 {
-            margin: 0;
-            font-size: 16px;
+        @media (min-width: 600px) {
+            .modal-overlay {
+                align-items: center;
+            }
+            .modal {
+                border-bottom-left-radius: var(--radius);
+                border-bottom-right-radius: var(--radius);
+                max-width: 400px;
+            }
         }
 
-        .close-help {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-        }
-
-        .help-content {
-            padding: 15px;
-            max-height: 70vh;
+        .modal {
+            background: white;
+            width: 100%;
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            padding: 24px;
+            animation: slideUp 0.3s ease-out;
+            max-height: 80vh;
             overflow-y: auto;
         }
 
-        .help-content p {
-            margin: 8px 0;
-            font-size: 14px;
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
         }
 
-        /* 添加输入提示样式 */
-        .input-hint {
-            color: #666;
-            font-size: 11px;
-            margin-top: 4px;
-            position: absolute;
-            bottom: -18px;
-            left: 0;
+        .modal-title {
+            font-size: 18px;
+            font-weight: 700;
         }
 
-        /* 优化输入框布局以容纳提示 */
-        .bonus-card {
-            position: relative;
-            margin-bottom: 10px;
-            padding-bottom: 10px !important;
+        .close-icon {
+            font-size: 24px;
+            color: var(--text-sub);
+            cursor: pointer;
+            padding: 4px;
         }
 
-        /* 添加工具提示样式 */
-        .tooltip {
-            cursor: help;
-            color: #666;
-            font-size: 12px;
+        .help-item {
+            margin-bottom: 16px;
+        }
+        .help-item dt {
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: var(--text-main);
+        }
+        .help-item dd {
+            font-size: 13px;
+            color: var(--text-sub);
+            line-height: 1.5;
         }
 
-        /* 二次按钮样式 */
-        .secondary-button {
-            background: #f0f0f0;
-            color: #333;
-            border: 1px solid #ddd;
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 14px;
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes slideUp {
+            from { transform: translateY(100%); }
+            to { transform: translateY(0); }
+        }
+        
+        .clear-btn {
+            font-size: 13px;
+            color: var(--danger);
+            background: none;
+            border: none;
+            padding: 8px;
+            width: 100%;
+            margin-top: 12px;
             cursor: pointer;
         }
-
-        .secondary-button:hover {
-            background: #e6e6e6;
-        }
-
-        /* 结果概要图表容器 */
-        .chart-container {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-            overflow: hidden;
-        }
-
-        /* 优化表单标签 */
-        .select-label {
-            color: #666;
+        
+        /* Toast提示样式 */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: white;
             font-size: 14px;
-            margin-right: 8px;
-            white-space: nowrap;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: toastSlideUp 0.3s ease-out;
+            max-width: 90%;
+            text-align: center;
         }
-
-        /* 调整输入和标签间距 */
-        .month-label {
-            display: flex;
-            align-items: center;
-            gap: 4px;
+        
+        .toast.success {
+            background-color: var(--primary);
+        }
+        
+        .toast.error {
+            background-color: var(--danger);
+        }
+        
+        .toast.warning {
+            background-color: var(--warning);
+        }
+        
+        .toast.info {
+            background-color: #3b82f6;
+        }
+        
+        @keyframes toastSlideUp {
+            from {
+                opacity: 0;
+                transform: translateX(-50%) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(-50%) translateY(0);
+            }
         }
     </style>
 </head>
-
 <body>
-    <h1>个税计算器</h1>
 
-    <!-- 添加帮助提示按钮和帮助面板 -->
-    <div class="help-button" id="helpButton" aria-label="帮助说明">
-        <i class="help-icon">?</i>
+    <div class="header">
+        <div class="header-top">
+            <h1>个税计算器</h1>
+            <button class="help-btn" onclick="app.showHelp()">说明</button>
+        </div>
+        <p style="font-size: 13px; opacity: 0.9;">2024版 · 累计预扣预缴法</p>
     </div>
 
-    <div class="help-panel" id="helpPanel" style="display: none;">
-        <div class="help-header">
-            <h3>个税计算器使用说明</h3>
-            <button class="close-help" id="closeHelp">×</button>
-        </div>
-        <div class="help-content">
-            <p><strong>基础工资：</strong>每月税前工资收入</p>
-            <p><strong>专项扣除：</strong>包括"三险一金"之外的专项附加扣除，如子女教育、住房贷款利息等</p>
-            <p><strong>社保基数：</strong>缴纳社保的基数，通常以本地平均工资为参考</p>
-            <p><strong>公积金基数：</strong>缴纳公积金的基数，一般为税前工资，可能有上限</p>
-            <p><strong>奖金单独计税：</strong>年终奖可选择单独计税，适用于年终奖等一次性奖金</p>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="input-section">
-            <div class="bonus-grid">
+    <div class="container">
+        <!-- 收入配置卡片 -->
+        <div class="card">
+            <h2 class="card-title">收入与扣除</h2>
+            <div class="form-grid">
                 <!-- 基础工资 -->
-                <div class="bonus-card">
-                    <div class="month-label salary-label">基础工资</div>
-                    <div class="bonus-field">
-                        <input type="number" class="bonus-input salary-input" id="inputSalary"
-                            onchange="saveInput('inputSalary')" placeholder="月工资"
-                            aria-label="基础工资" min="0" max="1000000">
-                        <span class="unit salary-unit">元</span>
-                        <div class="input-hint">输入月税前工资</div>
+                <div class="input-group">
+                    <div class="label-row">
+                        <label class="input-label">基础月薪</label>
+                        <span class="input-hint-badge">税前</span>
                     </div>
+                    <div class="input-wrapper">
+                        <input type="number" id="baseSalary" class="input-field" placeholder="0" min="0" step="0.01" oninput="app.saveState(); app.validateInput('baseSalary')">
+                        <span class="input-unit">元</span>
+                    </div>
+                    <div class="input-error">请输入有效的月薪金额</div>
                 </div>
 
                 <!-- 专项扣除 -->
-                <div class="bonus-card">
-                    <div class="month-label">专项扣除 <span class="tooltip" title="包括子女教育、住房贷款利息、大病医疗等专项附加扣除">ⓘ</span></div>
-                    <div class="bonus-field">
-                        <input type="number" class="bonus-input" id="taxDeduction" onchange="saveInput('taxDeduction')"
-                            placeholder="1500" aria-label="专项扣除" min="0" max="100000">
-                        <span class="unit">元</span>
-                        <div class="input-hint">默认: 1500元</div>
+                <div class="input-group">
+                    <div class="label-row">
+                        <label class="input-label">专项附加扣除</label>
+                        <span class="input-hint-badge">每月</span>
                     </div>
+                    <div class="input-wrapper">
+                        <input type="number" id="specialDeduction" class="input-field" placeholder="0" value="1500" min="0" step="0.01" oninput="app.saveState(); app.validateInput('specialDeduction')">
+                        <span class="input-unit">元</span>
+                    </div>
+                    <div class="input-error">请输入有效的扣除金额</div>
                 </div>
+            </div>
+        </div>
 
+        <!-- 社保公积金卡片 -->
+        <div class="card">
+            <h2 class="card-title">五险一金</h2>
+            <div class="form-grid">
                 <!-- 社保基数 -->
-                <div class="bonus-card">
-                    <div class="month-label">社保基数 <span class="tooltip" title="缴纳社保的工资基数，通常有上下限">ⓘ</span></div>
-                    <div class="bonus-field">
-                        <input type="number" class="bonus-input" id="socialSecurityBase"
-                            onchange="saveInput('socialSecurityBase')" placeholder="5000"
-                            aria-label="社保基数" min="0" max="100000">
-                        <span class="unit">元</span>
-                        <div class="input-hint">默认: 5000元</div>
+                <div class="input-group">
+                    <div class="label-row">
+                        <label class="input-label">社保基数</label>
+                    </div>
+                    <div class="input-wrapper">
+                        <input type="number" id="socialBase" class="input-field" placeholder="0" value="5000" oninput="app.saveState()">
+                        <span class="input-unit">元</span>
                     </div>
                 </div>
 
                 <!-- 公积金基数 -->
-                <div class="bonus-card">
-                    <div class="month-label">公积金基数 <span class="tooltip" title="缴纳公积金的工资基数，留空则使用实际工资">ⓘ</span></div>
-                    <div class="bonus-field">
-                        <input type="number" class="bonus-input" id="housingFundBase"
-                            onchange="saveInput('housingFundBase')" placeholder="与工资相同"
-                            aria-label="公积金基数" min="0" max="100000">
-                        <span class="unit">元</span>
-                        <div class="input-hint">留空则使用工资</div>
+                <div class="input-group">
+                    <div class="label-row">
+                        <label class="input-label">公积金基数</label>
+                        <span class="input-hint-badge">可选</span>
+                    </div>
+                    <div class="input-wrapper">
+                        <input type="number" id="fundBase" class="input-field" placeholder="留空则同月薪" oninput="app.saveState()">
+                        <span class="input-unit">元</span>
                     </div>
                 </div>
 
                 <!-- 公积金比例 -->
-                <div class="bonus-card">
-                    <div class="month-label">公积金比例 <span class="tooltip" title="个人缴纳的公积金比例，通常为5-12%">ⓘ</span></div>
-                    <div class="bonus-field">
-                        <input type="number" class="bonus-input" id="housingFundRate"
-                            onchange="saveInput('housingFundRate')" placeholder="5"
-                            aria-label="公积金比例" min="0" max="20" step="0.1">
-                        <span class="unit">%</span>
-                        <div class="input-hint">默认: 5%</div>
+                <div class="input-group">
+                    <div class="label-row">
+                        <label class="input-label">公积金比例</label>
                     </div>
-                </div>
-
-                <!-- 年度总收入 -->
-                <div class="bonus-card" style="grid-column: span 2;">
-                    <div class="month-label">年度总收入（可选）<span class="tooltip" title="直接计算年度总税，不按月拆分">ⓘ</span></div>
-                    <div class="bonus-field">
-                        <input type="number" class="bonus-input" id="annualIncome" onchange="saveInput('annualIncome')"
-                            placeholder="可选填" aria-label="年度总收入" min="0" max="10000000">
-                        <span class="unit">元</span>
-                        <div class="input-hint">填写则直接计算年度总税</div>
+                    <div class="input-wrapper">
+                        <input type="number" id="fundRate" class="input-field" placeholder="5-12" value="5" oninput="app.saveState()">
+                        <span class="input-unit">%</span>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
 
-    <div class="card">
-        <button class="toggle-button" onclick="toggleBonusTable()" id="toggleBonusButton">
-            奖金设置
-        </button>
-        <div id="bonusTable" style="display: none;">
-            <div id="bonusGrid" class="bonus-grid">
-                <!-- 奖金输入框会动态生成到这里 -->
+        <!-- 奖金设置卡片 -->
+        <div class="card">
+            <div class="card-title" style="margin-bottom: 0; justify-content: space-between;">
+                <span>奖金设置</span>
             </div>
-            <div class="bonus-actions">
-                <div class="select-wrapper">
-                    <label for="singleBonusMonth" class="select-label">单独计税月份：<span class="tooltip" title="选择将哪个月份的奖金单独计税，通常用于年终奖">ⓘ</span></label>
-                    <select id="singleBonusMonth" onchange="saveInput('singleBonusMonth')" aria-label="单独计税月份">
-                        <option value="">不单独计税</option>
-                        <option value="1">1月</option>
-                        <option value="2">2月</option>
-                        <option value="3">3月</option>
-                        <option value="4">4月</option>
-                        <option value="5">5月</option>
-                        <option value="6">6月</option>
-                        <option value="7">7月</option>
-                        <option value="8">8月</option>
-                        <option value="9">9月</option>
-                        <option value="10">10月</option>
-                        <option value="11">11月</option>
-                        <option value="12">12月</option>
-                    </select>
-                </div>
-                <button class="secondary-button" onclick="clearAllBonuses()" id="clearBonusButton">
-                    清空所有奖金
+            
+            <div style="margin-top: 16px; display: flex; gap: 12px;">
+                <button id="toggleBonusBtn" class="bonus-toggle" onclick="app.toggleBonus()" style="flex:1;">
+                    <span id="bonusBtnText">展开奖金设置</span>
+                    <span id="bonusArrow">▼</span>
+                </button>
+                
+                <button id="toggleJobChangeBtn" class="bonus-toggle" onclick="app.toggleJobChange()" style="flex:1;">
+                    <span id="jobChangeBtnText">年度中间换工作?</span>
+                    <span id="jobChangeArrow">▼</span>
                 </button>
             </div>
+
+            <!-- 换工作设置区域 -->
+            <div id="jobChangeSection" class="bonus-section">
+                <div class="input-group">
+                    <label class="input-label" style="display:block;margin-bottom:8px;">选择入职新公司的月份</label>
+                    <div class="input-wrapper">
+                        <select id="jobChangeMonth" class="input-field" style="-webkit-appearance: none; background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%206l5%205%205-5%22%20stroke%3D%22%23999%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 10px center;" onchange="app.toggleNewCompanyInputs()">
+                            <option value="">无换工作</option>
+                            <option value="2">2月</option>
+                            <option value="3">3月</option>
+                            <option value="4">4月</option>
+                            <option value="5">5月</option>
+                            <option value="6">6月</option>
+                            <option value="7">7月</option>
+                            <option value="8">8月</option>
+                            <option value="9">9月</option>
+                            <option value="10">10月</option>
+                            <option value="11">11月</option>
+                            <option value="12">12月</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- 新公司薪资配置 -->
+                <div id="newCompanyInputs" style="display:none; margin-top:16px; border-top:1px dashed var(--border); padding-top:16px;">
+                    <div style="font-size:13px; font-weight:600; color:var(--primary); margin-bottom:12px;">新公司薪资待遇</div>
+                    <div class="form-grid">
+                        <!-- 基础工资 -->
+                        <div class="input-group">
+                            <label class="input-label">新月薪</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="newBaseSalary" class="input-field" placeholder="同原月薪" oninput="app.saveState()">
+                                <span class="input-unit">元</span>
+                            </div>
+                        </div>
+
+                        <!-- 社保基数 -->
+                        <div class="input-group">
+                            <label class="input-label">新社保基数</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="newSocialBase" class="input-field" placeholder="同原基数" oninput="app.saveState()">
+                                <span class="input-unit">元</span>
+                            </div>
+                        </div>
+
+                        <!-- 公积金基数 -->
+                        <div class="input-group">
+                            <label class="input-label">新公积金基数</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="newFundBase" class="input-field" placeholder="同原基数" oninput="app.saveState()">
+                                <span class="input-unit">元</span>
+                            </div>
+                        </div>
+                        
+                        <!-- 公积金比例 -->
+                        <div class="input-group">
+                            <label class="input-label">新公积金比例</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="newFundRate" class="input-field" placeholder="同原比例" oninput="app.saveState()">
+                                <span class="input-unit">%</span>
+                            </div>
+                        </div>
+                        
+                         <!-- 专项附加扣除 -->
+                        <div class="input-group">
+                            <label class="input-label">新专项扣除</label>
+                            <div class="input-wrapper">
+                                <input type="number" id="newSpecialDeduction" class="input-field" placeholder="同原扣除" oninput="app.saveState()">
+                                <span class="input-unit">元</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p style="font-size:12px;color:var(--text-sub);margin-top:12px;">* 未填写的项目将默认沿用旧公司标准</p>
+                </div>
+            </div>
+
+            <div id="bonusSection" class="bonus-section">
+                <div class="input-group" style="margin-bottom: 16px;">
+                    <label class="input-label" style="display:block;margin-bottom:8px;">年终奖单独计税月份</label>
+                    <div class="input-wrapper">
+                        <select id="bonusTaxMonth" class="input-field" style="-webkit-appearance: none; background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%206l5%205%205-5%22%20stroke%3D%22%23999%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 10px center;" onchange="app.saveState()">
+                            <option value="">不使用单独计税</option>
+                            <option value="1">1月</option>
+                            <option value="2">2月</option>
+                            <option value="3">3月</option>
+                            <option value="4">4月</option>
+                            <option value="5">5月</option>
+                            <option value="6">6月</option>
+                            <option value="7">7月</option>
+                            <option value="8">8月</option>
+                            <option value="9">9月</option>
+                            <option value="10">10月</option>
+                            <option value="11">11月</option>
+                            <option value="12">12月</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="bonus-grid" id="bonusInputs">
+                    <!-- JS动态生成 -->
+                </div>
+
+                <button class="clear-btn" onclick="app.clearBonuses()">清空所有奖金</button>
+            </div>
+        </div>
+
+        <button class="btn-main" onclick="app.calculate()">开始计算</button>
+
+        <!-- 结果展示 -->
+        <div id="resultSection" class="result-section">
+            <h2 style="font-size: 18px; margin: 24px 0 12px; font-weight: 700;">计算结果</h2>
+            
+            <div class="summary-cards">
+                <div class="summary-card highlight">
+                    <div class="label">全年实际到手</div>
+                    <div class="value" id="summaryActualIncome">0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">全年总纳税</div>
+                    <div class="value danger" id="summaryTotalTax">0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">税前总收入</div>
+                    <div class="value" id="summaryTotalIncome">0.00</div>
+                </div>
+                <div class="summary-card">
+                    <div class="label">五险一金总扣除</div>
+                    <div class="value" id="summaryInsurance">0.00</div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="resultTable">
+                    <thead>
+                        <tr>
+                            <th>月份</th>
+                            <th>实际到手</th>
+                            <th>个税</th>
+                            <th>应纳税额</th>
+                            <th>税率</th>
+                        </tr>
+                    </thead>
+                    <tbody id="resultBody">
+                        <!-- 结果填充区 -->
+                    </tbody>
+                </table>
+            </div>
+            
+            <p style="text-align: center; color: var(--text-sub); font-size: 12px; margin-top: 20px; padding-bottom: 20px;">
+                * 结果仅供参考，实际以税务局计算为准
+            </p>
         </div>
     </div>
 
-    <button class="button primary-button" onclick="calculate()" id="calculateButton">开始计算</button>
-
-    <!-- 移除结果摘要图表容器 -->
-    <div class="result-container" id="result">
-        <h2>计算结果</h2>
-        <div class="table-container">
-            <div id="resultTable">
-                <!-- 计算结果将显示在这里 -->
+    <!-- 帮助弹窗 -->
+    <div class="modal-overlay" id="helpModal" onclick="if(event.target === this) app.hideHelp()">
+        <div class="modal">
+            <div class="modal-header">
+                <div class="modal-title">使用说明</div>
+                <div class="close-icon" onclick="app.hideHelp()">×</div>
+            </div>
+            <div class="help-item">
+                <dt>基础月薪</dt>
+                <dd>您的每月固定税前工资。</dd>
+            </div>
+            <div class="help-item">
+                <dt>专项附加扣除</dt>
+                <dd>包括子女教育、继续教育、大病医疗、住房贷款利息、住房租金、赡养老人等扣除项总和。</dd>
+            </div>
+            <div class="help-item">
+                <dt>年终奖单独计税</dt>
+                <dd>根据国家政策，全年一次性奖金可以选择单独计算纳税，不并入当年综合所得（通常税率更低）。</dd>
+            </div>
+            <div class="help-item">
+                <dt>计算公式</dt>
+                <dd>应纳税所得额 = 累计收入 - 累计免税收入 - 累计减除费用(5000/月) - 累计专项扣除 - 累计专项附加扣除。</dd>
             </div>
         </div>
     </div>
 
     <script>
-        const taxBrackets = [
-            { threshold: 0, upperLimit: 36000, rate: 0.03, quickDeduction: 0 },
-            { threshold: 36000, upperLimit: 144000, rate: 0.1, quickDeduction: 2520 },
-            { threshold: 144000, upperLimit: 300000, rate: 0.2, quickDeduction: 16920 },
-            { threshold: 300000, upperLimit: 420000, rate: 0.25, quickDeduction: 31920 },
-            { threshold: 420000, upperLimit: 660000, rate: 0.3, quickDeduction: 52920 },
-            { threshold: 660000, upperLimit: 960000, rate: 0.35, quickDeduction: 85920 },
-            { threshold: 960000, upperLimit: Infinity, rate: 0.45, quickDeduction: 181920 }
-        ];
+        /**
+         * 个税计算器逻辑核心
+         * 保持原逻辑不变
+         */
+        const TaxCalculator = {
+            // 2024年个人所得税税率表（综合所得 - 年度）
+            brackets: [
+                { limit: 36000, rate: 0.03, deduction: 0 },
+                { limit: 144000, rate: 0.1, deduction: 2520 },
+                { limit: 300000, rate: 0.2, deduction: 16920 },
+                { limit: 420000, rate: 0.25, deduction: 31920 },
+                { limit: 660000, rate: 0.3, deduction: 52920 },
+                { limit: 960000, rate: 0.35, deduction: 85920 },
+                { limit: Infinity, rate: 0.45, deduction: 181920 }
+            ],
 
-        window.onload = function () {
-            // 先检查是否有已保存的奖金值
-            let hasBonus = false;
-            for (let month = 1; month <= 12; month++) {
-                const savedBonus = localStorage.getItem(`bonusM${month}`);
-                if (savedBonus && savedBonus !== '0') {
-                    hasBonus = true;
-                    break;
+            // 年终奖单独计税税率表（按月换算后的综合所得税率表）
+            // 注意：这里的limit是月均金额的上限，不是年度金额
+            bonusBrackets: [
+                { limit: 3000, rate: 0.03, deduction: 0 },
+                { limit: 12000, rate: 0.1, deduction: 210 },
+                { limit: 25000, rate: 0.2, deduction: 1410 },
+                { limit: 35000, rate: 0.25, deduction: 2660 },
+                { limit: 55000, rate: 0.3, deduction: 4410 },
+                { limit: 80000, rate: 0.35, deduction: 7160 },
+                { limit: Infinity, rate: 0.45, deduction: 15160 }
+            ],
+
+            // 社保比例配置 (仅供参考，实际各地区不同)
+            SOCIAL_RATE: 0.105,
+
+            // 计算单月个税（基于累计预扣预缴法）
+            calculate: function(config) {
+                const results = [];
+                let cumulativeIncome = 0; // 累计收入
+                let cumulativeDeduction = 0; // 累计减除费用
+                let cumulativeSpecial = 0; // 累计专项扣除
+                let cumulativeAdditional = 0; // 累计专项附加扣除
+                let cumulativeTaxPaid = 0; // 累计已缴纳税额
+
+                // 1. 计算五险一金 (初始状态)
+                // 计算社保和公积金详情 (用于汇总显示)
+                let currentSocialBase = config.socialBase;
+                let currentFundBase = config.fundBase || config.baseSalary;
+                let currentFundRate = config.fundRate;
+                let currentSpecialDeduction = config.specialDeduction;
+                let currentBaseSalary = config.baseSalary;
+
+                // 2. 遍历12个月
+                let prevTaxableIncome = 0; // 上月累计应纳税所得额
+
+                for (let month = 1; month <= 12; month++) {
+                    // 换工作逻辑：如果启用了换工作且当前月是换工作月份
+                    // 则重置累计值，重新开始计算，并更新参数
+                    if (config.isJobChange && config.jobChangeMonth == month) {
+                        cumulativeIncome = 0;
+                        cumulativeDeduction = 0;
+                        cumulativeSpecial = 0;
+                        cumulativeAdditional = 0;
+                        cumulativeTaxPaid = 0;
+                        prevTaxableIncome = 0;
+                        
+                        // 更新为新公司参数 (如果未填写则沿用旧参数)
+                        if (config.newBaseSalary) currentBaseSalary = config.newBaseSalary;
+                        if (config.newSocialBase) currentSocialBase = config.newSocialBase;
+                        if (config.newFundBase) currentFundBase = config.newFundBase;
+                        if (config.newFundRate) currentFundRate = config.newFundRate;
+                        if (config.newSpecialDeduction) currentSpecialDeduction = config.newSpecialDeduction;
+                    }
+
+                    // 计算当月五险一金
+                    const socialDetail = currentSocialBase * this.SOCIAL_RATE;
+                    const fundDetail = currentFundBase * (currentFundRate / 100);
+                    const monthlyInsurance = socialDetail + fundDetail;
+
+                    const isBonusTaxMonth = config.bonusTaxMonth == month;
+                    
+                    let currentBonus = parseFloat(config.bonuses[month] || 0);
+                    let bonusForComprehensive = currentBonus; // 并入综合所得
+                    let bonusForSeparate = 0; // 单独计税
+
+                    if (isBonusTaxMonth && currentBonus > 0) {
+                        bonusForSeparate = currentBonus;
+                        bonusForComprehensive = 0;
+                    }
+
+                    const monthIncome = currentBaseSalary + bonusForComprehensive;
+                    
+                    cumulativeIncome += monthIncome;
+                    cumulativeDeduction += 5000;
+                    cumulativeSpecial += monthlyInsurance;
+                    cumulativeAdditional += currentSpecialDeduction;
+
+                    const taxableIncome = Math.max(0, cumulativeIncome - cumulativeDeduction - cumulativeSpecial - cumulativeAdditional);
+
+                    // 计算跨档位详情
+                    const segmentDetails = this.getSegmentDetails(prevTaxableIncome, taxableIncome);
+                    
+                    // 更新上月累计值，供下月使用
+                    prevTaxableIncome = taxableIncome;
+
+                    const taxTotal = this.getTax(taxableIncome);
+                    const currentTax = Math.max(0, taxTotal - cumulativeTaxPaid); 
+                    
+                    // 修正浮点数精度问题
+                    const currentTaxFixed = Number(currentTax.toFixed(2));
+                    cumulativeTaxPaid += currentTaxFixed; // 使用修正后的当月税额累加
+
+                    const actualIncome = monthIncome - monthlyInsurance - currentTaxFixed;
+
+                    results.push({
+                        month,
+                        income: monthIncome,
+                        insurance: monthlyInsurance,
+                        socialDetail: socialDetail, // 社保部分
+                        fundDetail: fundDetail,     // 公积金部分
+                        taxableIncome,
+                        tax: currentTaxFixed,
+                        actual: Number(actualIncome.toFixed(2)), // 实际到手也保留两位
+                        rate: this.getRate(taxableIncome),
+                        isBonusMonth: isBonusTaxMonth,
+                        bonusSeparate: bonusForSeparate,
+                        segments: segmentDetails, // 纳税分段详情
+                        isJobChangeMonth: config.isJobChange && config.jobChangeMonth == month // 标记换工作月份
+                    });
                 }
-            }
+                return results;
+            },
 
-            // 如果有奖金，先显示奖金表格
-            const bonusTable = document.getElementById('bonusTable');
-            if (hasBonus) {
-                bonusTable.style.display = 'block';
-                document.getElementById('toggleBonusButton').classList.add('active');
-            } else {
-                bonusTable.style.display = 'none';
-            }
+            // 计算区间内的纳税分段详情
+            getSegmentDetails: function(startIncome, endIncome) {
+                if (endIncome <= startIncome) return [];
+                
+                const segments = [];
+                let currentLower = 0;
 
-            // 然后再生成表格内容
-            generateBonusTable();
-            loadInputs(['inputSalary', 'taxDeduction', 'socialSecurityBase', 'housingFundBase', 'housingFundRate', 'singleBonusMonth', 'annualIncome']);
-            updateBonusMonthOptions();
-            adjustScale();
-            
-            // 设置默认值（如果用户未输入）
-            setDefaultValues();
+                for (const bracket of this.brackets) {
+                    // 当前档位的区间 [currentLower, bracket.limit]
+                    // 纳税区间的交集 [startIncome, endIncome]
+                    
+                    // 计算重叠部分的下限和上限
+                    const overlapStart = Math.max(startIncome, currentLower);
+                    const overlapEnd = Math.min(endIncome, bracket.limit);
+                    
+                    if (overlapEnd > overlapStart) {
+                        const amount = overlapEnd - overlapStart;
+                        segments.push({
+                            rate: bracket.rate,
+                            amount: amount,
+                            tax: amount * bracket.rate
+                        });
+                    }
+                    
+                    if (bracket.limit >= endIncome) break;
+                    currentLower = bracket.limit;
+                }
+                
+                return segments;
+            },
+
+            // 计算年终奖的分段详情（用于显示各档位税额）
+            // 按照分段累进方式计算，展示各档位的税额分解
+            // 注意：虽然官方公式是总额×税率-速算扣除数，但这里按分段累进方式展示各档位税额
+            getBonusSegmentDetails: function(bonus) {
+                if (bonus <= 0) return [];
+                
+                const avg = bonus / 12; // 月均金额
+                const segments = [];
+                let currentLower = 0;
+                
+                // 按照月均金额的档位，将奖金总额分段计算
+                // 每个档位的年度上限 = 月均上限 × 12
+                for (const bracket of this.bonusBrackets) {
+                    // 当前档位的月均上限
+                    const monthlyUpper = bracket.limit;
+                    // 当前档位的年度上限（月均上限 × 12）
+                    const annualUpper = monthlyUpper * 12;
+                    
+                    // 计算当前档位应该计算的金额
+                    const segmentStart = Math.max(currentLower, 0);
+                    const segmentEnd = Math.min(annualUpper, bonus);
+                    
+                    if (segmentEnd > segmentStart) {
+                        const segmentAmount = segmentEnd - segmentStart;
+                        const segmentTax = segmentAmount * bracket.rate;
+                        
+                        segments.push({
+                            rate: bracket.rate,
+                            amount: segmentAmount,
+                            tax: segmentTax
+                        });
+                    }
+                    
+                    // 如果奖金总额已经在这个档位内，停止计算
+                    if (bonus <= annualUpper) break;
+                    
+                    currentLower = annualUpper;
+                }
+                
+                return segments;
+            },
+
+            // 计算单独计税奖金的税额
+            // 根据政策：将奖金除以12得到月均金额，查找对应税率和速算扣除数
+            // 应纳税额 = 奖金总额 × 适用税率 - 速算扣除数
+            calculateBonusTax: function(bonus) {
+                if (bonus <= 0) return { 
+                    tax: 0, 
+                    actual: 0, 
+                    rate: 0, 
+                    avgAmount: 0,
+                    bracket: null,
+                    segments: []
+                };
+                
+                // 将奖金除以12，得到月均金额
+                const avg = bonus / 12;
+                
+                // 使用年终奖专用税率表（按月换算后的综合所得税率表）
+                const bracket = this.bonusBrackets.find(b => avg <= b.limit);
+                
+                // 计算公式：应纳税额 = 全年一次性奖金 × 适用税率 - 速算扣除数
+                const tax = bonus * bracket.rate - bracket.deduction;
+                
+                // 计算分段详情（用于显示各档位税额）
+                const segments = this.getBonusSegmentDetails(bonus);
+                
+                return {
+                    tax: Math.max(0, tax),
+                    actual: bonus - tax,
+                    rate: bracket.rate,
+                    avgAmount: avg, // 月均金额
+                    bracket: bracket, // 档位信息
+                    segments: segments // 分段详情
+                };
+            },
+
+            getTax: function(income) {
+                if (income <= 0) return 0;
+                const bracket = this.brackets.find(b => income <= b.limit);
+                return income * bracket.rate - bracket.deduction;
+            },
+
+            getRate: function(income) {
+                if (income <= 0) return 0;
+                const bracket = this.brackets.find(b => income <= b.limit);
+                return bracket.rate;
+            }
         };
 
-        // 添加设置默认值的函数
-        function setDefaultValues() {
-            const defaultValues = [
-                { id: 'taxDeduction', value: 1500 },
-                { id: 'socialSecurityBase', value: 5000 },
-                { id: 'housingFundRate', value: 5 }
-            ];
+        /**
+         * 应用逻辑与UI控制
+         */
+        const app = {
+            state: {
+                baseSalary: '',
+                specialDeduction: 1500,
+                socialBase: 5000,
+                fundBase: '',
+                fundRate: 5,
+                bonusTaxMonth: '',
+                bonuses: {},
+                jobChangeMonth: '',
+                // 新公司参数
+                newBaseSalary: '',
+                newSocialBase: '',
+                newFundBase: '',
+                newFundRate: '',
+                newSpecialDeduction: ''
+            },
             
-            defaultValues.forEach(item => {
-                const element = document.getElementById(item.id);
-                if (element && element.value.trim() === '') {
-                    element.value = item.value;
-                    localStorage.setItem(item.id, item.value);
+            isBonusVisible: false,
+            isJobChangeVisible: false, // 新增：控制换工作区域显示
+
+            init: function() {
+                this.loadState();
+                this.renderBonusInputs();
+                this.restoreUI();
+            },
+
+            saveState: function() {
+                const getVal = (id) => {
+                    const el = document.getElementById(id);
+                    return el ? el.value : '';
+                };
+
+                this.state.baseSalary = Number(getVal('baseSalary'));
+                this.state.specialDeduction = Number(getVal('specialDeduction'));
+                this.state.socialBase = Number(getVal('socialBase'));
+                this.state.fundBase = Number(getVal('fundBase')) || '';
+                this.state.fundRate = Number(getVal('fundRate'));
+                this.state.bonusTaxMonth = getVal('bonusTaxMonth');
+                this.state.jobChangeMonth = getVal('jobChangeMonth');
+                
+                // 保存新公司参数
+                this.state.newBaseSalary = Number(getVal('newBaseSalary')) || '';
+                this.state.newSocialBase = Number(getVal('newSocialBase')) || '';
+                this.state.newFundBase = Number(getVal('newFundBase')) || '';
+                this.state.newFundRate = Number(getVal('newFundRate')) || '';
+                this.state.newSpecialDeduction = Number(getVal('newSpecialDeduction')) || '';
+
+                for(let i=1; i<=12; i++) {
+                    const val = getVal(`bonus_m${i}`);
+                    this.state.bonuses[i] = val ? Number(val) : 0;
                 }
-            });
-        }
 
-        let resizeTimeout;
-        window.addEventListener('resize', function () {
-            clearTimeout(resizeTimeout);
-            resizeTimeout = setTimeout(adjustScale, 100);
-        });
+                localStorage.setItem('tax_calculator_state', JSON.stringify(this.state));
+            },
 
-        function saveInput(id) {
-            const value = document.getElementById(id)?.value;
-            if (value !== undefined) {
-                localStorage.setItem(id, value);
-
-                // 如果是奖金输入框，检查是否需要显示奖金表格
-                if (id.startsWith('bonusM')) {
-                    const bonusTable = document.getElementById('bonusTable');
-                    if (value && value !== '0' && bonusTable.style.display === 'none') {
-                        bonusTable.style.display = 'block';
-                        document.getElementById('toggleBonusButton').classList.add('active');
+            loadState: function() {
+                const saved = localStorage.getItem('tax_calculator_state');
+                if (saved) {
+                    try {
+                        const parsed = JSON.parse(saved);
+                        this.state = { ...this.state, ...parsed };
+                    } catch (e) {
+                        console.error('Failed to load state', e);
                     }
                 }
-            }
-        }
+            },
 
-        function loadInputs(ids) {
-            const defaultValues = {
-                'taxDeduction': 1500,
-                'socialSecurityBase': 5000,
-                'housingFundBase': 0,
-                'housingFundRate': 5
-            };
+            restoreUI: function() {
+                const setVal = (id, val) => {
+                    const el = document.getElementById(id);
+                    if(el) el.value = val;
+                };
 
-            ids.forEach(id => {
-                const element = document.getElementById(id);
-                if (!element) return;
+                setVal('baseSalary', this.state.baseSalary || '');
+                setVal('specialDeduction', this.state.specialDeduction);
+                setVal('socialBase', this.state.socialBase);
+                setVal('fundBase', this.state.fundBase);
+                setVal('fundRate', this.state.fundRate);
+                setVal('bonusTaxMonth', this.state.bonusTaxMonth);
+                setVal('jobChangeMonth', this.state.jobChangeMonth); 
                 
-                // 获取保存的值，如果没有则使用默认值
-                const savedValue = localStorage.getItem(id);
+                // 恢复新公司参数
+                setVal('newBaseSalary', this.state.newBaseSalary);
+                setVal('newSocialBase', this.state.newSocialBase);
+                setVal('newFundBase', this.state.newFundBase);
+                setVal('newFundRate', this.state.newFundRate);
+                setVal('newSpecialDeduction', this.state.newSpecialDeduction);
                 
-                if (savedValue !== null && savedValue !== '') {
-                    element.value = savedValue;
-                } else if (defaultValues[id] !== undefined) {
-                    // 如果没有保存的值，但有默认值，则使用默认值
-                    element.value = defaultValues[id];
+                for(let i=1; i<=12; i++) {
+                    if(this.state.bonuses[i]) {
+                        setVal(`bonus_m${i}`, this.state.bonuses[i]);
+                    }
                 }
-            });
 
-            // 加载奖金数据
-            for (let month = 1; month <= 12; month++) {
-                const bonusInput = document.getElementById(`bonusM${month}`);
-                const savedBonus = localStorage.getItem(`bonusM${month}`);
-                if (savedBonus !== null && bonusInput) bonusInput.value = savedBonus;
-            }
-        }
-
-        function generateBonusTable() {
-            const bonusGrid = document.getElementById('bonusGrid');
-            bonusGrid.innerHTML = ''; // 清空现有内容
-
-            // 生成12个月的输入框
-            for (let month = 1; month <= 12; month++) {
-                const savedBonus = localStorage.getItem(`bonusM${month}`);
-                const hasBonus = savedBonus && parseFloat(savedBonus) > 0;
-                
-                const monthElement = document.createElement('div');
-                monthElement.className = 'bonus-month';
-                monthElement.id = `bonusMonth${month}`;
-
-                // 初始状态只显示有奖金的月份
-                monthElement.style.display = hasBonus ? 'block' : 'none';
-
-                monthElement.innerHTML = `
-                    <div class="bonus-month-header">
-                        <div class="bonus-month-label">${month}月奖金</div>
-                        ${hasBonus ? '<button class="remove-bonus" onclick="removeBonus(' + month + ')">×</button>' : ''}
-                    </div>
-                    <div class="bonus-field">
-                        <input type="number" 
-                            class="bonus-input"
-                            id="bonusM${month}" 
-                            value="${savedBonus || ''}"
-                            onchange="handleBonusChange(${month})"
-                            placeholder="">
-                        <span class="unit">元</span>
-                    </div>
-                `;
-
-                bonusGrid.appendChild(monthElement);
-            }
-        }
-
-        function handleBonusChange(month) {
-            const input = document.getElementById(`bonusM${month}`);
-            const value = input.value;
-            const monthElement = document.getElementById(`bonusMonth${month}`);
-
-            saveInput(`bonusM${month}`);
-
-            // 如果有值，确保显示并添加删除按钮
-            if (value && value !== '0') {
-                monthElement.style.display = 'block';
-                monthElement.querySelector('.bonus-month-header').innerHTML = `
-                    <div class="bonus-month-label">${month}月奖金</div>
-                    <button class="remove-bonus" onclick="removeBonus(${month})">×</button>
-                `;
-            }
-            
-            // 更新下拉选项
-            updateBonusMonthOptions();
-        }
-
-        function removeBonus(month) {
-            const input = document.getElementById(`bonusM${month}`);
-            const monthElement = document.getElementById(`bonusMonth${month}`);
-            input.value = '';
-            saveInput(`bonusM${month}`);
-
-            // 更新删除按钮
-            monthElement.querySelector('.bonus-month-header').innerHTML = `
-                <div class="bonus-month-label">${month}月奖金</div>
-            `;
-
-            // 如果奖金表格当前是折叠状态，则隐藏该月份
-            const bonusTable = document.getElementById('bonusTable');
-            if (bonusTable.style.display === 'none') {
-                monthElement.style.display = 'none';
-            }
-            
-            // 更新拉选项
-            updateBonusMonthOptions();
-        }
-
-        function toggleBonusTable() {
-            const bonusTable = document.getElementById('bonusTable');
-            const toggleButton = document.getElementById('toggleBonusButton');
-            const isHidden = bonusTable.style.display === 'none';
-            const bonusGrid = document.getElementById('bonusGrid');
-
-            if (isHidden) {
-                // 第一次点击：展开显示所有月份
-                bonusTable.style.display = 'block';
-                toggleButton.classList.add('active');
-                
-                // 显示所有月份
-                const monthElements = document.querySelectorAll('.bonus-month');
-                monthElements.forEach(element => {
-                    element.style.display = 'block';
-                });
-            } else {
-                // 二次点击：隐藏无奖金月份，保留有奖金月份的显示
-                bonusTable.style.display = 'none';
-                toggleButton.classList.remove('active');
-                
-                // 只显示有奖金的月份
-                const monthElements = document.querySelectorAll('.bonus-month');
-                monthElements.forEach(element => {
-                    const input = element.querySelector('input');
-                    const hasBonus = input.value && parseFloat(input.value) > 0;
-                    element.style.display = hasBonus ? 'block' : 'none';
-                });
-            }
-        }
-
-        // 添加更新下拉选项的函数
-        function updateBonusMonthOptions() {
-            const select = document.getElementById('singleBonusMonth');
-            const currentValue = select.value;
-            select.innerHTML = '<option value="">不单独计税</option>';
-            
-            // 遍历所有月份，只添加有奖金的月份
-            for (let month = 1; month <= 12; month++) {
-                const bonusValue = localStorage.getItem(`bonusM${month}`);
-                if (bonusValue && parseFloat(bonusValue) > 0) {
-                    const option = document.createElement('option');
-                    option.value = month;
-                    option.textContent = `${month}月`;
-                    select.appendChild(option);
+                const hasBonus = Object.values(this.state.bonuses).some(v => v > 0);
+                if (hasBonus) {
+                    this.isBonusVisible = true;
+                    this.updateBonusUI();
                 }
-            }
-            
-            // 如果之前选中的月份仍然有效，则保持选中
-            if (currentValue && select.querySelector(`option[value="${currentValue}"]`)) {
-                select.value = currentValue;
-            }
-        }
 
-        function calculateMonthlyTax(cumulativeIncome) {
-            let tax = 0;
-            for (let i = taxBrackets.length - 1; i >= 0; i--) {
-                if (cumulativeIncome > taxBrackets[i].threshold) {
-                    tax = cumulativeIncome * taxBrackets[i].rate - taxBrackets[i].quickDeduction;
-                    break;
+                if (this.state.jobChangeMonth) {
+                    this.isJobChangeVisible = true;
+                    this.updateJobChangeUI();
+                    this.toggleNewCompanyInputs(); // 确保新公司输入框显示状态正确
                 }
-            }
-            return tax;
-        }
+            },
 
-        function calculateCumulativeTax(cumulativeIncome) {
-            let tax = 0;
-            for (let i = taxBrackets.length - 1; i >= 0; i--) {
-                if (cumulativeIncome > taxBrackets[i].threshold) {
-                    tax = cumulativeIncome * taxBrackets[i].rate - taxBrackets[i].quickDeduction;
-                    break;
+            renderBonusInputs: function() {
+                const container = document.getElementById('bonusInputs');
+                let html = '';
+                for (let i = 1; i <= 12; i++) {
+                    html += `
+                        <div class="bonus-item">
+                            <label>${i}月</label>
+                            <input type="number" id="bonus_m${i}" class="input-field" placeholder="0" oninput="app.saveState()">
+                        </div>
+                    `;
                 }
-            }
-            return tax;
-        }
+                container.innerHTML = html;
+            },
 
-        function calculate() {
-            // 添加输入验证
-            if (!validateInputs()) {
-                return;
-            }
+            toggleBonus: function() {
+                this.isBonusVisible = !this.isBonusVisible;
+                this.updateBonusUI();
+            },
             
-            const annualIncome = getValue('annualIncome', 0);
-            if (annualIncome > 0) {
-                calculateAnnualTax(annualIncome);
-                return;
-            }
+            toggleJobChange: function() {
+                this.isJobChangeVisible = !this.isJobChangeVisible;
+                this.updateJobChangeUI();
+            },
 
-            const monthlySalary = getValue('inputSalary', 0);
-            if (monthlySalary === 0) {
-                document.getElementById('resultTable').innerHTML = "请输入有效的月工资数值";
-                return;
-            }
+            updateBonusUI: function() {
+                const section = document.getElementById('bonusSection');
+                const btnText = document.getElementById('bonusBtnText');
+                const arrow = document.getElementById('bonusArrow');
 
-            const taxDeduction = getValue('taxDeduction', 1500);
-            // 修正社保计算逻辑，使用更准确的计算方式
-            const socialSecurityBase = getValue('socialSecurityBase', 5000);
-            // 假设社保比例为10.5%（这里可以根据实际情况调整）
-            const socialSecurityRate = 0.105;
-            const socialSecurity = Math.round(socialSecurityBase * socialSecurityRate * 100) / 100;
-            
-            // 修正公积金基数处理
-            const housingFundBase = getValue('housingFundBase', 0) || monthlySalary;
-            const housingFundRate = getValue('housingFundRate', 5);
-            const housingFund = Math.round(housingFundBase * housingFundRate / 100 * 100) / 100;
+                if (this.isBonusVisible) {
+                    section.classList.add('show');
+                    btnText.textContent = '收起奖金设置';
+                    arrow.style.transform = 'rotate(180deg)';
+                } else {
+                    section.classList.remove('show');
+                    btnText.textContent = '展开奖金设置';
+                    arrow.style.transform = 'rotate(0deg)';
+                }
+            },
 
-            // 计算年度总收入（包含奖金）
-            const totalBonus = Array.from({ length: 12 }, (_, i) => getValue(`bonusM${i + 1}`, 0))
-                .reduce((sum, bonus) => sum + bonus, 0);
-            const annualPreTax = monthlySalary * 12 + totalBonus;
+            updateJobChangeUI: function() {
+                const section = document.getElementById('jobChangeSection');
+                const btnText = document.getElementById('jobChangeBtnText');
+                const arrow = document.getElementById('jobChangeArrow');
 
-            let resultHTML = `
-                <div class="bonus-grid">
-                    <div class="bonus-card">
-                        <div class="month-label">全年税前总</div>
-                        <div class="bonus-field">
-                            <input type="text" class="bonus-input" value="${formatNumber(annualPreTax)}" readonly>
-                            <span class="unit">元</span>
-                        </div>
-                    </div>
+                if (this.isJobChangeVisible) {
+                    section.classList.add('show');
+                    btnText.textContent = '收起换工作设置';
+                    arrow.style.transform = 'rotate(180deg)';
+                } else {
+                    section.classList.remove('show');
+                    btnText.textContent = '年度中间换工作?';
+                    arrow.style.transform = 'rotate(0deg)';
+                }
+            },
+
+            toggleNewCompanyInputs: function() {
+                const month = document.getElementById('jobChangeMonth').value;
+                const inputs = document.getElementById('newCompanyInputs');
+                this.saveState();
+                
+                if (month) {
+                    inputs.style.display = 'block';
+                    // 自动滚动到底部
+                    setTimeout(() => {
+                       inputs.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }, 100);
+                } else {
+                    inputs.style.display = 'none';
+                }
+            },
+
+            clearBonuses: function() {
+                for(let i=1; i<=12; i++) {
+                    const el = document.getElementById(`bonus_m${i}`);
+                    if(el) el.value = '';
+                    this.state.bonuses[i] = 0;
+                }
+                const elMonth = document.getElementById('bonusTaxMonth');
+                if(elMonth) elMonth.value = '';
+                this.state.bonusTaxMonth = '';
+                this.saveState();
+            },
+
+            calculate: function() {
+                if (!this.state.baseSalary && this.state.baseSalary !== 0) {
+                    this.showToast('请输入基础月薪', 'error');
+                    document.getElementById('baseSalary').focus();
+                    return;
+                }
+
+                const config = {
+                    baseSalary: Number(this.state.baseSalary),
+                    specialDeduction: Number(this.state.specialDeduction),
+                    socialBase: Number(this.state.socialBase),
+                    fundBase: Number(this.state.fundBase) || Number(this.state.baseSalary),
+                    fundRate: Number(this.state.fundRate),
+                    bonusTaxMonth: this.state.bonusTaxMonth,
+                    bonuses: this.state.bonuses,
+                    isJobChange: !!this.state.jobChangeMonth,
+                    jobChangeMonth: this.state.jobChangeMonth,
+                    // 新公司配置
+                    newBaseSalary: Number(this.state.newBaseSalary),
+                    newSocialBase: Number(this.state.newSocialBase),
+                    newFundBase: Number(this.state.newFundBase),
+                    newFundRate: Number(this.state.newFundRate),
+                    newSpecialDeduction: Number(this.state.newSpecialDeduction)
+                };
+
+                const monthlyResults = TaxCalculator.calculate(config);
+                
+                let totalIncome = 0;
+                let totalTax = 0;
+                let totalActual = 0;
+                let totalInsurance = 0;
+                let totalSocial = 0; // 社保总计
+                let totalFund = 0;   // 公积金总计
+
+                let tableHtml = '';
+
+                monthlyResults.forEach(res => {
+                    totalIncome += Number(res.income.toFixed(2));
+                    totalTax += Number(res.tax.toFixed(2));
+                    totalActual += Number(res.actual.toFixed(2));
+                    totalInsurance += Number(res.insurance.toFixed(2));
+                    totalSocial += Number(res.socialDetail.toFixed(2));
+                    totalFund += Number(res.fundDetail.toFixed(2));
+
+                    // 判断是否跨档位
+                    const isCrossBracket = res.segments && res.segments.length > 1;
+                    let rowClass = isCrossBracket ? 'cross-bracket-row' : '';
+                    if (res.isJobChangeMonth) rowClass += ' job-change-row'; // 标记换工作行
                     
-                    <div class="bonus-card">
-                        <div class="month-label">社保（月）</div>
-                        <div class="bonus-field">
-                            <input type="text" class="bonus-input" value="${formatNumber(socialSecurity)}" readonly>
-                            <span class="unit">元</span>
-                        </div>
-                    </div>
+                    // 构建税率显示
+                    let rateDisplay = '';
+                    let taxDetailDisplay = '';
                     
-                    <div class="bonus-card">
-                        <div class="month-label">公积金（月）</div>
-                        <div class="bonus-field">
-                            <input type="text" class="bonus-input" value="${formatNumber(housingFund)}" readonly>
-                            <span class="unit">元</span>
-                        </div>
-                    </div>
-                    
-                    <div class="bonus-card">
-                        <div class="month-label">公积金年度总和</div>
-                        <div class="bonus-field">
-                            <input type="text" class="bonus-input" value="${formatNumber(housingFund * 2 * 12)}" readonly>
-                            <span class="unit">元</span>
-                        </div>
-                    </div>
-                </div>
-
-                <table>
-                    <tr>
-                        <th>月份</th>
-                        <th>税率</th>
-                        <th>个税</th>
-                        <th>累计个税</th>
-                        <th>实际到手</th>
-                        <th>累计到手</th>
-                    </tr>
-            `;
-
-            const bonuses = Array.from({ length: 12 }, (_, i) => getValue(`bonusM${i + 1}`, 0));
-            const singleBonusMonth = parseInt(document.getElementById('singleBonusMonth')?.value) || null;
-
-            let cumulativeTaxableIncome = 0;
-            let totalTax = 0;
-            let totalActualIncome = 0;
-            let previousCumulativeTax = 0;
-            
-            // 月度计算循环
-            for (let month = 1; month <= 12; month++) {
-                // 当月收入（包含非单独计税的奖金）
-                let currentMonthBonus = month === singleBonusMonth ? 0 : bonuses[month - 1];
-                let salary = monthlySalary + currentMonthBonus;
-                // 修正应纳税所得额计算
-                let incomeAfterDeductions = Math.max(salary - socialSecurity - housingFund - taxDeduction - 5000, 0);
-
-                let previousCumulativeTaxableIncome = cumulativeTaxableIncome;
-                cumulativeTaxableIncome += incomeAfterDeductions;
-
-                // 使用累进税率计算累计税额
-                let currentTax = calculateCumulativeTax(cumulativeTaxableIncome);
-                // 本月应纳税额 = 累计应纳税额 - 截止上月累计已纳税额
-                let currentMonthTax = Math.max(0, currentTax - previousCumulativeTax);
-                previousCumulativeTax = currentTax;
-
-                // 计算实发工资
-                const actualIncome = salary - socialSecurity - housingFund - currentMonthTax;
-                totalActualIncome += actualIncome;
-                totalTax += currentMonthTax;
-
-                // 获取适用税率区间
-                const applicableRates = getApplicableRates(previousCumulativeTaxableIncome, cumulativeTaxableIncome);
-
-                resultHTML += `
-                    <tr style="background-color: ${month % 2 === 0 ? '#F3F4F6' : '#FFFFFF'}">
-                        <td>${month}</td>
-                        <td>${applicableRates}</td>
-                        <td>${formatNumber(currentMonthTax)}</td>
-                        <td>${formatNumber(totalTax)}</td>
-                        <td>${formatNumber(actualIncome)}</td>
-                        <td>${formatNumber(totalActualIncome)}</td>
-                    </tr>
-                `;
-
-                // 如果是单独计税月份，添加奖金计算行
-                if (month === singleBonusMonth && bonuses[month - 1] > 0) {
-                    const bonusAmount = bonuses[month - 1];
-                    
-                    // 计算奖金除以12后适用的税率
-                    const monthlyAverage = bonusAmount / 12;
-                    
-                    // 确定适用税率和速算扣除数
-                    let applicableRate = 0;
-                    let quickDeduction = 0;
-                    for (let i = 0; i < taxBrackets.length; i++) {
-                        if (monthlyAverage > taxBrackets[i].threshold / 12) {
-                            applicableRate = taxBrackets[i].rate;
-                            quickDeduction = taxBrackets[i].quickDeduction / 12; // 修正：使用月度化速算扣除数
-                        }
+                    if (isCrossBracket) {
+                        // 跨档位显示
+                        const rates = res.segments.map(s => (s.rate * 100).toFixed(0) + '%');
+                        rateDisplay = `<span class="rate-badge">${rates.join(' ➔ ')}</span>`;
+                        
+                        const details = res.segments.map(s => 
+                            `<div class="tax-segment">${(s.rate*100).toFixed(0)}%档: ¥${this.formatMoney(s.tax)}</div>`
+                        ).join('');
+                        
+                        taxDetailDisplay = `
+                            <div>${this.formatMoney(res.tax)}</div>
+                            <div class="tax-details">${details}</div>
+                        `;
+                    } else {
+                        // 普通显示
+                        rateDisplay = (res.rate * 100).toFixed(0) + '%';
+                        taxDetailDisplay = this.formatMoney(res.tax);
                     }
                     
-                    // 修正：奖金的个税计算需要使用速算扣除数
-                    // 单独计税奖金 = 奖金金额 × 适用税率 - 速算扣除数
-                    const bonusTax = bonusAmount * applicableRate - quickDeduction * 12;
-                    const bonusActualIncome = bonusAmount - bonusTax;
-                    totalTax += bonusTax;
-                    totalActualIncome += bonusActualIncome;
+                    // 换工作提示
+                    let monthLabel = `${res.month}月`;
+                    if (res.isJobChangeMonth) {
+                        monthLabel += `<div class="job-change-badge">新入职</div>`;
+                    }
 
-                    resultHTML += `
-                        <tr class="bonus-row" style="
-                            background-color: #DBEAFE; 
-                            border-left: 4px solid #2563EB;
-                            font-weight: 500;
-                            color: #ff4444;
-                        ">
-                            <td style="color: #ff4444;">${month}</td>
-                            <td>
-                                <div style="
-                                    color: #ff4444;
-                                    font-weight: bold;
-                                    display: flex;
-                                    flex-direction: column;
-                                ">
-                                    <span style="font-size: 0.9em; margin-bottom: 2px;">单独计税奖金</span>
-                                    <div style="color: #ff4444;">
-                                        <div class="tax-rate-item">
-                                            <span style="color: #ff4444;">${formatNumber(bonusAmount)}</span>
-                                            <span style="color: #ff4444;">${(applicableRate * 100).toFixed(0)}%</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </td>
-                            <td style="color: #ff4444;">${formatNumber(Math.max(0, bonusTax))}</td>
-                            <td style="color: #ff4444;">${formatNumber(totalTax)}</td>
-                            <td style="color: #ff4444;">${formatNumber(bonusActualIncome)}</td>
-                            <td style="color: #ff4444;">${formatNumber(totalActualIncome)}</td>
+                    tableHtml += `
+                        <tr class="${rowClass}">
+                            <td>${monthLabel}</td>
+                            <td style="font-weight:600;color:var(--primary-dark)">${this.formatMoney(res.actual)}</td>
+                            <td>${taxDetailDisplay}</td>
+                            <td>${this.formatMoney(res.taxableIncome)}</td>
+                            <td>${rateDisplay}</td>
                         </tr>
                     `;
-                }
-            }
 
-            resultHTML += `</table>`;
-            document.getElementById('resultTable').innerHTML = resultHTML;
-            saveInput('singleBonusMonth');
-            adjustScale();
+                    if (res.bonusSeparate > 0) {
+                        const bonusRes = TaxCalculator.calculateBonusTax(res.bonusSeparate);
+                        totalIncome += res.bonusSeparate;
+                        totalTax += bonusRes.tax;
+                        totalActual += bonusRes.actual;
 
-            // 隐藏空白的奖金输入框
-            for (let month = 1; month <= 12; month++) {
-                const monthElement = document.getElementById(`bonusMonth${month}`);
-                if (monthElement) {
-                    const bonusInput = monthElement.querySelector('.bonus-input');
-                    if (bonusInput && (!bonusInput.value || bonusInput.value === '0')) {
-                        monthElement.style.display = 'none';
-                    }
-                }
-            }
-            
-            // 添加结果可视化图表
-            // renderResultChart(totalActualIncome, totalTax);
-            
-            // 显示结果区域并滚动到结果
-            document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function calculateAnnualTax(annualIncome) {
-            const taxDeduction = getValue('taxDeduction', 1500) * 12;
-            const socialSecurityBase = getValue('socialSecurityBase', 5000);
-            // 使用更准确的社保计算比例
-            const socialSecurityRate = 0.105;
-            const socialSecurity = Math.round(socialSecurityBase * socialSecurityRate * 12 * 100) / 100;
-            
-            // 修正公积金基数处理
-            const housingFundBase = getValue('housingFundBase', 0) || (annualIncome / 12);
-            const housingFundRate = getValue('housingFundRate', 5);
-            const housingFund = Math.round(housingFundBase * housingFundRate / 100 * 12 * 100) / 100;
-
-            // 计算应纳税所得额
-            const taxableIncome = Math.max(annualIncome - socialSecurity - housingFund - taxDeduction - 60000, 0);
-            const tax = calculateCumulativeTax(taxableIncome);
-            const actualIncome = annualIncome - socialSecurity - housingFund - tax;
-
-            let resultHTML = `
-                <div class="bonus-grid">
-                    <div class="bonus-card">
-                        <div class="month-label">全年税前总</div>
-                        <div class="bonus-field">
-                            <input type="text" class="bonus-input" value="${formatNumber(annualIncome)}" readonly>
-                            <span class="unit">元</span>
-                        </div>
-                    </div>
-                    
-                    <div class="bonus-card">
-                        <div class="month-label">社保总额</div>
-                        <div class="bonus-field">
-                            <input type="text" class="bonus-input" value="${formatNumber(socialSecurity)}" readonly>
-                            <span class="unit">元</span>
-                        </div>
-                    </div>
-                    
-                    <div class="bonus-card">
-                        <div class="month-label">公积金总额</div>
-                        <div class="bonus-field">
-                            <input type="text" class="bonus-input" value="${formatNumber(housingFund)}" readonly>
-                            <span class="unit">元</span>
-                        </div>
-                    </div>
-                    
-                    <div class="bonus-card">
-                        <div class="month-label">公积金年度总和</div>
-                        <div class="bonus-field">
-                            <input type="text" class="bonus-input" value="${formatNumber(housingFund * 2)}" readonly>
-                            <span class="unit">元</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <table>
-                    <tr>
-                        <th>应纳税所得额</th>
-                        <th>适用税率</th>
-                        <th>个税</th>
-                        <th>实际到手</th>
-                    </tr>
-                    <tr>
-                        <td>${formatNumber(taxableIncome)}</td>
-                        <td>${getApplicableRates(0, taxableIncome)}</td>
-                        <td>${formatNumber(tax)}</td>
-                        <td>${formatNumber(actualIncome)}</td>
-                    </tr>
-                </table>
-            `;
-
-            document.getElementById('resultTable').innerHTML = resultHTML;
-            adjustScale();
-            
-            // 添加结果可视化图表
-            // renderResultChart(actualIncome, tax);
-            
-            // 显示结果区域并滚动到结果
-            document.getElementById('result').scrollIntoView({ behavior: 'smooth' });
-        }
-
-        function getValue(id, defaultValue) {
-            const element = document.getElementById(id);
-            if (!element) return defaultValue;
-            
-            const value = element.value.trim();
-            if (value === '') return defaultValue;  // 如果用户没有输入，就使用默认值
-            
-            const numValue = parseFloat(value);
-            return isNaN(numValue) ? defaultValue : numValue;  // 如果输入不是有效数字，也使用默认值
-        }
-
-        function getApplicableRates(fromIncome, toIncome) {
-            let ratesInfo = [];
-            
-            // 处理精度问题
-            fromIncome = parseFloat(fromIncome.toFixed(2));
-            toIncome = parseFloat(toIncome.toFixed(2));
-            
-            // 如果收入相同，返回空的税率信息
-            if (fromIncome >= toIncome) {
-                return '<div class="tax-rate"></div>';
-            }
-
-            // 从低到高遍历税率表
-            for (let i = 0; i < taxBrackets.length; i++) {
-                const bracket = taxBrackets[i];
-                const nextThreshold = i < taxBrackets.length - 1 ? taxBrackets[i + 1].threshold : Infinity;
-                
-                // 如果当前收入超过了当前税率区间的起点
-                if (toIncome > bracket.threshold) {
-                    // 计算在当前税率区间中应纳税的收入部分
-                    const lowerBound = Math.max(fromIncome, bracket.threshold);
-                    const upperBound = Math.min(toIncome, nextThreshold);
-                    
-                    // 如果这个区间有应税收入
-                    if (upperBound > lowerBound) {
-                        const taxableAtThisRate = parseFloat((upperBound - lowerBound).toFixed(2));
+                        // 构建年终奖档位详情显示（格式与月度跨档位显示保持一致）
+                        let bonusTaxDetailDisplay = '';
+                        let bonusRateDisplay = '';
+                        let bonusRowClass = 'bonus-row';
+                        let isBonusCrossBracket = false;
                         
-                        // 避免显示非常小的数值（由于浮点数精度问题）
-                        if (taxableAtThisRate > 0.01) {
-                        ratesInfo.push(`
-                            <div class="tax-rate-item">
-                                <span>${formatNumber(taxableAtThisRate)}</span>
-                                    <span style="color: #ff4444;">${(bracket.rate * 100).toFixed(0)}%</span>
-                            </div>
-                        `);
+                        if (bonusRes.bracket && bonusRes.segments && bonusRes.segments.length > 0) {
+                            const bracketInfo = bonusRes.bracket;
+                            const segments = bonusRes.segments;
+                            
+                            // 判断是否跨档位（有多个分段）
+                            isBonusCrossBracket = segments.length > 1;
+                            
+                            // 构建详细的计算过程说明
+                            const ratePercent = (bonusRes.rate * 100).toFixed(0);
+                            const bracketIndex = TaxCalculator.bonusBrackets.findIndex(b => b === bracketInfo);
+                            const prevLimit = bracketIndex > 0 
+                                ? TaxCalculator.bonusBrackets[bracketIndex - 1].limit 
+                                : 0;
+                            
+                            // 构建档位范围显示
+                            let bracketRange = '';
+                            if (prevLimit > 0) {
+                                bracketRange = `¥${this.formatMoney(prevLimit)}-`;
+                            }
+                            if (bracketInfo.limit === Infinity) {
+                                bracketRange += '∞';
+                            } else {
+                                bracketRange += `¥${this.formatMoney(bracketInfo.limit)}`;
+                            }
+                            
+                            // 计算过程说明
+                            let calculationSteps = `
+                                <div class="tax-segment" style="color:var(--primary-dark);font-weight:600;">步骤1: 计算月均金额</div>
+                                <div class="tax-segment">月均 = ¥${this.formatMoney(res.bonusSeparate)} ÷ 12 = ¥${this.formatMoney(bonusRes.avgAmount)}</div>
+                                <div class="tax-segment" style="color:var(--primary-dark);font-weight:600;margin-top:6px;">步骤2: 查找税率和速算扣除数</div>
+                                <div class="tax-segment">月均¥${this.formatMoney(bonusRes.avgAmount)}落在${bracketRange}档位</div>
+                                <div class="tax-segment">适用税率: ${ratePercent}%，速算扣除数: ¥${this.formatMoney(bracketInfo.deduction)}</div>
+                                <div class="tax-segment" style="color:var(--primary-dark);font-weight:600;margin-top:6px;">步骤3: 计算各档位税额</div>
+                            `;
+                            
+                            if (isBonusCrossBracket) {
+                                // 跨档位显示：显示各个档位的税额
+                                bonusRowClass += ' cross-bracket-row';
+                                const rates = segments.map(s => (s.rate * 100).toFixed(0) + '%');
+                                bonusRateDisplay = `<span class="rate-badge">${rates.join(' ➔ ')}</span>`;
+                                
+                                const details = segments.map(s => 
+                                    `<div class="tax-segment">${(s.rate*100).toFixed(0)}%档(¥${this.formatMoney(s.amount)}): ¥${this.formatMoney(s.tax)}</div>`
+                                ).join('');
+                                
+                                // 计算总额验证
+                                const totalSegmentTax = segments.reduce((sum, s) => sum + s.tax, 0);
+                                const verification = Math.abs(totalSegmentTax - bonusRes.tax) < 0.01 
+                                    ? '' 
+                                    : `<div class="tax-segment" style="color:var(--text-sub);font-size:10px;">* 分段合计: ¥${this.formatMoney(totalSegmentTax)}，速算公式: ¥${this.formatMoney(bonusRes.tax)}</div>`;
+                                
+                                bonusTaxDetailDisplay = `
+                                    <div>${this.formatMoney(bonusRes.tax)}</div>
+                                    <div class="tax-details">
+                                        ${calculationSteps}
+                                        ${details}
+                                        <div class="tax-segment" style="color:var(--primary-dark);font-weight:600;margin-top:6px;">合计税额: ¥${this.formatMoney(bonusRes.tax)}</div>
+                                        ${verification}
+                                    </div>
+                                `;
+                            } else {
+                                // 单档位显示
+                                bonusRateDisplay = `<span class="rate-badge">${ratePercent}%</span>`;
+                                
+                                bonusTaxDetailDisplay = `
+                                    <div>${this.formatMoney(bonusRes.tax)}</div>
+                                    <div class="tax-details">
+                                        ${calculationSteps}
+                                        <div class="tax-segment">${ratePercent}%档: ¥${this.formatMoney(bonusRes.tax)}</div>
+                                        <div class="tax-segment" style="color:var(--text-sub);font-size:10px;">计算: ¥${this.formatMoney(res.bonusSeparate)} × ${ratePercent}% - ¥${this.formatMoney(bracketInfo.deduction)} = ¥${this.formatMoney(bonusRes.tax)}</div>
+                                    </div>
+                                `;
+                            }
+                        } else {
+                            bonusRateDisplay = (bonusRes.rate * 100).toFixed(0) + '%';
+                            bonusTaxDetailDisplay = this.formatMoney(bonusRes.tax);
                         }
-                    }
-                }
-            }
 
-            return `<div class="tax-rate">${ratesInfo.join('')}</div>`;
-        }
-
-        function formatNumber(num) {
-            // 处理精度问题，避免JS浮点数计算误差
-            num = parseFloat(num.toFixed(2));
-            
-            // 对于整数显示为整数，小数保留两位
-            return num % 1 === 0 ?
-                num.toLocaleString('zh-CN') :
-                num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        }
-
-        function adjustScale() {
-            const resultTable = document.getElementById('resultTable');
-            const container = document.querySelector('.table-container');
-
-            resultTable.style.transform = 'scale(1)';
-
-            const tableWidth = resultTable.scrollWidth;
-            const containerWidth = container.clientWidth;
-
-            if (tableWidth <= containerWidth) {
-                container.style.height = 'auto';
-                return;
-            }
-
-            let scale = containerWidth / tableWidth;
-            scale = Math.max(scale, 0.5);
-
-            resultTable.style.transform = `scale(${scale})`;
-            container.style.height = `${resultTable.offsetHeight * scale + 20}px`;
-        }
-
-        // 优化移动端输入体验
-        document.querySelectorAll('input[type="number"]').forEach(input => {
-            // 添加输入完成按钮
-            input.addEventListener('focus', function () {
-                if (!this.parentElement.querySelector('.done-button')) {
-                    const doneButton = document.createElement('button');
-                    doneButton.className = 'done-button';
-                    doneButton.textContent = '完成';
-                    doneButton.style.cssText = `
-                        position: fixed;
-                        right: 8px;
-                        bottom: 8px;
-                        z-index: 1000;
-                        padding: 8px 16px;
-                        background: #4CAF50;
-                        color: white;
-                        border: none;
-                        border-radius: 20px;
-                        font-size: 14px;
-                    `;
-                    doneButton.addEventListener('click', () => input.blur());
-                    document.body.appendChild(doneButton);
-                }
-            });
-
-            input.addEventListener('blur', function () {
-                const doneButton = document.querySelector('.done-button');
-                if (doneButton) doneButton.remove();
-            });
-        });
-
-        // 添加清空所有奖金的功能
-        function clearAllBonuses() {
-            for (let month = 1; month <= 12; month++) {
-                localStorage.removeItem(`bonusM${month}`);
-                const input = document.getElementById(`bonusM${month}`);
-                if (input) input.value = '';
-                
-                const monthElement = document.getElementById(`bonusMonth${month}`);
-                if (monthElement) {
-                    monthElement.style.display = 'none';
-                    const headerElement = monthElement.querySelector('.bonus-month-header');
-                    if (headerElement) {
-                        headerElement.innerHTML = `<div class="bonus-month-label">${month}月奖金</div>`;
-                    }
-                }
-            }
-            
-            // 更新单独计税月份选项
-            document.getElementById('singleBonusMonth').value = '';
-            localStorage.setItem('singleBonusMonth', '');
-            updateBonusMonthOptions();
-            
-            // 提供反馈
-            showToast('已清空所有奖金设置');
-        }
-
-        // 添加输入验证函数
-        function validateInputs() {
-            const salary = getValue('inputSalary', 0);
-            if (salary <= 0) {
-                showToast('请输入有效的月工资数值');
-                document.getElementById('inputSalary').focus();
-                return false;
-            }
-            
-            // 验证所有数字输入是否为正数，先应用默认值再验证
-            const inputs = [
-                { id: 'taxDeduction', defaultValue: 1500, label: '专项附加扣除' },
-                { id: 'socialSecurityBase', defaultValue: 5000, label: '社保基数' },
-                { id: 'housingFundBase', defaultValue: 0, label: '公积金基数' },
-                { id: 'housingFundRate', defaultValue: 5, label: '公积金比例' }
-            ];
-            
-            for (const input of inputs) {
-                const element = document.getElementById(input.id);
-                if (element) {
-                    // 如果输入框为空，直接设置为默认值
-                    if (element.value.trim() === '') {
-                        element.value = input.defaultValue;
-                    } else {
-                        // 否则检查输入是否为有效数字
-                        const value = parseFloat(element.value);
-                        if (isNaN(value) || value < 0) {
-                            showToast(`${input.label}不能为负数`);
-                            element.focus();
-                            return false;
-                        }
-                    }
-                }
-            }
-            
-            return true;
-        }
-
-        // 添加提示消息功能
-        function showToast(message, duration = 3000) {
-            // 如果已有toast，先移除
-            const existingToast = document.getElementById('toast');
-            if (existingToast) {
-                document.body.removeChild(existingToast);
-            }
-            
-            // 创建新toast
-            const toast = document.createElement('div');
-            toast.id = 'toast';
-            toast.textContent = message;
-            toast.style.cssText = `
-                position: fixed;
-                bottom: 70px;
-                left: 50%;
-                transform: translateX(-50%);
-                background: rgba(0,0,0,0.7);
-                color: white;
-                padding: 10px 20px;
-                border-radius: 20px;
-                font-size: 14px;
-                z-index: 1000;
-                animation: fadeIn 0.3s, fadeOut 0.3s ${duration-300}ms;
-            `;
-            
-            // 添加动画样式
-            const style = document.createElement('style');
-            style.textContent = `
-                @keyframes fadeIn {
-                    from { opacity: 0; transform: translate(-50%, 20px); }
-                    to { opacity: 1; transform: translate(-50%, 0); }
-                }
-                @keyframes fadeOut {
-                    from { opacity: 1; transform: translate(-50%, 0); }
-                    to { opacity: 0; transform: translate(-50%, -20px); }
-                }
-            `;
-            document.head.appendChild(style);
-            
-            document.body.appendChild(toast);
-            setTimeout(() => {
-                if (document.body.contains(toast)) {
-                    document.body.removeChild(toast);
-                }
-            }, duration);
-        }
-
-        // 添加结果图表渲染函数
-        // function renderResultChart(totalActualIncome, totalTax) {
-        //     const chartContainer = document.getElementById('resultSummary');
-            
-        //     // 如果已有图表实例，销毁它
-        //     if (window.resultChart) {
-        //         window.resultChart.dispose();
-        //     }
-            
-        //     // 创建新图表
-        //     window.resultChart = echarts.init(chartContainer);
-            
-        //     const option = {
-        //         tooltip: {
-        //             trigger: 'item',
-        //             formatter: '{b}: {c} ({d}%)'
-        //         },
-        //         color: ['#4CAF50', '#FF5252'],
-        //         legend: {
-        //             orient: 'vertical',
-        //             left: 10,
-        //             top: 'center',
-        //             data: ['实际到手', '个人所得税']
-        //         },
-        //         series: [
-        //             {
-        //                 name: '收入分配',
-        //                 type: 'pie',
-        //                 radius: ['50%', '70%'],
-        //                 avoidLabelOverlap: false,
-        //                 itemStyle: {
-        //                     borderRadius: 10,
-        //                     borderColor: '#fff',
-        //                     borderWidth: 2
-        //                 },
-        //                 label: {
-        //                     show: false,
-        //                     position: 'center'
-        //                 },
-        //                 emphasis: {
-        //                     label: {
-        //                         show: true,
-        //                         fontSize: '18',
-        //                         fontWeight: 'bold'
-        //                     }
-        //                 },
-        //                 labelLine: {
-        //                     show: false
-        //                 },
-        //                 data: [
-        //                     { value: totalActualIncome, name: '实际到手' },
-        //                     { value: totalTax, name: '个人所得税' }
-        //                 ]
-        //             }
-        //         ]
-        //     };
-            
-        //     window.resultChart.setOption(option);
-        // }
-
-        // 添加工具提示和帮助面板功能
-        document.addEventListener('DOMContentLoaded', function() {
-            // 初始化工具提示
-            document.querySelectorAll('.tooltip').forEach(tooltip => {
-                tooltip.addEventListener('mouseenter', function(e) {
-                    const title = this.getAttribute('title');
-                    if (!title) return;
-                    
-                    // 移除title属性防止浏览器默认提示
-                    this.setAttribute('data-title', title);
-                    this.removeAttribute('title');
-                    
-                    // 创建自定义提示
-                    const tip = document.createElement('div');
-                    tip.className = 'custom-tooltip';
-                    tip.textContent = title;
-                    tip.style.cssText = `
-                        position: absolute;
-                        background: rgba(0,0,0,0.8);
-                        color: white;
-                        padding: 6px 10px;
-                        border-radius: 4px;
-                        font-size: 12px;
-                        z-index: 100;
-                        max-width: 200px;
-                        pointer-events: none;
-                    `;
-                    document.body.appendChild(tip);
-                    
-                    // 计算位置
-                    const rect = this.getBoundingClientRect();
-                    tip.style.left = rect.left + 'px';
-                    tip.style.top = (rect.bottom + 5) + 'px';
-                    
-                    this._tooltip = tip;
-                });
-                
-                tooltip.addEventListener('mouseleave', function() {
-                    if (this._tooltip) {
-                        document.body.removeChild(this._tooltip);
-                        this._tooltip = null;
-                        
-                        // 恢复title属性
-                        const title = this.getAttribute('data-title');
-                        if (title) {
-                            this.setAttribute('title', title);
-                            this.removeAttribute('data-title');
-                        }
+                        tableHtml += `
+                            <tr class="${bonusRowClass}">
+                                <td>年终奖</td>
+                                <td style="font-weight:600">${this.formatMoney(bonusRes.actual)}</td>
+                                <td>${bonusTaxDetailDisplay}</td>
+                                <td>${this.formatMoney(res.bonusSeparate)}</td>
+                                <td>${bonusRateDisplay}</td>
+                            </tr>
+                        `;
                     }
                 });
-            });
-            
-            // 设置帮助面板功能
-            const helpButton = document.getElementById('helpButton');
-            const helpPanel = document.getElementById('helpPanel');
-            const closeHelp = document.getElementById('closeHelp');
-            
-            helpButton.addEventListener('click', function() {
-                helpPanel.style.display = 'block';
-            });
-            
-            closeHelp.addEventListener('click', function() {
-                helpPanel.style.display = 'none';
-            });
-            
-            // 点击面板外部关闭
-            document.addEventListener('click', function(e) {
-                if (helpPanel.style.display === 'block' && 
-                    !helpPanel.contains(e.target) && 
-                    e.target !== helpButton) {
-                    helpPanel.style.display = 'none';
+
+                document.getElementById('summaryTotalIncome').textContent = this.formatMoney(totalIncome);
+                document.getElementById('summaryTotalTax').textContent = this.formatMoney(totalTax);
+                document.getElementById('summaryActualIncome').textContent = this.formatMoney(totalActual);
+                
+                // 更新五险一金汇总详情
+                document.getElementById('summaryInsurance').innerHTML = `
+                    <div>${this.formatMoney(totalInsurance)}</div>
+                    <div style="font-size:11px;color:var(--text-sub);margin-top:2px;">
+                        (社保 ${this.formatMoney(totalSocial)} + 公积金 ${this.formatMoney(totalFund)})
+                    </div>
+                `;
+                
+                document.getElementById('resultBody').innerHTML = tableHtml;
+                
+                const resultSection = document.getElementById('resultSection');
+                resultSection.classList.add('show');
+                
+                // 平滑滚动到结果区域
+                setTimeout(() => {
+                    resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }, 100);
+            },
+
+            formatMoney: function(num) {
+                // 如果是整数（小数部分为0），则不显示小数
+                if (Number.isInteger(num)) {
+                    return num.toLocaleString('zh-CN');
                 }
-            });
+                // 否则保留两位小数
+                return num.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            },
+
+            showHelp: function() {
+                document.getElementById('helpModal').classList.add('show');
+            },
             
-            // 移除图表相关的窗口大小调整监听
-            // window.addEventListener('resize', function() {
-            //     if (window.resultChart) {
-            //         window.resultChart.resize();
-            //     }
-            // });
+            hideHelp: function() {
+                document.getElementById('helpModal').classList.remove('show');
+            },
+            
+            showToast: function(message, type = 'info') {
+                // 移除已存在的toast
+                const existingToast = document.querySelector('.toast');
+                if (existingToast) {
+                    existingToast.remove();
+                }
+                
+                // 创建新的toast
+                const toast = document.createElement('div');
+                toast.className = `toast ${type}`;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                
+                // 3秒后自动移除
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateX(-50%) translateY(20px)';
+                    setTimeout(() => {
+                        if (toast.parentNode) {
+                            toast.parentNode.removeChild(toast);
+                        }
+                    }, 300);
+                }, 3000);
+            },
+            
+            validateInput: function(inputId) {
+                const input = document.getElementById(inputId);
+                const inputGroup = input.closest('.input-group');
+                const value = parseFloat(input.value);
+                
+                if (input.value && (isNaN(value) || value < 0)) {
+                    inputGroup.classList.add('error');
+                    return false;
+                } else {
+                    inputGroup.classList.remove('error');
+                    return true;
+                }
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            app.init();
         });
     </script>
 </body>
-
 </html>
