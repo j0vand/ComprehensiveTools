@@ -1,38 +1,38 @@
 /* 全局样式 */
 :root {
-    /* 主题颜色 */
-    --primary-color: #2e7d32;
-    --primary-light: #60ad5e;
-    --primary-dark: #005005;
-    --secondary-color: #455a64;
-    --secondary-light: #718792;
-    --secondary-dark: #1c313a;
+/* 主题颜色 */
+    --primary-color: #111827; /* 纯黑/深灰 */
+    --primary-light: #334155;
+    --primary-dark: #000000;
+    --secondary-color: #475569;
+    --secondary-light: #94a3b8;
+    --secondary-dark: #1e293b;
     --text-on-primary: #ffffff;
     --text-on-secondary: #ffffff;
     
     /* 内容颜色 */
-    --text-primary: #212121;
-    --text-secondary: #757575;
-    --divider-color: #bdbdbd;
-    --background-color: #f5f5f5;
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --divider-color: #cbd5e1;
+    --background-color: #f8fafc;
     --card-color: #ffffff;
-    --hover-color: #f1f8e9;
+    --hover-color: #f1f5f9;
     
-    /* 状态颜色 */
-    --success-color: #4caf50;
-    --warning-color: #ff9800;
-    --error-color: #f44336;
-    --info-color: #2196f3;
+    /* 状态颜色 (工业警示色) */
+    --success-color: #16a34a;
+    --warning-color: #f59e0b; /* 警示黄 */
+    --error-color: #dc2626;
+    --info-color: #2563eb;
     
-    /* 阴影 */
-    --shadow-light: 0 2px 5px rgba(0, 0, 0, 0.1);
-    --shadow-medium: 0 4px 8px rgba(0, 0, 0, 0.12);
-    --shadow-heavy: 0 8px 16px rgba(0, 0, 0, 0.15);
+    /* 阴影 - 移除，使用硬边框 */
+    --shadow-light: none;
+    --shadow-medium: none;
+    --shadow-heavy: none;
     
     /* 尺寸 */
     --header-height: 64px;
     --sidebar-width: 300px;
-    --border-radius: 8px;
+    --border-radius: 0px;
     --spacing-xs: 4px;
     --spacing-sm: 8px;
     --spacing-md: 16px;
@@ -40,7 +40,8 @@
     --spacing-xl: 32px;
     
     /* 字体 */
-    --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+    --font-family: 'DM Sans', 'Courier New', monospace, -apple-system, sans-serif;
+    --font-heading: 'Outfit', 'Courier New', monospace, sans-serif;
     --font-size-small: 0.875rem;
     --font-size-normal: 1rem;
     --font-size-medium: 1.125rem;
@@ -109,9 +110,12 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
     margin-bottom: var(--spacing-md);
-    font-weight: 500;
+    font-weight: 600;
+    font-family: var(--font-heading);
     line-height: 1.2;
     color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 a {
@@ -366,29 +370,35 @@ ul, ol {
     gap: var(--spacing-xs);
     padding: var(--spacing-sm) var(--spacing-md);
     border-radius: var(--border-radius);
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
     transition: all var(--transition-fast);
-    border: none;
+    border: 2px solid transparent;
     font-size: var(--font-size-normal);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .primary-button {
     background-color: var(--primary-color);
     color: var(--text-on-primary);
+    border-color: var(--primary-color);
 }
 
 .primary-button:hover {
     background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
 }
 
 .secondary-button {
-    background-color: var(--secondary-color);
-    color: var(--text-on-secondary);
+    background-color: transparent;
+    color: var(--text-primary);
+    border-color: var(--divider-color);
 }
 
 .secondary-button:hover {
-    background-color: var(--secondary-dark);
+    background-color: var(--hover-color);
+    border-color: var(--primary-color);
 }
 
 .small-button {
@@ -418,7 +428,8 @@ ul, ol {
     border-radius: var(--border-radius);
     padding: var(--spacing-md);
     margin-bottom: var(--spacing-lg);
-    box-shadow: var(--shadow-light);
+    border: 2px solid var(--divider-color);
+    box-shadow: none;
 }
 
 .sidebar-title {
@@ -867,7 +878,8 @@ ul, ol {
 .inventory-table-container {
     overflow-x: auto;
     border-radius: var(--border-radius);
-    box-shadow: var(--shadow-light);
+    border: 2px solid var(--divider-color);
+    box-shadow: none;
 }
 
 .inventory-table {
@@ -880,13 +892,16 @@ ul, ol {
 .inventory-table td {
     padding: var(--spacing-md);
     text-align: left;
-    border-bottom: 1px solid var(--divider-color);
+    border-bottom: 2px solid var(--divider-color);
 }
 
 .inventory-table th {
-    background-color: rgba(0, 0, 0, 0.02);
+    background-color: var(--primary-color);
     font-weight: 600;
-    color: var(--text-secondary);
+    color: var(--text-on-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-family: var(--font-heading);
 }
 
 .inventory-table tr:last-child td {
@@ -1013,14 +1028,14 @@ ul, ol {
     align-items: center;
     padding: var(--spacing-md);
     background-color: var(--card-color);
-    border: 1px solid var(--divider-color);
+    border: 2px solid var(--divider-color);
     border-radius: var(--border-radius);
     transition: all var(--transition-fast);
 }
 
 .shopping-list-item:hover {
     background-color: var(--hover-color);
-    border-color: var(--primary-light);
+    border-color: var(--primary-color);
 }
 
 .shopping-list-item.purchased {
@@ -1088,14 +1103,14 @@ ul, ol {
     align-items: center;
     padding: var(--spacing-md);
     background-color: var(--card-color);
-    border: 1px solid var(--divider-color);
+    border: 2px solid var(--divider-color);
     border-radius: var(--border-radius);
     transition: all var(--transition-fast);
 }
 
 .reminder-item:hover {
     background-color: var(--hover-color);
-    border-color: var(--primary-light);
+    border-color: var(--primary-color);
 }
 
 .reminder-item-name {

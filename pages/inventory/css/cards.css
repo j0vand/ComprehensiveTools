@@ -8,17 +8,18 @@
 .inventory-card {
     background-color: var(--card-color);
     border-radius: var(--border-radius);
-    box-shadow: var(--shadow-light);
+    border: 2px solid var(--divider-color);
+    box-shadow: none;
     padding: var(--spacing-md);
     transition: all var(--transition-normal);
     position: relative;
-    border-left: 4px solid var(--primary-color);
+    border-left: 6px solid var(--primary-color);
     display: flex;
     flex-direction: column;
 }
 
 .inventory-card:hover {
-    box-shadow: var(--shadow-medium);
+    border-color: var(--primary-color);
     transform: translateY(-2px);
 }
 
@@ -93,8 +94,9 @@
 }
 
 .card-spec {
-    background-color: rgba(0, 0, 0, 0.03);
-    border-radius: 16px;
+    background-color: var(--secondary-bg);
+    border: 1px solid var(--divider-color);
+    border-radius: 0;
     padding: 2px 10px;
     font-size: var(--font-size-small);
     display: flex;
@@ -180,11 +182,11 @@
 .card-action-button {
     width: 36px;
     height: 36px;
-    border-radius: 50%;
+    border-radius: 0;
+    border: 2px solid transparent;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: none;
     cursor: pointer;
     transition: all var(--transition-fast);
     font-size: 1.25rem;

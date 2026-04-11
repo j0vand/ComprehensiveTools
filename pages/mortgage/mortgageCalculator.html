@@ -4,54 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>房贷计算器</title>
+    <link rel="stylesheet" href="../../css/base.css">
+    <link rel="stylesheet" href="../pension-calculator/style.css">
     <style>
-        :root {
-            --primary-color: #4CAF50;
-            --secondary-color: #2196F3;
-            --background-color: #f5f5f5;
-            --card-background: #ffffff;
-            --text-color: #333333;
-            --border-color: #e0e0e0;
-            --shadow-color: rgba(0, 0, 0, 0.1);
-            --font-size-small: 14px;
-            --font-size-normal: 16px;
-            --font-size-large: 18px;
-        }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        }
-
+        /* 覆盖或补充 pension-calculator/style.css 中的样式 */
         body {
-            background-color: var(--background-color);
-            color: var(--text-color);
-            line-height: 1.6;
-            padding: 10px;
             max-width: 100vw;
             overflow-x: hidden;
-            padding-bottom: 60px;
-        }
-
-        .container {
-            padding: 10px;
-        }
-
-        .header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        .header h1 {
-            color: var(--primary-color);
-            font-size: var(--font-size-large);
-            margin-bottom: 10px;
-        }
-
-        .header p {
-            font-size: var(--font-size-small);
         }
 
         .calculator-container {
@@ -59,10 +18,10 @@
         }
 
         .input-card, .result-card {
-            background: var(--card-background);
-            border-radius: 8px;
-            padding: 15px;
-            box-shadow: 0 2px 10px var(--shadow-color);
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            padding: 20px;
+            border: 1px solid var(--border-color);
             margin-bottom: 20px;
         }
 
@@ -75,49 +34,21 @@
 
         .loan-type-button {
             flex: 1;
-            padding: 8px 5px;
-            border: none;
-            border-radius: 5px;
-            background: var(--background-color);
+            padding: 10px 5px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            background: var(--secondary-bg);
+            color: var(--text-main);
             cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: var(--font-size-small);
+            transition: all 0.2s ease;
+            font-size: 0.95rem;
+            font-weight: 500;
         }
 
         .loan-type-button.active {
             background: var(--primary-color);
             color: white;
-        }
-
-        .input-group {
-            margin-bottom: 15px;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 5px;
-            color: var(--text-color);
-            font-weight: 500;
-        }
-
-        .input-field {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid var(--border-color);
-            border-radius: 5px;
-            font-size: var(--font-size-normal);
-            height: 44px;
-        }
-
-        /* 移除输入框的上下微调按钮 */
-        .input-field::-webkit-outer-spin-button,
-        .input-field::-webkit-inner-spin-button {
-            -webkit-appearance: none;
-            margin: 0;
-        }
-
-        .input-field[type=number] {
-            -moz-appearance: textfield;
+            border-color: var(--primary-color);
         }
 
         .input-addon {
@@ -127,98 +58,108 @@
         .input-addon:after {
             content: attr(data-unit);
             position: absolute;
-            right: 10px;
+            right: 12px;
             top: 50%;
             transform: translateY(-50%);
-            color: #666;
+            color: var(--text-sub);
+            font-size: 0.9rem;
+            pointer-events: none;
         }
 
         .calculate-button {
             width: 100%;
-            padding: 12px;
+            padding: 15px;
             background: var(--primary-color);
             color: white;
             border: none;
-            border-radius: 5px;
-            font-size: 16px;
+            border-radius: 0;
+            font-size: 1rem;
+            font-weight: 600;
             cursor: pointer;
-            transition: background 0.3s ease;
+            transition: background 0.2s ease;
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
             margin: 0;
-            padding: 15px;
-            border-radius: 0;
             z-index: 1000;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
         }
 
         .calculate-button:hover {
-            background: #45a049;
+            background: var(--primary-hover);
         }
 
         .result-summary {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
+            gap: 12px;
             margin-bottom: 30px;
         }
 
         .result-item {
-            background: #f8f9fa;
-            padding: 10px;
-            border-radius: 8px;
+            background: var(--secondary-bg);
+            padding: 15px;
+            border-radius: var(--radius);
+            border: 1px solid var(--border-color);
             text-align: center;
         }
 
         .result-label {
-            font-size: var(--font-size-small);
-            color: #666;
+            font-size: 0.85rem;
+            color: var(--text-sub);
         }
 
         .result-value {
-            font-size: var(--font-size-normal);
+            font-size: 1.2rem;
             font-weight: bold;
             color: var(--primary-color);
             margin-top: 5px;
-        }
-
-        .repayment-schedule {
-            margin-top: 30px;
+            font-family: monospace;
         }
 
         .table-container {
             overflow-x: auto;
-            margin: 0 -15px;
+            margin: 0 -20px;
+            padding: 0 20px;
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
             margin-top: 10px;
-            font-size: var(--font-size-small);
+            font-size: 0.9rem;
         }
 
         th, td {
-            padding: 8px;
+            padding: 10px 8px;
             text-align: right;
             border-bottom: 1px solid var(--border-color);
+            color: var(--text-main);
         }
 
         th {
-            background: #f8f9fa;
+            background: var(--primary-color);
+            color: white;
             font-weight: 600;
             text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        tr:nth-child(even) {
+            background-color: var(--secondary-bg);
         }
 
         tr:hover {
-            background: #f5f5f5;
+            background-color: #e3f2fd;
         }
 
         .chart-container {
             margin-top: 30px;
             height: 250px;
-            margin: 15px -15px 0;
+            margin: 15px -20px 0;
+            padding: 0 20px;
         }
 
         .tab-container {
@@ -232,38 +173,45 @@
         }
 
         .tab-button {
-            padding: 8px 12px;
-            border: none;
-            border-radius: 5px;
-            background: var(--background-color);
+            padding: 10px 15px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            background: var(--secondary-bg);
+            color: var(--text-main);
             cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: var(--font-size-small);
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+            font-weight: 500;
         }
 
         .tab-button.active {
             background: var(--primary-color);
             color: white;
+            border-color: var(--primary-color);
         }
 
         @media (max-width: 768px) {
-            .calculator-container {
-                grid-template-columns: 1fr;
-            }
-
             .result-summary {
                 grid-template-columns: 1fr 1fr;
             }
+            
+            .input-card, .result-card {
+                padding: 15px;
+            }
+            
+            .table-container, .chart-container {
+                margin: 0 -15px;
+                padding: 0 15px;
+            }
         }
         
-        /* Toast提示样式 */
         .toast {
             position: fixed;
             bottom: 20px;
             left: 50%;
             transform: translateX(-50%);
             padding: 12px 24px;
-            border-radius: 8px;
+            border-radius: var(--radius-sm);
             color: white;
             font-size: 14px;
             z-index: 10000;

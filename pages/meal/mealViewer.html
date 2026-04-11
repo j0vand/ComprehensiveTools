@@ -4,21 +4,29 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>订餐安排查看器</title>
+    <link rel="stylesheet" href="../../css/base.css">
     <style>
         :root {
-            --primary-color: #4CAF50;
-            --background-color: #f5f5f5;
+            --primary-color: #3b82f6; /* 清爽的经典蓝 */
+            --primary-hover: #2563eb;
+            --background-color: #f3f4f6; /* 干净的浅灰 */
             --card-background: #ffffff;
-            --text-color: #333333;
-            --border-color: #e0e0e0;
+            --text-color: #1f2937;
+            --text-muted: #6b7280;
+            --border-color: #e5e7eb;
+            --radius-large: 16px;
+            --radius-sm: 8px;
+            --shadow-soft: 0 4px 15px rgba(0, 0, 0, 0.03);
+            --font-heading: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-family: var(--font-body);
             margin: 0;
             padding: 16px;
             background-color: var(--background-color);
             color: var(--text-color);
+            line-height: 1.6;
         }
 
         .container {
@@ -28,21 +36,40 @@
 
         .card {
             background: var(--card-background);
-            border-radius: 12px;
-            padding: 16px;
+            border-radius: var(--radius-large);
+            padding: 24px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-soft);
+            border: 1px solid #fff;
+        }
+
+        h2 {
+            font-family: var(--font-heading);
+            font-size: 1.5rem;
+            color: var(--primary-color);
             margin-bottom: 16px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border-bottom: 2px dashed var(--border-color);
+            padding-bottom: 8px;
         }
 
         .meal-input {
             width: 100%;
             height: 100px;
             margin-bottom: 16px;
-            padding: 12px;
+            padding: 12px 16px;
             border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 14px;
+            border-radius: var(--radius-sm);
+            font-size: 1rem;
+            font-family: var(--font-body);
             resize: vertical;
+            background-color: var(--card-background);
+            transition: all 0.2s ease;
+        }
+
+        .meal-input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
         }
 
         .button {
@@ -50,10 +77,18 @@
             color: white;
             border: none;
             padding: 12px 24px;
-            border-radius: 8px;
+            border-radius: 50px; /* 大圆角按钮 */
             cursor: pointer;
-            font-size: 16px;
+            font-size: 1rem;
+            font-weight: bold;
             width: 100%;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.2);
+        }
+
+        .button:hover {
+            background: var(--primary-hover);
+            transform: translateY(-1px);
         }
 
         .button:active {
@@ -63,63 +98,97 @@
         .meal-card {
             border-left: 4px solid var(--primary-color);
             margin-bottom: 12px;
-            padding: 12px;
+            padding: 12px 16px;
+            background: #f9fafb;
+            border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
             position: relative;
+            transition: transform 0.2s ease;
+        }
+
+        .meal-card:hover {
+            transform: translateX(4px);
         }
 
         .meal-date {
+            font-family: var(--font-heading);
             font-weight: bold;
             color: var(--primary-color);
             margin-bottom: 8px;
+            font-size: 1.1rem;
         }
 
         .meal-content {
-            font-size: 14px;
+            font-size: 0.95rem;
             line-height: 1.5;
+            color: var(--text-color);
         }
 
         .meal-number {
-            color: #ff4444;
+            color: #ef4444;
             font-weight: bold;
+            font-size: 1.2rem;
         }
 
         .today-meals {
-            background: #e8f5e9;
+            background: #fff;
+            border: 2px solid var(--border-color);
         }
 
         #todayMeals {
-            font-size: 16px;
+            font-size: 1rem;
             line-height: 1.6;
             margin-bottom: 20px;
         }
 
         .clear-button {
-            background: #ff4444;
-            margin-top: 8px;
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            margin-top: 12px;
+            box-shadow: none;
+        }
+
+        .clear-button:hover {
+            background: #fee2e2;
+            color: #ef4444;
+            border-color: #fca5a5;
         }
 
         .today-date {
-            font-size: 16px;
+            font-family: var(--font-heading);
+            font-size: 1.2rem;
             color: var(--primary-color);
             font-weight: bold;
             padding-bottom: 8px;
-            border-bottom: 1px solid #e0e0e0;
+            border-bottom: 1px dashed var(--border-color);
             margin-bottom: 12px;
         }
 
         .meal-item {
-            background: white;
-            border-radius: 8px;
-            padding: 12px;
+            background: #f9fafb;
+            border-radius: var(--radius-sm);
+            padding: 16px;
             margin: 8px 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid var(--border-color);
         }
 
         .meal-number {
-            color: #ff4444;
+            color: #ef4444;
             font-weight: bold;
             font-size: 24px;
             margin-right: 4px;
+            font-family: var(--font-heading);
+        }
+        
+        /* 覆盖内联样式 */
+        .owner-options span, .quick-add-section label {
+            color: var(--text-color) !important;
+        }
+        
+        .save-options .hint-box {
+            background-color: #f9fafb !important;
+            border-left: 3px solid var(--primary-color) !important;
+            color: var(--text-muted) !important;
         }
     </style>
 </head>
@@ -157,7 +226,7 @@
                     <input type="checkbox" id="saveForNextWeek">
                     保存为下周记录
                 </label>
-                <div style="margin-top: 8px; font-size: 12px; color: #666; background-color: #f0f8ff; padding: 8px; border-radius: 4px; border-left: 3px solid #1e90ff;">
+                <div class="hint-box" style="margin-top: 8px; font-size: 12px; padding: 12px; border-radius: var(--radius-sm);">
                     <b>提示:</b> 系统会自动将日期格式化为"月日-周几"形式，以保持记录的一致性。<br>
                     - 输入"周几"时，会保留原始日期，包括本周已过去的日期<br>
                     - 选择"保存为下周记录"时，日期将统一调整为下周对应日期（而非下下周）

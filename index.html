@@ -7,44 +7,48 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=DM+Sans:ital,wght@0,400;0,500;0,600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/base.css">
     <style>
         :root {
-            /* 字体 */
-            --font-heading: 'Outfit', sans-serif;
-            --font-body: 'DM Sans', -apple-system, sans-serif;
-            /* 色彩：清爽专业 / 青绿主色 */
-            --primary: #0d9488;
-            --primary-hover: #0f766e;
-            --bg: #f8f9f7;
-            --card-bg: #ffffff;
-            --text: #1a1d1a;
-            --text-muted: #5c615c;
-            --border: #e5e7e5;
-            --accent: #059669;
-            /* 阴影：双层层次 */
-            --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
-            --shadow-card-hover: 0 4px 12px rgba(13, 148, 136, 0.12), 0 2px 4px rgba(0, 0, 0, 0.06);
-            /* 圆角与留白 */
-            --radius: 12px;
-            --radius-icon: 10px;
-            --space-md: 24px;
-            --space-lg: 40px;
+            /* 主题覆盖 */
+            --bg-gradient: linear-gradient(135deg, #f8f9fa 0%, #e2e8f0 100%);
+            --card-bg: rgba(255, 255, 255, 0.7);
+            --card-border: rgba(255, 255, 255, 0.8);
+            --text-main: #1e293b;
+            --text-sub: #64748b;
+            --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.04);
+            --shadow-glass-hover: 0 12px 48px rgba(0, 0, 0, 0.08);
             --gap-grid: 20px;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
         body {
-            font-family: var(--font-body);
-            line-height: 1.6;
-            background: linear-gradient(180deg, #fafbf9 0%, var(--bg) 12%, var(--bg) 100%);
-            color: var(--text);
+            background: var(--bg-gradient);
+            color: var(--text-main);
             padding: var(--space-md);
             min-height: 100vh;
+            position: relative;
+            z-index: 0;
+            overflow-x: hidden;
+        }
+        
+        /* 添加背景极光装饰元素 */
+        body::before, body::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            z-index: -1;
+            opacity: 0.4;
+        }
+        body::before {
+            top: -10%; left: -10%;
+            width: 50vw; height: 50vw;
+            background: #cbd5e1;
+        }
+        body::after {
+            bottom: -10%; right: -10%;
+            width: 40vw; height: 40vw;
+            background: #e2e8f0;
         }
 
         .container {
@@ -52,27 +56,24 @@
             margin: 0 auto;
         }
 
-        /* 标题区：左对齐 + 主/副标题层级 + 装饰线 */
         .header {
-            text-align: left;
+            text-align: center;
             margin-bottom: var(--space-lg);
-            padding: 0 0 var(--space-md) 0;
-            border-bottom: 3px solid var(--primary);
+            padding: var(--space-lg) 0;
+            border-bottom: none;
         }
 
         .header h1 {
-            font-family: var(--font-heading);
-            font-weight: 700;
-            font-size: 2.25rem;
-            color: var(--text);
+            font-size: 2.5rem;
+            color: var(--text-main);
+            letter-spacing: -0.03em;
             margin-bottom: 8px;
-            letter-spacing: -0.02em;
         }
 
         .header p {
+            color: var(--text-sub);
+            font-size: 1.1rem;
             font-weight: 500;
-            font-size: 1rem;
-            color: var(--text-muted);
         }
 
         .tools-grid {
@@ -84,15 +85,18 @@
 
         .tool-card {
             background: var(--card-bg);
-            border-radius: var(--radius);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: var(--radius-md);
             padding: var(--space-md);
-            border: 1px solid var(--border);
-            box-shadow: var(--shadow-card);
-            transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.2s ease;
+            border: 1px solid var(--card-border);
+            box-shadow: var(--shadow-glass);
+            transition: all var(--transition-normal);
             cursor: pointer;
             text-decoration: none;
             color: inherit;
             animation: card-enter 0.45s ease-out backwards;
+            display: block;
         }
 
         .tool-card:nth-child(1)  { animation-delay: 0.02s; }
@@ -121,8 +125,8 @@
 
         .tool-card:hover {
             transform: translateY(-4px);
-            box-shadow: var(--shadow-card-hover);
-            border-color: rgba(13, 148, 136, 0.2);
+            box-shadow: var(--shadow-glass-hover);
+            background: rgba(255, 255, 255, 0.9);
         }
 
         .tool-card:hover .tool-icon {
@@ -132,27 +136,27 @@
         .tool-icon {
             width: 48px;
             height: 48px;
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-hover) 100%);
-            border-radius: var(--radius-icon);
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: var(--radius-sm);
             margin-bottom: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
             font-size: 24px;
-            transition: transform 0.25s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+            transition: transform var(--transition-fast);
         }
 
         .tool-title {
-            font-family: var(--font-heading);
             font-size: 1.2em;
             font-weight: 600;
             margin-bottom: 8px;
-            color: var(--text);
+            color: var(--text-main);
         }
 
         .tool-description {
-            color: var(--text-muted);
+            color: var(--text-sub);
             font-size: 0.95em;
             line-height: 1.5;
         }
@@ -182,6 +186,7 @@
 
             .header {
                 margin-bottom: var(--space-md);
+                padding: var(--space-md) 0;
             }
 
             .header h1 {

@@ -86,13 +86,13 @@
 }
 
 .type-duration {
-    background-color: rgba(13, 148, 136, 0.12);
-    color: var(--primary);
+    background-color: var(--accent-neon-dim);
+    color: var(--accent-neon);
 }
 
 .type-reps {
-    background-color: rgba(5, 150, 105, 0.12);
-    color: var(--success);
+    background-color: rgba(5, 150, 105, 0.2);
+    color: #34d399;
 }
 
 .exercise-card-details {

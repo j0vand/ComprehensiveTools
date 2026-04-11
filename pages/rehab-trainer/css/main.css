@@ -1,26 +1,30 @@
 /* 腰突康复训练 - 表现优化（与首页/出行清单设计一致） */
 :root {
-    --font-heading: 'Outfit', sans-serif;
-    --font-body: 'DM Sans', -apple-system, sans-serif;
-    --primary: #0d9488;
-    --primary-hover: #0f766e;
-    --primary-color: #0d9488;
-    --success-color: #059669;
-    --success: #059669;
-    --danger-color: #dc3545;
-    --danger: #dc3545;
-    --warning-color: #d97706;
-    --warning: #d97706;
-    --bg: #f8f9f7;
-    --light-bg: #f8f9f7;
-    --card-bg: #ffffff;
-    --text: #1a1d1a;
-    --text-muted: #5c615c;
-    --border-color: #e5e7e5;
-    --border: #e5e7e5;
-    --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06);
-    --shadow-card-hover: 0 4px 12px rgba(13, 148, 136, 0.12), 0 2px 4px rgba(0, 0, 0, 0.06);
-    --radius: 12px;
+    --bg-color: #0f172a; /* 深色背景 */
+    --card-bg: #1e293b;
+    --text-main: #f8fafc;
+    --text-sub: #94a3b8;
+    --accent-neon: #39ff14; /* 荧光绿 */
+    --accent-neon-dim: rgba(57, 255, 20, 0.2);
+    --border-color: #334155;
+    
+    --primary: var(--accent-neon);
+    --primary-hover: #32e612;
+    --primary-color: var(--accent-neon);
+    --success-color: var(--accent-neon);
+    --success: var(--accent-neon);
+    --danger-color: #ff3366;
+    --danger: #ff3366;
+    --warning-color: #ffaa00;
+    --warning: #ffaa00;
+    --bg: var(--bg-color);
+    --light-bg: var(--bg-color);
+    --text: var(--text-main);
+    --text-muted: var(--text-sub);
+    --border: var(--border-color);
+    --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --shadow-card-hover: 0 4px 16px var(--accent-neon-dim);
+    --radius: 16px;
     --radius-sm: 8px;
 }
 
@@ -29,9 +33,8 @@
 }
 
 body {
-    font-family: var(--font-body);
-    background: linear-gradient(180deg, #fafbf9 0%, var(--bg) 15%, var(--bg) 100%);
-    color: var(--text);
+    background-color: var(--bg-color);
+    color: var(--text-main);
     padding-bottom: 80px;
     min-height: 100vh;
 }
@@ -62,7 +65,7 @@ body {
     right: 0;
     bottom: 0;
     z-index: 2000;
-    background: white;
+    background: var(--bg-color);
     display: none; /* 默认隐藏，但允许JS覆盖 */
     visibility: hidden; /* 完全隐藏，但允许JS覆盖 */
 }
@@ -84,8 +87,8 @@ body {
 }
 
 .training-main {
-    background: linear-gradient(160deg, #0d9488 0%, #0f766e 40%, #0c5c54 100%);
-    color: white;
+    background: var(--bg-color);
+    color: var(--text-main);
 }
 
 /* 计时器圆环样式 */
@@ -104,21 +107,24 @@ body {
 
 .progress-ring-bg {
     fill: none;
-    stroke: rgba(255,255,255,0.2);
+    stroke: var(--border-color);
     stroke-width: 12;
 }
 
 .progress-ring-circle {
     fill: none;
-    stroke: white;
+    stroke: var(--accent-neon);
     stroke-width: 12;
     stroke-linecap: round;
     transition: stroke-dashoffset 0.5s linear;
+    filter: drop-shadow(0 0 8px var(--accent-neon-dim));
 }
 
 .timer-text {
     text-align: center;
     pointer-events: none;
+    color: var(--accent-neon);
+    text-shadow: 0 0 15px var(--accent-neon-dim);
 }
 
 .timer-number {
@@ -144,18 +150,20 @@ body {
     font-family: var(--font-heading);
     font-weight: 700;
     letter-spacing: -0.02em;
-    color: var(--text);
+    color: var(--text-main);
+    text-shadow: 0 0 10px rgba(255,255,255,0.1);
 }
 
 #mainView header .btn-outline-secondary {
     border-color: var(--border-color);
-    color: var(--text-muted);
+    color: var(--text-sub);
 }
 
 #mainView header .btn-outline-secondary:hover {
-    border-color: var(--primary);
-    color: var(--primary);
-    background: rgba(13, 148, 136, 0.08);
+    border-color: var(--accent-neon);
+    color: var(--accent-neon);
+    background: var(--accent-neon-dim);
+    box-shadow: 0 0 10px var(--accent-neon-dim);
 }
 
 /* 计划选择卡片 */
@@ -244,19 +252,21 @@ body {
 
 /* 动作说明 */
 .exercise-description {
-    background: white;
+    background: var(--card-bg);
     min-height: 60px;
+    border-top: 1px solid var(--border-color);
 }
 
 .exercise-description p {
     font-size: 1.1rem;
     margin: 0;
+    color: var(--text-main) !important;
 }
 
 /* 训练控制按钮 */
 .training-controls {
-    background: white;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+    background: var(--card-bg);
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
 }
 
 .training-controls .btn-lg {

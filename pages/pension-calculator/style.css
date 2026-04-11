@@ -1,17 +1,18 @@
 :root {
-    --primary-color: #1e88e5;
-    --primary-hover: #1976d2;
-    --secondary-bg: #f5f7fa;
+    --primary-color: #0f172a; /* 深石板灰/黑 */
+    --primary-hover: #334155;
+    --accent-color: #047857; /* 墨绿强调色 */
+    --secondary-bg: #f8fafc;
     --card-bg: #ffffff;
-    --text-main: #333333;
-    --text-sub: #666666;
-    --border-color: #e0e0e0;
+    --text-main: #0f172a;
+    --text-sub: #64748b;
+    --border-color: #e2e8f0;
     --success-color: #4caf50;
     --warning-color: #ff9800;
     --danger-color: #f44336;
-    --shadow-sm: 0 2px 4px rgba(0,0,0,0.05);
-    --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
-    --radius: 12px;
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
+    --radius: 0px; /* 瑞士风：直角或极小圆角 */
 }
 
 * {
@@ -21,7 +22,6 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     background-color: var(--secondary-bg);
     color: var(--text-main);
     line-height: 1.5;
@@ -85,21 +85,24 @@ header h1 {
 .panel {
     background: var(--card-bg);
     border-radius: var(--radius);
-    box-shadow: var(--shadow-sm);
+    box-shadow: none;
+    border: 1px solid var(--border-color);
     overflow: hidden;
     margin-bottom: 20px;
 }
 
 .panel-header {
     padding: 15px 20px;
-    border-bottom: 1px solid var(--border-color);
-    background-color: rgba(30, 136, 229, 0.03);
+    border-bottom: 2px solid var(--primary-color);
+    background-color: var(--card-bg);
 }
 
 .panel-header h2 {
     font-size: 1.1rem;
     color: var(--primary-color);
-    font-weight: 600;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .panel-body {
@@ -145,17 +148,18 @@ select {
     width: 100%;
     padding: 10px 12px;
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 0;
     font-size: 1rem;
     transition: all 0.2s;
-    background-color: #fff;
+    background-color: var(--secondary-bg);
 }
 
 input[type="number"]:focus,
 select:focus {
     border-color: var(--primary-color);
     outline: none;
-    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.1);
+    box-shadow: none;
+    background-color: var(--card-bg);
 }
 
 .unit {
@@ -229,11 +233,13 @@ select:focus {
     flex: 1;
     padding: 12px;
     border: none;
-    border-radius: 8px;
+    border-radius: 0;
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
 .btn-primary {
@@ -244,7 +250,7 @@ select:focus {
 .btn-primary:hover {
     background-color: var(--primary-hover);
     transform: translateY(-1px);
-    box-shadow: 0 4px 8px rgba(30, 136, 229, 0.2);
+    box-shadow: var(--shadow-md);
 }
 
 .btn-secondary {
@@ -317,11 +323,11 @@ summary {
 .total-pension-card {
     text-align: center;
     padding: 25px;
-    background: linear-gradient(135deg, var(--primary-color), var(--primary-hover));
-    border-radius: var(--radius);
+    background: var(--primary-color);
+    border-radius: 0;
     color: white;
     margin-bottom: 25px;
-    box-shadow: 0 8px 20px rgba(30, 136, 229, 0.25);
+    box-shadow: none;
 }
 
 .total-pension-card .label {
@@ -429,7 +435,7 @@ summary {
     background-color: white;
     border: 1px solid var(--border-color);
     padding: 15px;
-    border-radius: 10px;
+    border-radius: 0;
     text-align: center;
 }
 
@@ -441,10 +447,11 @@ summary {
 }
 
 .data-card .data-value {
-    font-size: 1.2rem;
+    font-size: 1.5rem;
     font-weight: 600;
     color: var(--primary-color);
     margin-bottom: 4px;
+    font-family: monospace;
 }
 
 .data-card .data-desc {
