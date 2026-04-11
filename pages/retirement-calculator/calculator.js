@@ -1,37 +1,27 @@
-// 核心计算逻辑
 let trendChartInstance = null;
 
 document.addEventListener('DOMContentLoaded', () => {
-    // 恢复上次保存的数据
     if (window.retirementCalculatorStorage && window.retirementCalculatorStorage.restoreFormData) {
         window.retirementCalculatorStorage.restoreFormData();
     } else if (typeof restoreFormData === 'function') {
         restoreFormData();
     }
 
-    // 绑定事件
     document.getElementById('calculate-btn').addEventListener('click', calculateFIRE);
     document.getElementById('reset-btn').addEventListener('click', resetForm);
 
-    // 性别单选框联动默认退休金年龄
     const genderRadios = document.querySelectorAll('input[name="gender"]');
     genderRadios.forEach(radio => {
         radio.addEventListener('change', (e) => {
             const ageInput = document.getElementById('pension-age');
-            if (e.target.value === 'male') {
-                ageInput.value = 63;
-            } else {
-                ageInput.value = 58;
-            }
+            ageInput.value = e.target.value === 'male' ? 63 : 58;
             saveFormDataDebounced();
         });
     });
 
-    // 输入或选项变更时自动保存（防抖，避免输入过程中频繁写入）
     bindAutoSave();
 });
 
-/** 防抖保存 */
 let saveFormDataDebounced = debounce(() => {
     if (window.retirementCalculatorStorage && window.retirementCalculatorStorage.saveFormData) {
         window.retirementCalculatorStorage.saveFormData();
@@ -46,7 +36,6 @@ function debounce(fn, ms) {
     };
 }
 
-/** 绑定所有输入控件的自动保存 */
 function bindAutoSave() {
     const inputIds = [
         'current-age', 'life-expectancy', 'current-assets', 'annual-savings',
@@ -61,62 +50,102 @@ function bindAutoSave() {
     });
 }
 
-function calculateFIRE() {
-    // 获取输入值
+/** 按通胀率对基准值做复利增长 */
+function applyInflation(baseValue, fromAge, toAge, rate) {
+    return baseValue * Math.pow(1 + rate, Math.max(0, toAge - fromAge));
+}
+
+/** 年金终值系数：等额年末存入 n 年，按 rate 复利增长的终值倍数 */
+function annuityFutureFactor(rate, years) {
+    if (years <= 0) return 0;
+    if (rate === 0) return years;
+    return (Math.pow(1 + rate, years) - 1) / rate;
+}
+
+function collectFormInputs() {
     const currentAge = parseInt(document.getElementById('current-age').value) || 30;
     const lifeExpectancy = parseInt(document.getElementById('life-expectancy').value) || 85;
-    
     const currentAssets = parseFloat(document.getElementById('current-assets').value) || 0;
     const annualSavings = parseFloat(document.getElementById('annual-savings').value) || 0;
-    
     const monthlyExpense = parseFloat(document.getElementById('monthly-expense').value) || 0;
     const medicalMonthlyExpense = parseFloat(document.getElementById('medical-monthly-expense').value) || 0;
     const medicalReserve = parseFloat(document.getElementById('medical-reserve').value) || 0;
     const targetRetireAgeInput = document.getElementById('target-retire-age').value.trim();
     const targetRetireAge = targetRetireAgeInput === '' ? null : parseInt(targetRetireAgeInput);
-    
     const expectedPension = parseFloat(document.getElementById('expected-pension').value) || 0;
     const pensionAge = parseInt(document.getElementById('pension-age').value) || 63;
-    
     const inflationRate = (parseFloat(document.getElementById('inflation-rate').value) || 0) / 100;
     const investmentReturn = (parseFloat(document.getElementById('investment-return').value) || 0) / 100;
     const pensionGrowthRate = (parseFloat(document.getElementById('pension-growth-rate').value) || 0) / 100;
 
+    return {
+        currentAge, lifeExpectancy, currentAssets, annualSavings,
+        monthlyExpense, medicalMonthlyExpense, medicalReserve,
+        targetRetireAge, expectedPension, pensionAge,
+        inflationRate, investmentReturn, pensionGrowthRate
+    };
+}
+
+function validateInputs(params) {
+    const { currentAge, lifeExpectancy, targetRetireAge, investmentReturn, inflationRate } = params;
+    const warnings = [];
+
     if (currentAge >= lifeExpectancy) {
-        alert("当前年龄不能大于预期寿命");
-        return;
+        return { valid: false, error: '当前年龄不能大于或等于预期寿命' };
     }
 
-    // 存储年度趋势数据
-    let trendData = [];
+    if (targetRetireAge !== null) {
+        if (targetRetireAge <= currentAge) {
+            warnings.push('目标退休年龄（' + targetRetireAge + '）应大于当前年龄（' + currentAge + '）');
+        }
+        if (targetRetireAge >= lifeExpectancy) {
+            warnings.push('目标退休年龄（' + targetRetireAge + '）应小于预期寿命（' + lifeExpectancy + '）');
+        }
+    }
+
+    const realReturn = (1 + investmentReturn) / (1 + inflationRate) - 1;
+    if (realReturn < 0) {
+        warnings.push(
+            '投资收益率（' + (investmentReturn * 100).toFixed(1) + '%）低于通胀率（' +
+            (inflationRate * 100).toFixed(1) + '%），实际收益率为负，资产会被通胀侵蚀'
+        );
+    }
+
+    return { valid: true, warnings };
+}
+
+function calculateFIRE() {
+    const params = collectFormInputs();
+    const validation = validateInputs(params);
+
+    if (!validation.valid) {
+        alert(validation.error);
+        return;
+    }
+    if (validation.warnings && validation.warnings.length > 0) {
+        const proceed = confirm('提示：\n• ' + validation.warnings.join('\n• ') + '\n\n是否继续测算？');
+        if (!proceed) return;
+    }
+
+    const { currentAge, lifeExpectancy, currentAssets, annualSavings,
+        monthlyExpense, medicalMonthlyExpense, medicalReserve,
+        expectedPension, pensionAge, inflationRate, investmentReturn,
+        pensionGrowthRate } = params;
+
+    const trendData = [];
     let firstFireAge = -1;
     let firstFireAssets = 0;
 
-    // 从当前年龄一直模拟到预期寿命前一年，尝试每个年龄作为“退休年龄”
+    // O(n) 增量计算累积资产，避免每次从头算
+    let assetsAtRetire = currentAssets;
     for (let retireAge = currentAge; retireAge <= lifeExpectancy; retireAge++) {
-        
-        // 1. 计算到 retireAge 时，累积了多少资产
-        // 假设每年末存入 annualSavings，期初存量产生一整年收益
-        let assetsAtRetire = currentAssets;
-        for (let year = currentAge; year < retireAge; year++) {
-            assetsAtRetire = assetsAtRetire * (1 + investmentReturn) + annualSavings;
-        }
-
         const requiredCapital = calculateRequiredCapitalAtAge({
-            retireAge,
-            lifeExpectancy,
-            currentAge,
-            monthlyExpense,
-            medicalMonthlyExpense,
-            expectedPension,
-            pensionAge,
-            inflationRate,
-            pensionGrowthRate,
-            investmentReturn,
-            medicalReserve
+            retireAge, lifeExpectancy, currentAge,
+            monthlyExpense, medicalMonthlyExpense, expectedPension,
+            pensionAge, inflationRate, pensionGrowthRate,
+            investmentReturn, medicalReserve
         });
 
-        // 记录该退休年龄的数据
         trendData.push({
             age: retireAge,
             assets: assetsAtRetire,
@@ -124,52 +153,29 @@ function calculateFIRE() {
             isFire: assetsAtRetire >= requiredCapital
         });
 
-        // 记录最早可退休年龄
         if (assetsAtRetire >= requiredCapital && firstFireAge === -1) {
             firstFireAge = retireAge;
             firstFireAssets = assetsAtRetire;
         }
+
+        // 增量推进：本年资产产生收益 + 年末存入
+        assetsAtRetire = assetsAtRetire * (1 + investmentReturn) + annualSavings;
     }
 
-    // 渲染结果
-    renderResults(
-        trendData,
-        firstFireAge,
-        firstFireAssets,
-        currentAge,
-        pensionAge,
-        lifeExpectancy,
-        monthlyExpense,
-        expectedPension,
-        inflationRate,
-        pensionGrowthRate,
-        medicalReserve,
-        targetRetireAge,
-        annualSavings,
-        currentAssets,
-        investmentReturn,
-        medicalMonthlyExpense
-    );
+    renderResults({
+        trendData, firstFireAge, firstFireAssets, ...params
+    });
 }
 
-function renderResults(
-    trendData,
-    firstFireAge,
-    firstFireAssets,
-    currentAge,
-    pensionAge,
-    lifeExpectancy,
-    monthlyExpense,
-    expectedPension,
-    inflationRate,
-    pensionGrowthRate,
-    medicalReserve,
-    targetRetireAge,
-    annualSavings,
-    currentAssets,
-    investmentReturn,
-    medicalMonthlyExpense
-) {
+function renderResults(ctx) {
+    const {
+        trendData, firstFireAge, firstFireAssets,
+        currentAge, pensionAge, lifeExpectancy,
+        monthlyExpense, medicalMonthlyExpense, expectedPension,
+        inflationRate, pensionGrowthRate, medicalReserve,
+        targetRetireAge, annualSavings, currentAssets, investmentReturn
+    } = ctx;
+
     const resultSection = document.getElementById('result-section');
     const resultSuccess = document.getElementById('result-success');
     const resultFail = document.getElementById('result-fail');
@@ -185,13 +191,13 @@ function renderResults(
     const gapAmountEl = document.getElementById('res-gap-amount');
     const gapAmountRealEl = document.getElementById('res-gap-amount-real');
     const realReturnRateEl = document.getElementById('res-real-return-rate');
-    
+
     resultSection.classList.remove('hidden');
-    
+
     if (firstFireAge !== -1) {
         resultSuccess.classList.remove('hidden');
         resultFail.classList.add('hidden');
-        
+
         document.getElementById('res-fire-age').textContent = firstFireAge;
         document.getElementById('res-fire-assets').textContent = Math.round(firstFireAssets).toLocaleString();
         document.getElementById('res-years-to-fire').textContent = firstFireAge - currentAge;
@@ -201,14 +207,13 @@ function renderResults(
     } else {
         resultSuccess.classList.add('hidden');
         resultFail.classList.remove('hidden');
-        
+
         document.getElementById('res-years-to-fire').textContent = '—';
         fireAssetsRealEl.textContent = '—';
     }
-    
+
     document.getElementById('res-pension-age-display').textContent = pensionAge;
 
-    // 关键拐点：资金最紧张年龄（资金缺口最大）
     const tightestPoint = trendData.reduce((maxItem, item) => {
         const gap = item.required - item.assets;
         if (!maxItem || gap > maxItem.gap) {
@@ -217,90 +222,73 @@ function renderResults(
         return maxItem;
     }, null);
 
-    // 渲染表格 (提取关键年份展示，避免太长。比如当前年龄、每隔5年、最早退休年龄、法定退休金年龄)
+    // 构建要显示的关键年龄集合
     tbody.innerHTML = '';
-    
-    let displayAges = new Set();
-    // 强制加入：当前年龄 + 1
+
+    const displayAges = new Set();
     displayAges.add(currentAge + 1);
-    // 强制加入最早退休年龄
     if (firstFireAge !== -1) displayAges.add(firstFireAge);
-    // 强制加入领退休金年龄
     displayAges.add(pensionAge);
-    // 强制加入资金最紧张年龄
     if (tightestPoint) displayAges.add(tightestPoint.age);
-    
-    // 加入每 5 年的节点
+
     for (let age = currentAge; age <= trendData[trendData.length - 1].age; age++) {
         if (age % 5 === 0) {
             displayAges.add(age);
         }
     }
 
-    // 排序并过滤出存在的数据
-    let sortedAges = Array.from(displayAges).sort((a, b) => a - b);
-    
+    const sortedAges = Array.from(displayAges).sort((a, b) => a - b);
+
     sortedAges.forEach(age => {
-        let data = trendData.find(d => d.age === age);
+        const data = trendData.find(d => d.age === age);
         if (!data) return;
 
-        let tr = document.createElement('tr');
-        
-        // 状态判定
-        let statusHtml = '';
-        if (data.isFire) {
-            statusHtml = '<span class="status-ok">可退休 (FIRE)</span>';
-            tr.style.backgroundColor = '#f1f8e9'; // 浅绿高亮
-        } else {
-            statusHtml = '<span class="status-wait">需继续攒钱</span>';
-        }
+        const tr = document.createElement('tr');
 
-        // 如果是刚刚达到的最早退休年龄，特殊标记
-        if (age === firstFireAge) {
-            statusHtml = '<span class="status-ok">⭐ 最早 FIRE 点</span>';
+        // 收集该年龄命中的所有标签，解决优先级覆盖问题
+        const tags = [];
+        const isFirePoint = age === firstFireAge;
+        const isPensionAge = age === pensionAge;
+        const isTightest = tightestPoint && age === tightestPoint.age;
+
+        if (isFirePoint) {
+            tags.push('<span class="status-ok">⭐ 最早 FIRE 点</span>');
             tr.style.fontWeight = 'bold';
-        }
-        if (age === pensionAge) {
-            tr.classList.add('highlight-pension-age');
-            statusHtml = '<span class="status-wait">退休金开始领取</span>';
-        }
-        if (tightestPoint && age === tightestPoint.age) {
-            tr.classList.add('highlight-tightest-age');
-            statusHtml = '<span class="status-fail">资金最紧张年龄</span>';
+            tr.style.backgroundColor = '#f1f8e9';
+        } else if (data.isFire) {
+            tags.push('<span class="status-ok">可退休 (FIRE)</span>');
+            tr.style.backgroundColor = '#f1f8e9';
+        } else {
+            tags.push('<span class="status-wait">需继续攒钱</span>');
         }
 
-        tr.innerHTML = `
-            <td>${data.age} 岁</td>
-            <td>¥ ${Math.round(data.assets).toLocaleString()}</td>
-            <td>¥ ${Math.round(data.required).toLocaleString()}</td>
-            <td>${statusHtml}</td>
-        `;
+        if (isPensionAge) {
+            tags.push('<span class="status-wait">退休金开始领取</span>');
+            if (!isFirePoint) tr.classList.add('highlight-pension-age');
+        }
+        if (isTightest) {
+            tags.push('<span class="status-fail">资金最紧张年龄</span>');
+            if (!isFirePoint && !isPensionAge) tr.classList.add('highlight-tightest-age');
+        }
+
+        tr.innerHTML =
+            '<td>' + data.age + ' 岁</td>' +
+            '<td>¥ ' + Math.round(data.assets).toLocaleString() + '</td>' +
+            '<td>¥ ' + Math.round(data.required).toLocaleString() + '</td>' +
+            '<td>' + tags.join(' / ') + '</td>';
         tbody.appendChild(tr);
     });
 
     renderTrendChart(trendData, firstFireAge, pensionAge, tightestPoint);
 
-    renderPostRetirementMonthlyTable(
-        firstFireAge,
-        pensionAge,
-        lifeExpectancy,
-        currentAge,
-        monthlyExpense,
-        medicalMonthlyExpense,
-        expectedPension,
-        inflationRate,
-        pensionGrowthRate,
-        postRetirementTitle,
-        postRetirementBody
-    );
+    renderPostRetirementMonthlyTable({
+        firstFireAge, pensionAge, lifeExpectancy, currentAge,
+        monthlyExpense, medicalMonthlyExpense, expectedPension,
+        inflationRate, pensionGrowthRate
+    });
 
     const assumeRetireAge = firstFireAge !== -1 ? firstFireAge : pensionAge;
-    const inflatedMedicalReserve = calculateInflatedMedicalReserve(
-        medicalReserve,
-        currentAge,
-        assumeRetireAge,
-        inflationRate
-    );
+    const inflatedMedicalReserve = applyInflation(medicalReserve, currentAge, assumeRetireAge, inflationRate);
     medicalReserveInflatedEl.textContent = Math.round(inflatedMedicalReserve).toLocaleString();
     medicalAgeEl.textContent = assumeRetireAge;
 
@@ -313,18 +301,10 @@ function renderResults(
     realReturnRateEl.textContent = realReturnRate.toFixed(2);
 
     const reverseResult = calculateReverseTargetAnnualSavings({
-        targetRetireAge,
-        currentAge,
-        currentAssets,
-        investmentReturn,
-        lifeExpectancy,
-        monthlyExpense,
-        medicalMonthlyExpense,
-        expectedPension,
-        pensionAge,
-        inflationRate,
-        pensionGrowthRate,
-        medicalReserve
+        targetRetireAge, currentAge, currentAssets, investmentReturn,
+        lifeExpectancy, monthlyExpense, medicalMonthlyExpense,
+        expectedPension, pensionAge, inflationRate,
+        pensionGrowthRate, medicalReserve
     });
     targetAnnualSavingsEl.textContent = reverseResult.requiredAnnualSavings === null
         ? '—'
@@ -336,64 +316,61 @@ function renderResults(
         targetReverseCard.classList.remove('disabled-card');
     }
 
-    // 滚动到结果区域
     resultSection.scrollIntoView({ behavior: 'smooth' });
 }
 
-function renderPostRetirementMonthlyTable(
-    firstFireAge,
-    pensionAge,
-    lifeExpectancy,
-    currentAge,
-    monthlyExpense,
-    medicalMonthlyExpense,
-    expectedPension,
-    inflationRate,
-    pensionGrowthRate,
-    postRetirementTitle,
-    postRetirementBody
-) {
+function renderPostRetirementMonthlyTable(ctx) {
+    const {
+        firstFireAge, pensionAge, lifeExpectancy, currentAge,
+        monthlyExpense, medicalMonthlyExpense, expectedPension,
+        inflationRate, pensionGrowthRate
+    } = ctx;
+
+    const postRetirementTitle = document.getElementById('post-retirement-title');
+    const postRetirementBody = document.getElementById('post-retirement-body');
     postRetirementBody.innerHTML = '';
 
     const assumeRetireAge = firstFireAge !== -1 ? firstFireAge : pensionAge;
-    const titleText = firstFireAge !== -1
-        ? `退休后月度开销明细（按最早 FIRE 年龄 ${assumeRetireAge} 岁测算）`
-        : `退休后月度开销明细（按参考退休年龄 ${assumeRetireAge} 岁测算）`;
-    postRetirementTitle.textContent = titleText;
+    postRetirementTitle.textContent = firstFireAge !== -1
+        ? '退休后月度开销明细（按最早 FIRE 年龄 ' + assumeRetireAge + ' 岁测算）'
+        : '退休后月度开销明细（按参考退休年龄 ' + assumeRetireAge + ' 岁测算）';
 
     for (let age = assumeRetireAge; age < lifeExpectancy; age += 1) {
         const yearsFromNow = age - currentAge;
-        const currentMonthlyExpense = monthlyExpense * Math.pow(1 + inflationRate, yearsFromNow);
-        const currentMonthlyMedicalExpense = calculateInflatedMedicalReserve(
-            medicalMonthlyExpense,
-            currentAge,
-            age,
-            inflationRate
-        );
-        const currentMonthlyPension = age >= pensionAge
+        const curMonthlyExpense = applyInflation(monthlyExpense, 0, yearsFromNow, inflationRate);
+        const curMonthlyMedical = applyInflation(medicalMonthlyExpense, currentAge, age, inflationRate);
+        const curMonthlyPension = age >= pensionAge
             ? expectedPension * Math.pow(1 + pensionGrowthRate, age - pensionAge)
             : 0;
-        const currentMonthlyNet = Math.max(0, currentMonthlyExpense + currentMonthlyMedicalExpense - currentMonthlyPension);
-        const currentMonthlyNetReal = currentMonthlyNet / Math.pow(1 + inflationRate, yearsFromNow);
+        const curMonthlyNet = Math.max(0, curMonthlyExpense + curMonthlyMedical - curMonthlyPension);
+        const curMonthlyNetReal = curMonthlyNet / Math.pow(1 + inflationRate, yearsFromNow);
 
         const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${age} 岁</td>
-            <td>¥ ${Math.round(currentMonthlyExpense).toLocaleString()}</td>
-            <td>¥ ${Math.round(currentMonthlyMedicalExpense).toLocaleString()}</td>
-            <td>¥ ${Math.round(currentMonthlyPension).toLocaleString()}</td>
-            <td>¥ ${Math.round(currentMonthlyNet).toLocaleString()}</td>
-            <td>¥ ${Math.round(currentMonthlyNetReal).toLocaleString()}</td>
-        `;
+        row.innerHTML =
+            '<td>' + age + ' 岁</td>' +
+            '<td>¥ ' + Math.round(curMonthlyExpense).toLocaleString() + '</td>' +
+            '<td>¥ ' + Math.round(curMonthlyMedical).toLocaleString() + '</td>' +
+            '<td>¥ ' + Math.round(curMonthlyPension).toLocaleString() + '</td>' +
+            '<td>¥ ' + Math.round(curMonthlyNet).toLocaleString() + '</td>' +
+            '<td>¥ ' + Math.round(curMonthlyNetReal).toLocaleString() + '</td>';
         postRetirementBody.appendChild(row);
     }
 }
 
 function renderTrendChart(trendData, firstFireAge, pensionAge, tightestPoint) {
     const canvas = document.getElementById('trend-chart');
-    if (!canvas || typeof Chart === 'undefined') return;
+    if (!canvas) return;
 
-    const labels = trendData.map((item) => `${item.age}岁`);
+    if (typeof Chart === 'undefined') {
+        const fallback = document.getElementById('chart-fallback');
+        if (fallback) fallback.classList.remove('hidden');
+        return;
+    }
+
+    const fallback = document.getElementById('chart-fallback');
+    if (fallback) fallback.classList.add('hidden');
+
+    const labels = trendData.map((item) => item.age + '岁');
     const assetSeries = trendData.map((item) => Math.round(item.assets));
     const requiredSeries = trendData.map((item) => Math.round(item.required));
     const ageToIndex = new Map(trendData.map((item, index) => [item.age, index]));
@@ -441,19 +418,19 @@ function renderTrendChart(trendData, firstFireAge, pensionAge, tightestPoint) {
     if (firstFireAge !== -1) {
         const fireItem = trendData.find((item) => item.age === firstFireAge);
         if (fireItem) {
-            pushKeyPoint(firstFireAge, fireItem.assets, '#2e7d32', `最早FIRE ${firstFireAge}岁`);
+            pushKeyPoint(firstFireAge, fireItem.assets, '#2e7d32', '最早FIRE ' + firstFireAge + '岁');
         }
     }
 
     const pensionItem = trendData.find((item) => item.age === pensionAge);
     if (pensionItem) {
-        pushKeyPoint(pensionAge, pensionItem.required, '#f57c00', `退休金起领 ${pensionAge}岁`);
+        pushKeyPoint(pensionAge, pensionItem.required, '#f57c00', '退休金起领 ' + pensionAge + '岁');
     }
 
     if (tightestPoint) {
         const tightItem = trendData.find((item) => item.age === tightestPoint.age);
         if (tightItem) {
-            pushKeyPoint(tightestPoint.age, tightItem.required, '#c62828', `最紧张 ${tightestPoint.age}岁`);
+            pushKeyPoint(tightestPoint.age, tightItem.required, '#c62828', '最紧张 ' + tightestPoint.age + '岁');
         }
     }
 
@@ -508,7 +485,7 @@ function renderTrendChart(trendData, firstFireAge, pensionAge, tightestPoint) {
                 y: {
                     ticks: {
                         callback(value) {
-                            return `¥${Number(value).toLocaleString()}`;
+                            return '¥' + Number(value).toLocaleString();
                         }
                     }
                 }
@@ -519,52 +496,36 @@ function renderTrendChart(trendData, firstFireAge, pensionAge, tightestPoint) {
 
 function calculateRequiredCapitalAtAge(params) {
     const {
-        retireAge,
-        lifeExpectancy,
-        currentAge,
-        monthlyExpense,
-        medicalMonthlyExpense,
-        expectedPension,
-        pensionAge,
-        inflationRate,
-        pensionGrowthRate,
-        investmentReturn,
-        medicalReserve
+        retireAge, lifeExpectancy, currentAge,
+        monthlyExpense, medicalMonthlyExpense, expectedPension,
+        pensionAge, inflationRate, pensionGrowthRate,
+        investmentReturn, medicalReserve
     } = params;
 
     let requiredCapital = 0;
 
     for (let year = retireAge; year < lifeExpectancy; year++) {
         const yearsFromNow = year - currentAge;
-        const inflatedMonthlyExpense = monthlyExpense * Math.pow(1 + inflationRate, yearsFromNow);
+        const inflatedMonthlyExpense = applyInflation(monthlyExpense, 0, yearsFromNow, inflationRate);
         const yearlyLivingExpense = inflatedMonthlyExpense * 12;
-        const inflatedMonthlyMedicalExpense = calculateInflatedMedicalReserve(
-            medicalMonthlyExpense,
-            currentAge,
-            year,
-            inflationRate
-        );
+        const inflatedMonthlyMedicalExpense = applyInflation(medicalMonthlyExpense, currentAge, year, inflationRate);
         const yearlyMedicalExpense = inflatedMonthlyMedicalExpense * 12;
 
         let yearlyPension = 0;
         if (year >= pensionAge) {
-            const pensionGrowthYears = year - pensionAge;
-            const inflatedPension = expectedPension * Math.pow(1 + pensionGrowthRate, pensionGrowthYears);
+            const inflatedPension = expectedPension * Math.pow(1 + pensionGrowthRate, year - pensionAge);
             yearlyPension = inflatedPension * 12;
         }
 
         const netCashOutflow = Math.max(0, yearlyLivingExpense + yearlyMedicalExpense - yearlyPension);
         const discountYears = year - retireAge;
-        const presentValueOfOutflow = netCashOutflow / Math.pow(1 + investmentReturn, discountYears);
+        const presentValueOfOutflow = investmentReturn === 0
+            ? netCashOutflow
+            : netCashOutflow / Math.pow(1 + investmentReturn, discountYears);
         requiredCapital += presentValueOfOutflow;
     }
 
-    const inflatedMedicalReserve = calculateInflatedMedicalReserve(
-        medicalReserve,
-        currentAge,
-        retireAge,
-        inflationRate
-    );
+    const inflatedMedicalReserve = applyInflation(medicalReserve, currentAge, retireAge, inflationRate);
     requiredCapital += inflatedMedicalReserve;
 
     return requiredCapital;
@@ -572,18 +533,10 @@ function calculateRequiredCapitalAtAge(params) {
 
 function calculateReverseTargetAnnualSavings(params) {
     const {
-        targetRetireAge,
-        currentAge,
-        currentAssets,
-        investmentReturn,
-        lifeExpectancy,
-        monthlyExpense,
-        medicalMonthlyExpense,
-        expectedPension,
-        pensionAge,
-        inflationRate,
-        pensionGrowthRate,
-        medicalReserve
+        targetRetireAge, currentAge, currentAssets, investmentReturn,
+        lifeExpectancy, monthlyExpense, medicalMonthlyExpense,
+        expectedPension, pensionAge, inflationRate,
+        pensionGrowthRate, medicalReserve
     } = params;
 
     if (targetRetireAge === null || Number.isNaN(targetRetireAge)) {
@@ -595,28 +548,21 @@ function calculateReverseTargetAnnualSavings(params) {
     if (targetRetireAge <= currentAge) {
         return {
             requiredAnnualSavings: 0,
-            desc: `目标年龄 ${targetRetireAge} 岁不大于当前年龄，无法反推`
+            desc: '目标年龄 ' + targetRetireAge + ' 岁不大于当前年龄，无法反推'
         };
     }
     if (targetRetireAge >= lifeExpectancy) {
         return {
             requiredAnnualSavings: 0,
-            desc: `目标年龄需小于预期寿命（当前寿命设置为 ${lifeExpectancy} 岁）`
+            desc: '目标年龄需小于预期寿命（当前寿命设置为 ' + lifeExpectancy + ' 岁）'
         };
     }
 
     const requiredCapital = calculateRequiredCapitalAtAge({
-        retireAge: targetRetireAge,
-        lifeExpectancy,
-        currentAge,
-        monthlyExpense,
-        medicalMonthlyExpense,
-        expectedPension,
-        pensionAge,
-        inflationRate,
-        pensionGrowthRate,
-        investmentReturn,
-        medicalReserve
+        retireAge: targetRetireAge, lifeExpectancy, currentAge,
+        monthlyExpense, medicalMonthlyExpense, expectedPension,
+        pensionAge, inflationRate, pensionGrowthRate,
+        investmentReturn, medicalReserve
     });
 
     const years = targetRetireAge - currentAge;
@@ -626,30 +572,17 @@ function calculateReverseTargetAnnualSavings(params) {
     if (gap <= 0) {
         return {
             requiredAnnualSavings: 0,
-            desc: `按目标 ${targetRetireAge} 岁退休，当前资产已覆盖所需资金`
+            desc: '按目标 ' + targetRetireAge + ' 岁退休，当前资产已覆盖所需资金'
         };
     }
 
-    let requiredAnnualSavings = 0;
-    if (investmentReturn === 0) {
-        requiredAnnualSavings = gap / years;
-    } else {
-        const annuityFactor = (Math.pow(1 + investmentReturn, years) - 1) / investmentReturn;
-        requiredAnnualSavings = gap / annuityFactor;
-    }
+    const factor = annuityFutureFactor(investmentReturn, years);
+    const requiredAnnualSavings = gap / factor;
 
     return {
         requiredAnnualSavings: Math.max(0, requiredAnnualSavings),
-        desc: `目标退休年龄 ${targetRetireAge} 岁，反推年储蓄额`
+        desc: '目标退休年龄 ' + targetRetireAge + ' 岁，反推年储蓄额'
     };
-}
-
-function calculateInflatedMedicalReserve(baseMedicalReserve, currentAge, targetAge, inflationRate) {
-    let value = baseMedicalReserve;
-    for (let age = currentAge; age < targetAge; age += 1) {
-        value *= (1 + inflationRate);
-    }
-    return value;
 }
 
 function resetForm() {
@@ -659,6 +592,11 @@ function resetForm() {
     document.querySelector('input[name="gender"][value="male"]').checked = true;
     document.getElementById('pension-age').value = 63;
     document.getElementById('result-section').classList.add('hidden');
+
+    if (trendChartInstance) {
+        trendChartInstance.destroy();
+        trendChartInstance = null;
+    }
 
     if (window.retirementCalculatorStorage && window.retirementCalculatorStorage.clearFormData) {
         window.retirementCalculatorStorage.clearFormData();

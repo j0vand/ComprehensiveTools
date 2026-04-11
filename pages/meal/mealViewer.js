@@ -33,6 +33,8 @@
         const weekDayMap = {'一': 1, '二': 2, '三': 3, '四': 4, '五': 5, '六': 6, '日': 0};
         const reverseWeekDayMap = ['日', '一', '二', '三', '四', '五', '六'];
 
+        const MEAL_STORAGE_KEY = (window.StorageKeys && window.StorageKeys.MEAL_VIEWER_DATA) || 'mealArrangements';
+
         // 格式化日期对象为 "M月D日-周X" 字符串
         function formatDate(dateObj) {
             const month = dateObj.getMonth() + 1;
@@ -334,13 +336,11 @@
                 }
 
                 // 获取现有安排并删除过期安排
-                // 使用统一的存储键名和函数
-                const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.MEAL_VIEWER_DATA) || 'mealArrangements';
                 let existingArrangements;
                 if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
-                    existingArrangements = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, []);
+                    existingArrangements = window.CommonUtils.getLocalStorageItem(MEAL_STORAGE_KEY, []);
                 } else {
-                    existingArrangements = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                    existingArrangements = JSON.parse(localStorage.getItem(MEAL_STORAGE_KEY) || '[]');
                 }
                 
                 // 合并新旧安排
@@ -354,13 +354,10 @@
                     if (dataString.length > 4000000) { // 设置安全限制
                         throw new Error("数据量过大，请清理部分历史安排");
                     }
-                    // 使用统一的存储函数
-                    const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.MEAL_VIEWER_DATA) || 'mealArrangements';
                     if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
-                        // 公共工具库会自动处理 JSON 序列化
-                        window.CommonUtils.setLocalStorageItem(STORAGE_KEY, finalArrangements);
+                        window.CommonUtils.setLocalStorageItem(MEAL_STORAGE_KEY, finalArrangements);
                     } else {
-                        localStorage.setItem(STORAGE_KEY, dataString);
+                        localStorage.setItem(MEAL_STORAGE_KEY, dataString);
                     }
                     
                     // 清空输入和复选框
@@ -429,26 +426,22 @@
         // 显示所有订餐安排，并隐藏过期安排
         function displayMeals() {
             try {
-                // 使用统一的存储键名和函数
-                const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.MEAL_VIEWER_DATA) || 'mealArrangements';
                 let arrangements;
                 if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
-                    arrangements = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, []);
+                    arrangements = window.CommonUtils.getLocalStorageItem(MEAL_STORAGE_KEY, []);
                 } else {
-                    arrangements = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                    arrangements = JSON.parse(localStorage.getItem(MEAL_STORAGE_KEY) || '[]');
                 }
-                
+
                 // 删除过期安排
                 const filteredArrangements = removeExpiredArrangements(arrangements);
                 
                 // 如果有安排被过滤掉，保存更新后的安排
                 if (filteredArrangements.length !== arrangements.length) {
-                    // 使用统一的存储函数
-                    const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.MEAL_VIEWER_DATA) || 'mealArrangements';
                     if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
-                        window.CommonUtils.setLocalStorageItem(STORAGE_KEY, filteredArrangements);
+                        window.CommonUtils.setLocalStorageItem(MEAL_STORAGE_KEY, filteredArrangements);
                     } else {
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(filteredArrangements));
+                        localStorage.setItem(MEAL_STORAGE_KEY, JSON.stringify(filteredArrangements));
                     }
                     console.log(`已清理 ${arrangements.length - filteredArrangements.length} 条过期安排`);
                 }
@@ -579,13 +572,11 @@
         // 显示今日餐点
         function displayTodayMeals() {
             try {
-                // 使用统一的存储键名和函数
-                const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.MEAL_VIEWER_DATA) || 'mealArrangements';
                 let arrangements;
                 if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
-                    arrangements = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, []);
+                    arrangements = window.CommonUtils.getLocalStorageItem(MEAL_STORAGE_KEY, []);
                 } else {
-                    arrangements = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+                    arrangements = JSON.parse(localStorage.getItem(MEAL_STORAGE_KEY) || '[]');
                 }
                 const todayInfo = getTodayFormats();
                 
@@ -698,18 +689,26 @@
             startRefreshTimer();
         }
 
+        let lastRefreshHour = new Date().getHours();
+
         function startRefreshTimer() {
-            // 每分钟检查一次是否需要刷新
             refreshTimer = setInterval(() => {
                 const now = new Date();
                 const currentDate = now.getDate();
+                const currentHour = now.getHours();
 
-                // 只在跨日时刷新，避免不必要的更新
-                if (currentDate !== lastRefreshDate) {
+                // 跨日、或经过午餐/晚餐分界时间点（11:00、17:00）时刷新
+                const crossedMealBoundary = (lastRefreshHour < 11 && currentHour >= 11) ||
+                    (lastRefreshHour < 17 && currentHour >= 17);
+
+                if (currentDate !== lastRefreshDate || crossedMealBoundary) {
                     lastRefreshDate = currentDate;
+                    lastRefreshHour = currentHour;
                     displayTodayMeals();
                 }
-            }, 60000); // 60000毫秒 = 1分钟
+
+                lastRefreshHour = currentHour;
+            }, 60000);
         }
 
         // 清除所有数据
@@ -718,12 +717,10 @@
                 if (!confirm('确定要清除所有安排吗？此操作不可恢复！')) {
                     return;
                 }
-                // 使用统一的存储键名和函数
-                const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.MEAL_VIEWER_DATA) || 'mealArrangements';
                 if (window.CommonUtils && window.CommonUtils.removeLocalStorageItem) {
-                    window.CommonUtils.removeLocalStorageItem(STORAGE_KEY);
+                    window.CommonUtils.removeLocalStorageItem(MEAL_STORAGE_KEY);
                 } else {
-                    localStorage.removeItem(STORAGE_KEY);
+                    localStorage.removeItem(MEAL_STORAGE_KEY);
                 }
                 displayMeals();
                 displayTodayMeals();

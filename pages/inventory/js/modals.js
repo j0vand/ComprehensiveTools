@@ -482,7 +482,7 @@ class InventoryModals {
                             
                             <div class="form-group">
                                 <label class="form-label required">商品名称</label>
-                                <input type="text" name="name" class="form-control" required value="${item.name}">
+                                <input type="text" name="name" class="form-control" required value="${Utils.escapeHtml(item.name)}">
                             </div>
                             
                             <div class="form-grid">
@@ -500,7 +500,7 @@ class InventoryModals {
                                 <div class="form-group">
                                     <label class="form-label">品牌</label>
                                     <div class="autocomplete-container">
-                                        <input type="text" name="brand" class="form-control" value="${item.brand || ''}" autocomplete="off">
+                                        <input type="text" name="brand" class="form-control" value="${Utils.escapeHtml(item.brand) || ''}" autocomplete="off">
                                         <div class="suggestions" id="editBrandSuggestions"></div>
                                     </div>
                                 </div>
@@ -520,7 +520,7 @@ class InventoryModals {
                             
                             <div class="form-group">
                                 <label class="form-label">备注</label>
-                                <textarea name="remark" class="form-control">${item.remark || ''}</textarea>
+                                <textarea name="remark" class="form-control">${Utils.escapeHtml(item.remark) || ''}</textarea>
                             </div>
                             
                             <div class="alert alert-info">
@@ -580,7 +580,7 @@ class InventoryModals {
                     </div>
                     <div class="modal-body">
                         <div class="text-center mb-4">
-                            <h3>${item.name}</h3>
+                            <h3>${Utils.escapeHtml(item.name)}</h3>
                             <p class="text-secondary">当前库存: ${item.quantity}</p>
                         </div>
                         
@@ -678,7 +678,7 @@ class InventoryModals {
                         <button class="close-button">&times;</button>
                     </div>
                     <div class="modal-body">
-                        <p>确定要删除商品 <strong>${item.name}</strong> 吗？</p>
+                        <p>确定要删除商品 <strong>${Utils.escapeHtml(item.name)}</strong> 吗？</p>
                         <p class="text-secondary text-small mt-2">此操作将删除该商品的所有库存记录和历史记录，且无法恢复。</p>
                     </div>
                     <div class="modal-footer">
@@ -717,7 +717,7 @@ class InventoryModals {
             <div class="modal item-details-modal" id="itemDetailsModal">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h2 class="modal-title">${item.name}</h2>
+                        <h2 class="modal-title">${Utils.escapeHtml(item.name)}</h2>
                         <button class="close-button">&times;</button>
                     </div>
                     <div class="modal-body">
@@ -734,18 +734,18 @@ class InventoryModals {
                             </div>
                             <div class="item-detail-card">
                                 <div class="item-detail-title">分类</div>
-                                <div class="item-detail-value">${item.category || '-'}</div>
+                                <div class="item-detail-value">${Utils.escapeHtml(item.category) || '-'}</div>
                             </div>
                             <div class="item-detail-card">
                                 <div class="item-detail-title">品牌/规格</div>
-                                <div class="item-detail-value">${item.brand || '-'} / ${item.spec || '-'}</div>
+                                <div class="item-detail-value">${Utils.escapeHtml(item.brand) || '-'} / ${Utils.escapeHtml(item.spec) || '-'}</div>
                             </div>
                         </div>
 
                         ${item.remark ? `
                         <div class="item-description">
                             <div class="item-description-title">备注</div>
-                            <div class="item-description-content">${item.remark}</div>
+                            <div class="item-description-content">${Utils.escapeHtml(item.remark)}</div>
                         </div>
                         ` : ''}
 
@@ -807,11 +807,11 @@ class InventoryModals {
                 
                 if (action === 'edit-item' && itemId) {
                     e.preventDefault();
-                    this.closeModal();
+                    this.closeModal('itemDetailsModal');
                     setTimeout(() => this.openEditItemModal(itemId), 100);
                 } else if (action === 'adjust-quantity' && itemId) {
                     e.preventDefault();
-                    this.closeModal();
+                    this.closeModal('itemDetailsModal');
                     setTimeout(() => this.openAdjustQuantityModal(itemId), 100);
                 }
             });
@@ -958,12 +958,22 @@ class InventoryModals {
             }
         });
 
-        // 点击外部关闭
-        document.addEventListener('click', (e) => {
-            if (e.target !== input && e.target !== suggestionsContainer) {
+        // 点击外部关闭（使用 once-safe 方式，在 modal 关闭时自动清理）
+        const closeSuggestions = (e) => {
+            if (e.target !== input && !suggestionsContainer.contains(e.target)) {
                 suggestionsContainer.style.display = 'none';
             }
+        };
+        document.addEventListener('click', closeSuggestions);
+
+        // 当 input 被移除时（modal 关闭），清理监听器
+        const observer = new MutationObserver(() => {
+            if (!document.contains(input)) {
+                document.removeEventListener('click', closeSuggestions);
+                observer.disconnect();
+            }
         });
+        observer.observe(document.body, { childList: true, subtree: true });
     }
 
     /**

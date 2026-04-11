@@ -280,7 +280,8 @@ class UIManager {
             storage: '',
             status: 'all',
             expiringSoon: false,
-            fromDate: undefined
+            fromDate: undefined,
+            searchQuery: ''
         };
         
         // 重置UI元素
@@ -451,9 +452,9 @@ class UIManager {
             const resultItem = document.createElement('div');
             resultItem.className = 'search-result-item';
             resultItem.innerHTML = `
-                <div class="search-result-name">${item.name}</div>
+                <div class="search-result-name">${Utils.escapeHtml(item.name)}</div>
                 <div class="search-result-details">
-                    <span>${item.category || '未分类'} · ${item.spec || ''}</span>
+                    <span>${Utils.escapeHtml(item.category) || '未分类'} · ${Utils.escapeHtml(item.spec) || ''}</span>
                     <span class="status-badge status-${status}">${statusText} (${item.quantity})</span>
                 </div>
             `;
@@ -821,14 +822,14 @@ class UIManager {
         // 卡片内容
         card.innerHTML = `
             <div class="card-header">
-                <h3 class="card-title">${item.name}</h3>
+                <h3 class="card-title">${Utils.escapeHtml(item.name)}</h3>
                 <div class="card-status">
                     <span class="status-badge status-${status}">${statusText}</span>
                 </div>
             </div>
             
             <div class="card-category">
-                <span class="icon">📂</span>${item.category || '未分类'}
+                <span class="icon">📂</span>${Utils.escapeHtml(item.category) || '未分类'}
             </div>
             
             ${expiring ? `
@@ -838,8 +839,8 @@ class UIManager {
             ` : ''}
             
             <div class="card-specs">
-                ${item.spec ? `<div class="card-spec"><span class="icon">📏</span>${item.spec}</div>` : ''}
-                ${item.brand ? `<div class="card-spec"><span class="icon">🏷️</span>${item.brand}</div>` : ''}
+                ${item.spec ? `<div class="card-spec"><span class="icon">📏</span>${Utils.escapeHtml(item.spec)}</div>` : ''}
+                ${item.brand ? `<div class="card-spec"><span class="icon">🏷️</span>${Utils.escapeHtml(item.brand)}</div>` : ''}
             </div>
             
             <div class="card-info">
@@ -864,11 +865,11 @@ class UIManager {
                 
                 ${item.storage ? `
                 <div class="card-storage">
-                    <span class="icon">📍</span>${item.storage}
+                    <span class="icon">📍</span>${Utils.escapeHtml(item.storage)}
                 </div>
                 ` : ''}
                 
-                ${item.remark ? `<div class="card-note">${item.remark}</div>` : ''}
+                ${item.remark ? `<div class="card-note">${Utils.escapeHtml(item.remark)}</div>` : ''}
             </div>
             
             <div class="card-actions">
@@ -989,11 +990,11 @@ class UIManager {
         // 表格行内容
         row.innerHTML = `
             <td>
-                <div class="table-item-name">${item.name}</div>
+                <div class="table-item-name">${Utils.escapeHtml(item.name)}</div>
                 ${expiring ? '<div class="table-item-expiry text-warning"><span class="icon">⚠️</span>即将过期</div>' : ''}
             </td>
-            <td>${item.category || '未分类'}</td>
-            <td>${item.spec || '-'}</td>
+            <td>${Utils.escapeHtml(item.category) || '未分类'}</td>
+            <td>${Utils.escapeHtml(item.spec) || '-'}</td>
             <td class="${status === 'out-stock' ? 'text-error' : status === 'low-stock' ? 'text-warning' : ''}">${item.quantity}</td>
             <td class="text-primary font-bold">${Utils.formatPrice(item.price)}</td>
             <td><span class="status-badge status-${status}">${statusText}</span></td>

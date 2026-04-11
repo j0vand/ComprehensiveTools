@@ -1025,6 +1025,16 @@ class RehabTrainerApp {
             return;
         }
         
+        if (isNaN(sets) || sets <= 0) {
+            this.showError('请输入有效的组数');
+            return;
+        }
+        
+        if (isNaN(setRest) || setRest < 0) {
+            this.showError('请输入有效的组间休息时间');
+            return;
+        }
+        
         const exercise = {
             name,
             type,
@@ -1035,8 +1045,16 @@ class RehabTrainerApp {
         
         if (type === 'duration') {
             exercise.duration = parseInt(document.getElementById('duration').value);
+            if (isNaN(exercise.duration) || exercise.duration <= 0) {
+                this.showError('请输入有效的持续时间');
+                return;
+            }
         } else {
             exercise.reps = parseInt(document.getElementById('reps').value);
+            if (isNaN(exercise.reps) || exercise.reps <= 0) {
+                this.showError('请输入有效的次数');
+                return;
+            }
         }
         
         let success = false;

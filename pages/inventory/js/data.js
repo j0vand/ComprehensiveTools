@@ -125,8 +125,8 @@ class DataManager {
             this.saveCategories();
         }
         
-        // 更新每个分类的数量统计
-        this.updateCategoryCounts();
+        // 更新每个分类的数量统计（加载时不需要写回存储）
+        this.updateCategoryCounts(false);
     }
     
     /**
@@ -196,12 +196,12 @@ class DataManager {
     /**
      * 更新分类计数
      */
-    updateCategoryCounts() {
+    updateCategoryCounts(save = true) {
         // 重置所有分类的计数
         this.categories.forEach(category => {
             category.count = 0;
         });
-        
+
         // 统计每个分类下的商品数量
         this.items.forEach(item => {
             const category = this.categories.find(c => c.name === item.category);
@@ -209,9 +209,10 @@ class DataManager {
                 category.count++;
             }
         });
-        
-        // 保存更新后的分类数据
-        this.saveCategories();
+
+        if (save) {
+            this.saveCategories();
+        }
     }
     
     /**
@@ -597,9 +598,20 @@ class DataManager {
             }
         } else {
             // 如果没有指定替代分类，将使用该分类的商品设为"其他"
+            // 确保 "其他" 分类存在
+            const otherCategory = this.categories.find(c => c.name === '其他');
+            if (!otherCategory && this.categories.length > 1) {
+                this.categories.push({
+                    id: Utils.generateUUID(),
+                    name: '其他',
+                    count: 0
+                });
+            }
+            const fallbackName = otherCategory ? '其他' :
+                (this.categories.find(c => c.id !== id) || { name: '其他' }).name;
             this.items.forEach(item => {
                 if (item.category === deletedCategory.name) {
-                    item.category = '其他';
+                    item.category = fallbackName;
                 }
             });
         }
@@ -770,6 +782,15 @@ class DataManager {
                     case 'out-stock':
                         results = results.filter(item => item.quantity <= 0);
                         break;
+                    case 'need-to-buy': {
+                        const pendingIds = new Set(
+                            this.shoppingList
+                                .filter(e => !e.purchased)
+                                .map(e => e.itemId)
+                        );
+                        results = results.filter(item => pendingIds.has(item.id));
+                        break;
+                    }
                 }
             }
             

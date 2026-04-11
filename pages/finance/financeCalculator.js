@@ -145,7 +145,7 @@
                 return;
             }
 
-            const monthlyRate = rate / 100 / 12;
+            const monthlyRate = rate === 0 ? 0 : Math.pow(1 + rate / 100, 1/12) - 1;
             const totalMonths = years * 12;
 
             let monthlyPayment = 0;

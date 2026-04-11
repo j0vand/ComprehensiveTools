@@ -184,8 +184,11 @@ function calculatePension(data, retirementInfo) {
     // G. 计算年度明细数据
     const yearDetails = calculateYearDetails(data, retirementInfo, futurePaymentYears, futureAvgSalary, weightedAvgIndex);
 
+    if (!yearDetails || yearDetails.length === 0) {
+        throw new Error('年度明细数据为空，无法计算最终结果');
+    }
+
     // H. 使用表格最后一行的数据来确保主计算结果与表格一致
-    // 这样用户在表格中选择"持续缴费到退休"时，结果与顶部显示一致
     const lastYearDetail = yearDetails[yearDetails.length - 1];
     const finalTotalPension = lastYearDetail.pensionIfStop;
     const finalAccountBalance = lastYearDetail.accumulatedBalance;

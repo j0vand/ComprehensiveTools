@@ -556,6 +556,21 @@ function validateForm(data, rules) {
     return result;
 }
 
+/**
+ * HTML 转义，防止 XSS
+ * @param {string} str - 原始字符串
+ * @returns {string} 转义后的安全字符串
+ */
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 // 导出工具函数
 window.Utils = {
     formatDate,
@@ -580,5 +595,6 @@ window.Utils = {
     isEqual,
     initDarkMode,
     isMobileDevice,
-    validateForm
+    validateForm,
+    escapeHtml
 }; 
