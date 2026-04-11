@@ -471,14 +471,29 @@
                 chart = echarts.init(chartContainer);
             }
 
-            const months = schedule.map(item => item.month);
-            const payments = schedule.map(item => item.payment);
-            const principals = schedule.map(item => item.principal);
-            const interests = schedule.map(item => item.interest);
+            // 数据抽样优化：当数据点过多时，减少显示点数提升性能
+            let sampledSchedule = schedule;
+            const MAX_CHART_POINTS = 120; // 最多显示120个点
+
+            if (schedule.length > MAX_CHART_POINTS) {
+                // 计算采样间隔
+                const step = Math.ceil(schedule.length / MAX_CHART_POINTS);
+                sampledSchedule = schedule.filter((_, index) => {
+                    // 保留第一个、最后一个，以及按间隔采样的点
+                    return index === 0 || index === schedule.length - 1 || index % step === 0;
+                });
+            }
+
+            const months = sampledSchedule.map(item => item.month);
+            const payments = sampledSchedule.map(item => item.payment);
+            const principals = sampledSchedule.map(item => item.principal);
+            const interests = sampledSchedule.map(item => item.interest);
 
             const option = {
+                // 性能优化配置
+                animation: sampledSchedule.length > 60 ? false : true, // 数据量大时禁用动画
                 title: {
-                    text: '还款构成分析',
+                    text: '还款构成分析' + (schedule.length !== sampledSchedule.length ? ` (已采样${sampledSchedule.length}/${schedule.length}点)` : ''),
                     left: 'center',
                     textStyle: {
                         fontSize: 14
@@ -500,7 +515,7 @@
                 },
                 tooltip: {
                     trigger: 'axis',
-                    confine: true, // 确保提示框在图表区域内
+                    confine: true,
                     formatter: function(params) {
                         return params[0].axisValue + '期<br/>' +
                             params.map(item => {
@@ -512,7 +527,11 @@
                     type: 'category',
                     boundaryGap: false,
                     data: months,
-                    name: '期数'
+                    name: '期数',
+                    axisLabel: {
+                        // 优化标签显示，避免过于密集
+                        interval: 'auto'
+                    }
                 },
                 yAxis: {
                     type: 'value',
@@ -522,17 +541,27 @@
                     {
                         name: '月供',
                         type: 'line',
-                        data: payments
+                        data: payments,
+                        // 性能优化：大数据量时使用更简单的渲染方式
+                        sampling: 'lttb', // Largest-Triangle-Three-Buckets采样算法
+                        large: true,
+                        largeThreshold: 100
                     },
                     {
                         name: '本金',
                         type: 'line',
-                        data: principals
+                        data: principals,
+                        sampling: 'lttb',
+                        large: true,
+                        largeThreshold: 100
                     },
                     {
                         name: '利息',
                         type: 'line',
-                        data: interests
+                        data: interests,
+                        sampling: 'lttb',
+                        large: true,
+                        largeThreshold: 100
                     }
                 ]
             };

@@ -9,7 +9,11 @@ class RehabTrainerApp {
         this.currentExercises = [];
         this.editingExerciseId = null;
         this.deleteTarget = null;
-        
+
+        // 创建AbortController用于统一管理事件监听器
+        this.abortController = new AbortController();
+        this.signal = this.abortController.signal;
+
         this.initElements();
         this.initModals();
         this.initEventListeners();
@@ -19,7 +23,7 @@ class RehabTrainerApp {
         // 拖拽功能已移至计划管理界面，主界面不再支持拖拽
         this.loadVoiceSettings();
         this.checkAndDisplayVoiceSupport();
-        
+
         // 确保初始状态：主界面显示，训练界面隐藏
         if (this.mainView) {
             this.mainView.style.display = 'block';
@@ -28,9 +32,28 @@ class RehabTrainerApp {
             this.trainingView.style.display = 'none';
             this.trainingView.style.visibility = 'hidden';
         }
-        
+
         // 所有设备都需要用户交互后才能使用TTS（浏览器安全限制）
         this.initVoiceOnFirstInteraction();
+
+        // 页面卸载时清理事件监听器
+        window.addEventListener('beforeunload', () => this.cleanup(), { signal: this.signal });
+    }
+
+    /**
+     * 清理资源和事件监听器
+     */
+    cleanup() {
+        // 取消所有通过AbortController注册的事件监听器
+        this.abortController.abort();
+
+        // 清理训练相关资源
+        if (window.trainer) {
+            window.trainer.cleanup();
+        }
+        if (window.audioManager) {
+            audioManager.cleanup();
+        }
     }
 
     /**
@@ -275,10 +298,10 @@ class RehabTrainerApp {
             console.error(`元素不存在: ${event}`);
             return;
         }
-        
+
         // 移动端优先使用touchstart，桌面端使用click
         const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        
+
         try {
             if (isMobile) {
                 // 移动端：使用touchstart，并阻止默认行为避免双击缩放
@@ -287,14 +310,15 @@ class RehabTrainerApp {
                     e.stopPropagation();
                     handler(e);
                 };
-                
-                element.addEventListener('touchstart', touchHandler, { passive: false });
-                
+
+                // 使用signal统一管理，便于清理
+                element.addEventListener('touchstart', touchHandler, { passive: false, signal: this.signal });
+
                 // 同时保留click作为备用
-                element.addEventListener('click', handler);
+                element.addEventListener('click', handler, { signal: this.signal });
             } else {
                 // 桌面端：只使用click
-                element.addEventListener('click', handler);
+                element.addEventListener('click', handler, { signal: this.signal });
             }
         } catch (error) {
             console.error(`绑定事件监听器失败: ${element.id || element.className}`, error);
@@ -309,23 +333,23 @@ class RehabTrainerApp {
             // 计划相关
             this.addMobileEventListener(document.getElementById('newPlanBtn'), 'click', () => this.showPlanModal());
             this.addMobileEventListener(document.getElementById('savePlanBtn'), 'click', () => this.savePlan());
-            this.planSelect.addEventListener('change', (e) => this.switchPlan(e.target.value));
-            
+            this.planSelect.addEventListener('change', (e) => this.switchPlan(e.target.value), { signal: this.signal });
+
             // 导入导出
             this.addMobileEventListener(document.getElementById('exportBtn'), 'click', () => this.exportData());
             this.addMobileEventListener(document.getElementById('importBtn'), 'click', () => this.triggerImport());
-            document.getElementById('importFile').addEventListener('change', (e) => this.importData(e));
-            
+            document.getElementById('importFile').addEventListener('change', (e) => this.importData(e), { signal: this.signal });
+
             // 计划管理
             this.addMobileEventListener(document.getElementById('managePlansBtn'), 'click', () => this.showPlanManageModal());
-            
+
             // 训练项相关
             this.addMobileEventListener(document.getElementById('addExerciseBtn'), 'click', () => this.showExerciseModal());
             this.addMobileEventListener(document.getElementById('saveExerciseBtn'), 'click', () => this.saveExercise());
-            
+
             // 训练类型切换
             document.querySelectorAll('input[name="exerciseType"]').forEach(radio => {
-                radio.addEventListener('change', (e) => this.toggleExerciseType(e.target.value));
+                radio.addEventListener('change', (e) => this.toggleExerciseType(e.target.value), { signal: this.signal });
             });
             
             // 开始训练

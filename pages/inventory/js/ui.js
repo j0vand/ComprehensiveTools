@@ -705,11 +705,51 @@ class UIManager {
      * 渲染商品列表
      */
     renderItems() {
-        // 根据当前视图渲染
-        if (this.currentView === 'card') {
-            this.renderCardView();
+        // 对于大数据量，显示加载提示
+        if (this.displayedItems.length > 100) {
+            this.showLoadingIndicator();
+
+            // 使用requestAnimationFrame延迟渲染，避免阻塞UI
+            requestAnimationFrame(() => {
+                // 根据当前视图渲染
+                if (this.currentView === 'card') {
+                    this.renderCardView();
+                } else {
+                    this.renderTableView();
+                }
+                this.hideLoadingIndicator();
+            });
         } else {
-            this.renderTableView();
+            // 数据量小，直接渲染
+            if (this.currentView === 'card') {
+                this.renderCardView();
+            } else {
+                this.renderTableView();
+            }
+        }
+    }
+
+    /**
+     * 显示加载指示器
+     */
+    showLoadingIndicator() {
+        const container = this.currentView === 'card' ? this.elements.cardView : this.elements.tableBody?.parentElement;
+        if (!container) return;
+
+        const loader = document.createElement('div');
+        loader.id = 'rendering-loader';
+        loader.style.cssText = 'text-align:center;padding:40px;color:#666;font-size:14px;';
+        loader.textContent = '正在加载数据...';
+        container.appendChild(loader);
+    }
+
+    /**
+     * 隐藏加载指示器
+     */
+    hideLoadingIndicator() {
+        const loader = document.getElementById('rendering-loader');
+        if (loader) {
+            loader.remove();
         }
     }
     
@@ -718,13 +758,19 @@ class UIManager {
      */
     renderCardView() {
         if (!this.elements.cardView) return;
-        
+
         this.elements.cardView.innerHTML = '';
-        
+
+        // 使用DocumentFragment优化性能，减少DOM重排
+        const fragment = document.createDocumentFragment();
+
         this.displayedItems.forEach(item => {
             const card = this.createItemCard(item);
-            this.elements.cardView.appendChild(card);
+            fragment.appendChild(card);
         });
+
+        // 一次性添加所有卡片
+        this.elements.cardView.appendChild(fragment);
     }
     
     /**
@@ -894,13 +940,19 @@ class UIManager {
      */
     renderTableView() {
         if (!this.elements.tableBody) return;
-        
+
         this.elements.tableBody.innerHTML = '';
-        
+
+        // 使用DocumentFragment优化性能，减少DOM重排
+        const fragment = document.createDocumentFragment();
+
         this.displayedItems.forEach(item => {
             const row = this.createItemTableRow(item);
-            this.elements.tableBody.appendChild(row);
+            fragment.appendChild(row);
         });
+
+        // 一次性添加所有行
+        this.elements.tableBody.appendChild(fragment);
     }
     
     /**

@@ -653,11 +653,46 @@
             }
         }
 
-        // 添加定时刷新功能
+        // 添加智能定时刷新功能
+        let refreshTimer = null;
+        let lastRefreshDate = new Date().getDate();
+
         function startAutoRefresh() {
-            // 每分钟刷新一次显示
-            setInterval(() => {
-                displayTodayMeals();
+            // 清除已存在的定时器
+            if (refreshTimer) {
+                clearInterval(refreshTimer);
+            }
+
+            // 使用Visibility API暂停后台刷新，节省资源
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) {
+                    // 页面隐藏时停止刷新
+                    if (refreshTimer) {
+                        clearInterval(refreshTimer);
+                        refreshTimer = null;
+                    }
+                } else {
+                    // 页面可见时立即刷新并重启定时器
+                    displayTodayMeals();
+                    startRefreshTimer();
+                }
+            });
+
+            // 启动定时器
+            startRefreshTimer();
+        }
+
+        function startRefreshTimer() {
+            // 每分钟检查一次是否需要刷新
+            refreshTimer = setInterval(() => {
+                const now = new Date();
+                const currentDate = now.getDate();
+
+                // 只在跨日时刷新，避免不必要的更新
+                if (currentDate !== lastRefreshDate) {
+                    lastRefreshDate = currentDate;
+                    displayTodayMeals();
+                }
             }, 60000); // 60000毫秒 = 1分钟
         }
 
