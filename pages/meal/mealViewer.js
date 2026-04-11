@@ -715,8 +715,9 @@
         // 清除所有数据
         function clearData() {
             try {
-                // 移除确认对话框，直接执行清除操作
-                // if (confirm('确定要清除所有安排吗？此操作不可恢复！')) {
+                if (!confirm('确定要清除所有安排吗？此操作不可恢复！')) {
+                    return;
+                }
                 // 使用统一的存储键名和函数
                 const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.MEAL_VIEWER_DATA) || 'mealArrangements';
                 if (window.CommonUtils && window.CommonUtils.removeLocalStorageItem) {
@@ -727,7 +728,6 @@
                 displayMeals();
                 displayTodayMeals();
                 showToast('已清除所有安排', 'success');
-                // }
             } catch (e) {
                 showToast('清除数据时出错: ' + e.message, 'error');
                 console.error('清除数据时出错:', e);

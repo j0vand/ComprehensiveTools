@@ -722,6 +722,45 @@
         const reader = new FileReader();
         reader.onload = function(e) {
             try {
+                function normalizeImportedList(list, fallbackName) {
+                    var normalizedName = (typeof list.name === 'string' && list.name.trim())
+                        ? list.name.trim()
+                        : (fallbackName || '导入的清单');
+
+                    var sourceTypes = (list.types && list.types.length >= 2)
+                        ? list.types
+                        : getDefaultTypes();
+                    var typeIdMap = {};
+                    var normalizedTypes = sourceTypes.map(function(t, idx) {
+                        var oldId = (t && typeof t.id === 'string') ? t.id : ('legacy-type-' + idx);
+                        var nextId = 'type-' + generateId();
+                        typeIdMap[oldId] = nextId;
+                        return {
+                            id: nextId,
+                            name: (t && typeof t.name === 'string' && t.name.trim()) ? t.name.trim() : ('类型' + (idx + 1))
+                        };
+                    });
+
+                    var fallbackTypeId = normalizedTypes[0].id;
+                    var normalizedItems = (list.items || []).map(function(item, idx) {
+                        var sourceTypeId = (item && typeof item.type === 'string') ? item.type : '';
+                        return {
+                            id: generateId(),
+                            text: item && typeof item.text === 'string' ? item.text : '',
+                            checked: Boolean(item && item.checked),
+                            order: (item && typeof item.order === 'number') ? item.order : idx,
+                            type: typeIdMap[sourceTypeId] || fallbackTypeId
+                        };
+                    });
+
+                    return {
+                        id: generateId(),
+                        name: normalizedName,
+                        types: normalizedTypes,
+                        items: normalizedItems
+                    };
+                }
+
                 const raw = e.target && e.target.result;
                 if (!raw || typeof raw !== 'string') {
                     showMessage('无法读取文件内容', 'error');
@@ -738,36 +777,16 @@
                         const cur = getCurrentList();
                         if (!cur) return;
                         const first = data.lists[0];
-                        cur.types = (first.types && first.types.length >= 2) ? first.types.map(function(t) { return { id: t.id, name: t.name }; }) : getDefaultTypes();
-                        cur.items = (first.items || []).map(function(item, idx) {
-                            return {
-                                id: item.id || generateId(),
-                                text: typeof item.text === 'string' ? item.text : '',
-                                checked: Boolean(item.checked),
-                                order: typeof item.order === 'number' ? item.order : idx,
-                                type: typeof item.type === 'string' ? item.type : 'item'
-                            };
-                        });
+                        var normalized = normalizeImportedList(first, '导入的清单');
+                        cur.name = normalized.name;
+                        cur.types = normalized.types;
+                        cur.items = normalized.items;
                         saveData();
                         renderList();
                         showMessage('已覆盖当前清单，共 ' + cur.items.length + ' 项', 'success');
                     } else {
                         data.lists.forEach(function(list) {
-                            var types = (list.types && list.types.length >= 2) ? list.types.map(function(t) { return { id: t.id, name: t.name }; }) : getDefaultTypes();
-                            state.lists.push({
-                                id: list.id || generateId(),
-                                name: list.name || '导入的清单',
-                                types: types,
-                                items: (list.items || []).map(function(item, idx) {
-                                    return {
-                                        id: item.id || generateId(),
-                                        text: typeof item.text === 'string' ? item.text : '',
-                                        checked: Boolean(item.checked),
-                                        order: typeof item.order === 'number' ? item.order : idx,
-                                        type: typeof item.type === 'string' ? item.type : 'item'
-                                    };
-                                })
-                            });
+                            state.lists.push(normalizeImportedList(list, '导入的清单'));
                         });
                         state.activeListId = state.lists[state.lists.length - 1].id;
                         saveData();
@@ -778,21 +797,11 @@
                 }
                 if (data.items && Array.isArray(data.items)) {
                     const listName = (parsed.listName || parsed.name || '导入的清单').trim() || '导入的清单';
-                    const types = (data.types && data.types.length >= 2) ? data.types.map(function(t) { return { id: t.id, name: t.name }; }) : getDefaultTypes();
-                    const newList = {
-                        id: generateId(),
+                    const newList = normalizeImportedList({
                         name: listName,
-                        types: types,
-                        items: data.items.map(function(item, idx) {
-                            return {
-                                id: item.id || generateId(),
-                                text: typeof item.text === 'string' ? item.text : '',
-                                checked: Boolean(item.checked),
-                                order: typeof item.order === 'number' ? item.order : idx,
-                                type: typeof item.type === 'string' ? item.type : 'item'
-                            };
-                        })
-                    };
+                        types: data.types,
+                        items: data.items
+                    }, listName);
                     if (mode === 'overwrite') {
                         const cur = getCurrentList();
                         if (cur) {

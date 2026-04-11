@@ -1584,8 +1584,13 @@ class RehabTrainerApp {
     }
 }
 
+let hasInitializedApp = false;
+
 // 页面加载完成后初始化应用
-document.addEventListener('DOMContentLoaded', () => {
+function initializeApp() {
+    if (hasInitializedApp) return;
+    hasInitializedApp = true;
+
     try {
         window.app = new RehabTrainerApp();
     } catch (error) {
@@ -1597,9 +1602,9 @@ document.addEventListener('DOMContentLoaded', () => {
             alert('应用初始化失败：' + error.message + '\n请刷新页面重试。');
         }
     }
-});
+}
 
-// 如果DOMContentLoaded已经触发过了，立即执行
+document.addEventListener('DOMContentLoaded', initializeApp, { once: true });
 if (document.readyState !== 'loading') {
-    document.dispatchEvent(new Event('DOMContentLoaded'));
+    initializeApp();
 }

@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>库存管理系统</title>
+    <script>
+        // 统一入口到 inventoryManager.html，避免两套页面并行维护
+        window.location.replace('./inventoryManager.html');
+    </script>
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/modal.css">
     <link rel="stylesheet" href="css/cards.css">
@@ -276,9 +280,12 @@
 
     <!-- 引入JavaScript文件 -->
     <!-- 外部库（CDN） -->
-    <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.18.2/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.18.2/dist/index.js"
+            onerror="console.warn('拼音库加载失败，搜索功能将受限')"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"
+            onerror="console.warn('图表库加载失败，统计图表不可用')"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
+            onerror="console.warn('Excel库加载失败，导入导出功能受限')"></script>
     <!-- 公共工具库 -->
     <script src="../../utils/storage-keys.js"></script>
     <script src="../../utils/common.js"></script>

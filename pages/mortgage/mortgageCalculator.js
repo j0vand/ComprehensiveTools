@@ -477,6 +477,10 @@
         // 更新图表
         function updateChart(schedule) {
             const chartContainer = document.getElementById('paymentChart');
+            if (typeof echarts === 'undefined') {
+                showToast('图表库加载失败，已仅显示还款明细数据', 'warning');
+                return;
+            }
             if (!chart) {
                 chart = echarts.init(chartContainer);
             }

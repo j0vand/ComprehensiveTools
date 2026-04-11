@@ -138,13 +138,23 @@
         function calculateLoan() {
             const amount = getElementValue('loanAmount', 'float', 0);
             const rate = getElementValue('loanRate', 'float', 0);
-            const years = getElementValue('loanYears', 'float', 0);
+            const years = getElementValue('loanYears', 'int', 0);
+
+            if (amount <= 0 || years <= 0 || rate < 0) {
+                showToast('请输入有效的贷款金额、年限和利率', 'error');
+                return;
+            }
 
             const monthlyRate = rate / 100 / 12;
             const totalMonths = years * 12;
-            
-            const monthlyPayment = amount * monthlyRate * Math.pow(1 + monthlyRate, totalMonths) 
-                                / (Math.pow(1 + monthlyRate, totalMonths) - 1);
+
+            let monthlyPayment = 0;
+            if (monthlyRate === 0) {
+                monthlyPayment = amount / totalMonths;
+            } else {
+                monthlyPayment = amount * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)
+                    / (Math.pow(1 + monthlyRate, totalMonths) - 1);
+            }
             const totalPayment = monthlyPayment * totalMonths;
             const totalInterest = totalPayment - amount;
 

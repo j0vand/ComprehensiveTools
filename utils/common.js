@@ -239,6 +239,78 @@ async function safeExecuteAsync(fn, context = '', defaultReturn = null) {
     }
 }
 
+/**
+ * 增强 number 输入在移动端的键盘体验
+ * - 整数输入使用 numeric
+ * - 小数输入使用 decimal
+ */
+function enhanceNumberInputMode() {
+    if (typeof document === 'undefined') return;
+    const numberInputs = document.querySelectorAll('input[type="number"]');
+    numberInputs.forEach(input => {
+        if (input.getAttribute('inputmode')) return;
+        const step = input.getAttribute('step');
+        const useDecimal = step && step !== '1' && step !== 'any';
+        input.setAttribute('inputmode', useDecimal ? 'decimal' : 'numeric');
+    });
+}
+
+/**
+ * 自动关联未绑定 for 的 label 与输入控件
+ * 兼容旧页面结构，提升点击标签聚焦与读屏体验
+ */
+function enhanceLabelAssociations() {
+    if (typeof document === 'undefined') return;
+
+    const labels = document.querySelectorAll('label:not([for])');
+    labels.forEach((label, index) => {
+        if (label.querySelector('input, select, textarea')) return;
+
+        const container = label.parentElement;
+        if (!container) return;
+        const control = container.querySelector('input:not([type="hidden"]), select, textarea');
+        if (!control) return;
+
+        if (!control.id) {
+            control.id = `auto-field-${index}-${Math.random().toString(36).slice(2, 8)}`;
+        }
+        label.setAttribute('for', control.id);
+    });
+}
+
+/**
+ * 注入统一焦点可视化样式，避免页面禁用 outline 后不可聚焦
+ */
+function injectGlobalFocusVisibleStyle() {
+    if (typeof document === 'undefined') return;
+    if (document.getElementById('common-focus-visible-style')) return;
+
+    const style = document.createElement('style');
+    style.id = 'common-focus-visible-style';
+    style.textContent = `
+        :where(button, [type="button"], [type="submit"], [type="reset"], a, input, select, textarea):focus-visible {
+            outline: 2px solid #1976d2 !important;
+            outline-offset: 2px !important;
+            box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.2) !important;
+        }
+    `;
+    document.head.appendChild(style);
+}
+
+if (typeof document !== 'undefined') {
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => {
+            enhanceNumberInputMode();
+            enhanceLabelAssociations();
+            injectGlobalFocusVisibleStyle();
+        }, { once: true });
+    } else {
+        enhanceNumberInputMode();
+        enhanceLabelAssociations();
+        injectGlobalFocusVisibleStyle();
+    }
+}
+
 // 导出到全局作用域
 if (typeof window !== 'undefined') {
     window.CommonUtils = {
@@ -253,6 +325,9 @@ if (typeof window !== 'undefined') {
         showNotification,
         handleError,
         safeExecute,
-        safeExecuteAsync
+        safeExecuteAsync,
+        enhanceNumberInputMode,
+        enhanceLabelAssociations,
+        injectGlobalFocusVisibleStyle
     };
 }

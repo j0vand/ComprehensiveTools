@@ -915,17 +915,24 @@ class DataManager {
         // 分类统计
         const categoryStats = {};
         this.categories.forEach(category => {
-            categoryStats[category.name] = 0;
+            categoryStats[category.name] = { quantity: 0, value: 0 };
         });
         
         this.items.forEach(item => {
-            if (item.category && categoryStats.hasOwnProperty(item.category)) {
-                categoryStats[item.category]++;
-            } else if (item.category) {
-                categoryStats[item.category] = 1;
-            } else {
-                categoryStats['其他'] = (categoryStats['其他'] || 0) + 1;
+            const categoryName = item.category || '其他';
+            if (!categoryStats[categoryName]) {
+                categoryStats[categoryName] = { quantity: 0, value: 0 };
             }
+
+            const itemQuantity = Number(item.quantity) || 0;
+            const itemValue = (item.batches || []).reduce((batchSum, batch) => {
+                const batchQuantity = Number(batch.quantity) || 0;
+                const batchPrice = Number(batch.price) || 0;
+                return batchSum + batchQuantity * batchPrice;
+            }, 0);
+
+            categoryStats[categoryName].quantity += itemQuantity;
+            categoryStats[categoryName].value += itemValue;
         });
         
         // 过期统计
