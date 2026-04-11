@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>综合工具箱</title>
+    <style>
+        :root {
+            --primary-color: #4CAF50;
+            --hover-color: #45a049;
+            --background-color: #f5f5f5;
+            --card-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            line-height: 1.6;
+            background-color: var(--background-color);
+            color: #333;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1em;
+        }
+
+        .tools-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 20px;
+        }
+
+        .tool-card {
+            background: white;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .tool-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .tool-icon {
+            width: 48px;
+            height: 48px;
+            background-color: var(--primary-color);
+            border-radius: 12px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+        }
+
+        .tool-title {
+            font-size: 1.25em;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .tool-description {
+            color: #666;
+            font-size: 0.95em;
+            line-height: 1.5;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 16px;
+            }
+
+            .header {
+                margin-bottom: 24px;
+            }
+
+            .header h1 {
+                font-size: 2em;
+            }
+
+            .tools-grid {
+                grid-template-columns: 1fr;
+                gap: 16px;
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>综合工具箱</h1>
+            <p>为您提供多种智能计算和管理工具，提升日常效率</p>
+        </header>
+
+        <div class="tools-grid">
+            <a href="pages/tax/taxCalculator.html" class="tool-card">
+                <div class="tool-icon">💰</div>
+                <h2 class="tool-title">个税计算器</h2>
+                <p class="tool-description">快速计算个人所得税，支持年终奖、专项附加扣除等复杂场景</p>
+            </a>
+
+            <div class="tool-card" onclick="window.location.href='pages/mortgage/mortgageCalculator.html'">
+                <div class="tool-icon">🏠</div>
+                <div class="tool-info">
+                    <h3>房贷计算器</h3>
+                    <p>商业贷款、公积金贷款和组合贷款计算，支持等额本息和等额本金</p>
+                </div>
+            </div>
+
+            <a href="pages/finance/financeCalculator.html" class="tool-card">
+                <div class="tool-icon">📊</div>
+                <h2 class="tool-title">理财计算器</h2>
+                <p class="tool-description">支持复利、贷款、定投收益和目标规划等多种计算</p>
+            </a>
+
+            <div class="tool-card" onclick="window.location.href='pages/inventory/inventoryManager.html'">
+                <div class="tool-icon">📦</div>
+                <div class="tool-info">
+                    <h3>库存管理</h3>
+                    <p>记录和管理您的物品库存，支持智能搜索和自动分类</p>
+                </div>
+            </div>
+
+            <a href="pages/meal/mealViewer.html" class="tool-card">
+                <div class="tool-icon">🍱</div>
+                <h2 class="tool-title">今日点餐</h2>
+                <p class="tool-description">查看和管理今日餐点，支持午餐和晚餐记录</p>
+            </a>
+
+            <a href="pages/pension-calculator/pensionCalculator.html" class="tool-card">
+                <div class="tool-icon">👵</div>
+                <h2 class="tool-title">养老金计算器</h2>
+                <p class="tool-description">基于中国养老保险制度，估算退休后可领取的养老金金额</p>
+            </a>
+        </div>
+    </div>
+</body>
+</html>
