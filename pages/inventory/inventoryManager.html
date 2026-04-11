@@ -248,10 +248,29 @@
     <div id="modalContainer"></div>
     
     <!-- 引入JavaScript文件 -->
-    <!-- 外部库（CDN） -->
-    <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.18.2/dist/index.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!--
+        外部库（CDN）
+
+        依赖说明：
+        1. pinyin-pro (3.18.2) - 约85KB - 用于拼音搜索功能
+           离线降级：搜索功能退化为仅支持汉字匹配
+
+        2. Chart.js - 约200KB - 用于库存统计图表
+           离线降级：图表功能不可用，但核心库存管理功能正常
+
+        3. XLSX (0.18.5) - 约650KB - 用于Excel导入导出
+           离线降级：无法导入/导出Excel，可使用JSON格式替代
+
+        本地化方案：
+        如需离线使用，可下载上述文件到 js/libs/ 目录并修改引用路径。
+        总大小约935KB，权衡离线可用性和加载速度，当前使用CDN。
+    -->
+    <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.18.2/dist/index.js"
+            onerror="console.warn('拼音库加载失败，搜索功能将受限')"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"
+            onerror="console.warn('图表库加载失败，统计图表不可用')"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
+            onerror="console.warn('Excel库加载失败，导入导出功能受限')"></script>
     <!-- 公共工具库 -->
     <script src="../../utils/storage-keys.js"></script>
     <script src="../../utils/common.js"></script>

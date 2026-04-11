@@ -4,6 +4,31 @@
  */
 
 /**
+ * 检查外部依赖是否加载成功
+ * @returns {Object} 依赖加载状态
+ */
+function checkDependencies() {
+    const deps = {
+        pinyin: typeof window.pinyinPro !== 'undefined',
+        chart: typeof window.Chart !== 'undefined',
+        xlsx: typeof window.XLSX !== 'undefined'
+    };
+
+    // 向用户提示缺失的功能
+    if (!deps.pinyin) {
+        console.warn('拼音搜索功能不可用（pinyin-pro未加载）');
+    }
+    if (!deps.chart) {
+        console.warn('统计图表功能不可用（Chart.js未加载）');
+    }
+    if (!deps.xlsx) {
+        console.warn('Excel导入导出功能不可用（XLSX未加载）');
+    }
+
+    return deps;
+}
+
+/**
  * 格式化日期为本地字符串
  * @param {Date|string} date - 日期对象或日期字符串
  * @param {object} options - 格式化选项

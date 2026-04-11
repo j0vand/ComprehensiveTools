@@ -170,6 +170,75 @@ function showNotification(message, type = 'info', duration = 3000) {
     }, duration);
 }
 
+/**
+ * 统一的错误处理函数
+ * @param {Error|string} error - 错误对象或错误消息
+ * @param {string} context - 错误上下文（用于日志）
+ * @param {boolean} showToUser - 是否向用户显示错误
+ */
+function handleError(error, context = '', showToUser = true) {
+    // 提取错误消息
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // 记录到控制台（用于调试）
+    console.error(`[${context}] 错误:`, error);
+
+    // 向用户显示友好的错误提示
+    if (showToUser) {
+        let userMessage = '操作失败，请稍后重试';
+
+        // 根据错误类型提供更友好的提示
+        if (errorMessage.includes('localStorage')) {
+            userMessage = '无法保存数据，请检查浏览器设置';
+        } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+            userMessage = '网络连接失败，请检查网络';
+        } else if (errorMessage.includes('parse') || errorMessage.includes('JSON')) {
+            userMessage = '数据格式错误，请重新输入';
+        } else if (errorMessage.includes('permission')) {
+            userMessage = '权限不足，请检查浏览器权限设置';
+        } else if (context) {
+            userMessage = `${context}失败: ${errorMessage}`;
+        }
+
+        showNotification(userMessage, 'error', 5000);
+    }
+
+    // 可选：发送错误日志到服务器（未实现）
+    // sendErrorLog(error, context);
+}
+
+/**
+ * 安全执行函数，自动捕获并处理错误
+ * @param {Function} fn - 要执行的函数
+ * @param {string} context - 上下文描述
+ * @param {*} defaultReturn - 发生错误时的默认返回值
+ * @returns {*} 函数返回值或默认值
+ */
+function safeExecute(fn, context = '', defaultReturn = null) {
+    try {
+        return fn();
+    } catch (error) {
+        handleError(error, context, true);
+        return defaultReturn;
+    }
+}
+
+/**
+ * 安全执行异步函数
+ * @param {Function} fn - 要执行的异步函数
+ * @param {string} context - 上下文描述
+ * @param {*} defaultReturn - 发生错误时的默认返回值
+ * @returns {Promise<*>} Promise结果或默认值
+ */
+async function safeExecuteAsync(fn, context = '', defaultReturn = null) {
+    try {
+        return await fn();
+    } catch (error) {
+        handleError(error, context, true);
+        return defaultReturn;
+    }
+}
+
 // 导出到全局作用域
 if (typeof window !== 'undefined') {
     window.CommonUtils = {
@@ -181,6 +250,9 @@ if (typeof window !== 'undefined') {
         getLocalStorageItem,
         setLocalStorageItem,
         removeLocalStorageItem,
-        showNotification
+        showNotification,
+        handleError,
+        safeExecute,
+        safeExecuteAsync
     };
 }
