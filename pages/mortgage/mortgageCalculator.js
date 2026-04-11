@@ -1,7 +1,17 @@
+        /**
+         * 房贷计算器
+         * 支持商业贷款、公积金贷款、组合贷款的等额本息和等额本金计算
+         * @module MortgageCalculator
+         */
+
         let currentLoanType = 'commercial';
         let chart = null;
-        
-        // 使用公共工具库的通知函数
+
+        /**
+         * 显示通知消息
+         * @param {string} message - 消息内容
+         * @param {string} type - 消息类型: info|success|error|warning
+         */
         function showToast(message, type = 'info') {
             if (window.CommonUtils && window.CommonUtils.showNotification) {
                 window.CommonUtils.showNotification(message, type, 3000);

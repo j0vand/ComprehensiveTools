@@ -568,6 +568,77 @@
                 transform: translateX(-50%) translateY(0);
             }
         }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            /* 表格横向滚动 */
+            .result-table-wrapper {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                margin: 0 -10px;
+                padding: 0 10px;
+            }
+
+            .result-table {
+                min-width: 600px;
+            }
+
+            /* 添加滚动提示 */
+            .result-table-wrapper::after {
+                content: '← 左右滑动查看更多 →';
+                display: block;
+                text-align: center;
+                color: #999;
+                font-size: 12px;
+                padding: 8px 0;
+            }
+
+            /* 优化按钮布局 */
+            .input-group button {
+                font-size: 14px;
+                padding: 10px 15px;
+            }
+
+            /* 优化表格字体 */
+            .result-table th,
+            .result-table td {
+                font-size: 13px;
+                padding: 10px 8px;
+            }
+
+            /* 汇总卡片优化 */
+            .summary-item {
+                padding: 12px;
+            }
+
+            .summary-label {
+                font-size: 13px;
+            }
+
+            .summary-value {
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 20px;
+            }
+
+            .input-group {
+                margin-bottom: 15px;
+            }
+
+            .result-table th,
+            .result-table td {
+                font-size: 12px;
+                padding: 8px 5px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -835,20 +906,57 @@
                 <div class="close-icon" id="close-help-btn">×</div>
             </div>
             <div class="help-item">
-                <dt>基础月薪</dt>
-                <dd>您的每月固定税前工资。</dd>
+                <dt>📊 基础月薪</dt>
+                <dd>您的每月固定税前工资（不含奖金）。例如：月薪10000元，不包括年终奖或季度奖。</dd>
             </div>
             <div class="help-item">
-                <dt>专项附加扣除</dt>
-                <dd>包括子女教育、继续教育、大病医疗、住房贷款利息、住房租金、赡养老人等扣除项总和。</dd>
+                <dt>💰 专项附加扣除</dt>
+                <dd>
+                    <strong>可扣除项目：</strong>
+                    <ul style="margin:8px 0;padding-left:20px;">
+                        <li>子女教育：1000元/月/子女（3岁至博士）</li>
+                        <li>继续教育：400元/月 或 3600元/年</li>
+                        <li>大病医疗：最高80000元/年</li>
+                        <li>住房贷款利息：1000元/月（首套房，最多20年）</li>
+                        <li>住房租金：800-1500元/月（根据城市）</li>
+                        <li>赡养老人：2000元/月（独生子女）或分摊</li>
+                    </ul>
+                    <strong>示例：</strong>有1个孩子+首套房贷+赡养父母 = 1000+1000+2000 = 4000元/月
+                </dd>
             </div>
             <div class="help-item">
-                <dt>年终奖单独计税</dt>
-                <dd>根据国家政策，全年一次性奖金可以选择单独计算纳税，不并入当年综合所得（通常税率更低）。</dd>
+                <dt>🎁 年终奖单独计税</dt>
+                <dd>
+                    <strong>政策说明：</strong>全年一次性奖金可选择单独计税（通常更省税）或并入综合所得。
+                    <br><strong>计算方法：</strong>奖金÷12找税率，用奖金总额×税率-速算扣除数
+                    <br><strong>建议：</strong>年终奖36000元以下，单独计税一定更优；超过则需对比计算
+                </dd>
             </div>
             <div class="help-item">
-                <dt>计算公式</dt>
-                <dd>应纳税所得额 = 累计收入 - 累计免税收入 - 累计减除费用(5000/月) - 累计专项扣除 - 累计专项附加扣除。</dd>
+                <dt>🔢 计算方式（累计预扣预缴法）</dt>
+                <dd>
+                    <strong>应纳税所得额 =</strong> 累计收入 - 累计减除费用(5000/月) - 累计专项扣除(五险一金) - 累计专项附加扣除
+                    <br><strong>当月应缴税额 =</strong> 累计应纳税额 - 累计已缴税额
+                    <br><br><strong>为什么逐月增加？</strong>因为税率是累进的，年收入越高，后几个月适用税率越高
+                </dd>
+            </div>
+            <div class="help-item">
+                <dt>📱 年中换工作</dt>
+                <dd>
+                    如果年中换工作且新公司不知道您之前收入，系统会从该月重新累计，可能导致少缴税（次年需汇算清缴补税）。
+                    <br><strong>建议：</strong>主动告知新公司您的累计收入，避免年度汇算时补税。
+                </dd>
+            </div>
+            <div class="help-item">
+                <dt>⚠️ 注意事项</dt>
+                <dd>
+                    <ul style="margin:8px 0;padding-left:20px;">
+                        <li>本计算器仅供参考，实际以税务机关计算为准</li>
+                        <li>社保基数各地不同，请以当地政策为准</li>
+                        <li>年度汇算时可能需要补税或退税</li>
+                        <li>专项附加扣除需在个税APP中申报</li>
+                    </ul>
+                </dd>
             </div>
         </div>
     </div>

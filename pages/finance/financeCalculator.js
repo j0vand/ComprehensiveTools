@@ -1,3 +1,13 @@
+        /**
+         * 理财计算器
+         * 提供复利计算、贷款计算、定投收益、目标规划、信用卡免息期等五个计算工具
+         * @module FinanceCalculator
+         */
+
+        /**
+         * 切换计算器类型
+         * @param {string} type - 计算器类型
+         */
         function switchCalculator(type) {
             // 隐藏所有计算器
             document.querySelectorAll('.calculator-section').forEach(section => {

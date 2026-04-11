@@ -1,5 +1,21 @@
-        // 数据结构
+        /**
+         * 今日点餐查看器
+         * 用于管理和查看每日三餐安排
+         * @module MealViewer
+         */
+
+        /**
+         * 餐食安排数据结构
+         * @class MealArrangement
+         */
         class MealArrangement {
+            /**
+             * @param {Date} date - 日期
+             * @param {string} mealTime - 用餐时间（早餐/午餐/晚餐）
+             * @param {number} number - 人数
+             * @param {string} content - 菜品内容
+             * @param {string} owner - 负责人
+             */
             constructor(date, mealTime, number, content, owner) {
                 this.date = date;
                 this.mealTime = mealTime;

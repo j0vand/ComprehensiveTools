@@ -453,6 +453,101 @@
                 transform: translateX(-50%) translateY(0);
             }
         }
+
+        /* 移动端优化 */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+
+            /* 计算器类型切换按钮优化 */
+            .type-buttons {
+                flex-wrap: wrap;
+                gap: 8px;
+            }
+
+            .type-button {
+                font-size: 12px;
+                padding: 8px 12px;
+                flex: 1 1 calc(50% - 4px);
+                min-width: 120px;
+            }
+
+            /* Tab切换优化 */
+            .period-buttons {
+                flex-wrap: wrap;
+            }
+
+            .period-button {
+                font-size: 12px;
+                padding: 6px 10px;
+            }
+
+            /* 表格横向滚动 */
+            .table-container {
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+                margin: 0 -10px 15px;
+                padding: 0 10px;
+            }
+
+            table {
+                min-width: 500px;
+            }
+
+            /* 滚动提示 */
+            .table-container::after {
+                content: '← 左右滑动查看更多 →';
+                display: block;
+                text-align: center;
+                color: #999;
+                font-size: 12px;
+                padding: 8px 0;
+            }
+
+            /* 输入框优化 */
+            .input-group label {
+                font-size: 14px;
+            }
+
+            .input-group input,
+            .input-group select {
+                font-size: 14px;
+            }
+
+            /* 结果卡片优化 */
+            .result-card {
+                padding: 12px;
+            }
+
+            .result-label {
+                font-size: 13px;
+            }
+
+            .result-value {
+                font-size: 18px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            h1 {
+                font-size: 20px;
+            }
+
+            .type-button {
+                flex: 1 1 100%;
+            }
+
+            table th,
+            table td {
+                font-size: 12px;
+                padding: 8px 4px;
+            }
+
+            .result-value {
+                font-size: 16px;
+            }
+        }
     </style>
 </head>
 <body>

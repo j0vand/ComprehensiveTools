@@ -1,5 +1,9 @@
          * 个税计算器逻辑核心
-         * 保持原逻辑不变
+         * 基于中国个人所得税法实现累计预扣预缴法计算
+         * @namespace TaxCalculator
+         * @property {Array} brackets - 综合所得税率表
+         * @property {Array} bonusBrackets - 年终奖税率表
+         * @property {number} SOCIAL_RATE - 社保比例
          */
         const TaxCalculator = {
             // 2024年个人所得税税率表（综合所得 - 年度）
@@ -28,7 +32,20 @@
             // 社保比例配置 (仅供参考，实际各地区不同)
             SOCIAL_RATE: 0.105,
 
-            // 计算单月个税（基于累计预扣预缴法）
+            /**
+             * 计算单月个税（基于累计预扣预缴法）
+             * @param {Object} config - 计算配置
+             * @param {number} config.baseSalary - 基础月薪
+             * @param {number} config.specialDeduction - 专项附加扣除
+             * @param {number} config.socialBase - 社保基数
+             * @param {number} config.fundBase - 公积金基数
+             * @param {number} config.fundRate - 公积金比例
+             * @param {string} config.bonusTaxMonth - 年终奖计税月份
+             * @param {Object} config.bonuses - 各月奖金
+             * @param {boolean} config.isJobChange - 是否换工作
+             * @param {string} config.jobChangeMonth - 换工作月份
+             * @returns {Array<Object>} 每月计税详情数组
+             */
             calculate: function(config) {
                 const results = [];
                 let cumulativeIncome = 0; // 累计收入
