@@ -1,0 +1,34 @@
+# HBuilderX / uni-app
+unpackage/
+node_modules/
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 日志文件
+*.log
+npm-debug.log*
+
+# 临时文件
+*.tmp
+*.temp
+
+# 系统文件
+Thumbs.db
+.DS_Store
+
+# 测试文件
+test_ignore/
+
+# 备份文件
+*.bak
+* copy.*
+
+# 环境变量
+.env
+.env.local

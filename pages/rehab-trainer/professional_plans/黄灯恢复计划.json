@@ -1,0 +1,41 @@
+{
+  "version": "1.0",
+  "exportTime": "2026-01-09T08:00:00.000Z",
+  "data": {
+    "plans": [
+      {
+        "id": "yellow_recovery",
+        "name": "🟡 黄灯恢复计划（亚急性期）",
+        "createdAt": "2026-01-09T08:00:00.000Z",
+        "exercises": [
+          {
+            "id": "yellow_01",
+            "name": "踝泵",
+            "type": "reps",
+            "reps": 17,
+            "sets": 2,
+            "setRest": 30,
+            "description": "平躺或坐，双脚用力勾脚（脚尖向小腿），保持2-3秒，再用力绷脚（脚尖向前），保持2-3秒。\n\n【重点】缓慢有控制，做到最大幅度。\n【作用】促进血液循环，为腰部带来修复养分。\n【错误】动作过快像抖脚，应该是有控制的'泵'。",
+            "createdAt": "2026-01-09T08:00:00.000Z"
+          },
+          {
+            "id": "yellow_02",
+            "name": "骨盆倾斜（微小幅度）",
+            "type": "reps",
+            "reps": 12,
+            "sets": 1,
+            "setRest": 0,
+            "description": "平躺屈膝，腰下有自然空隙。极其轻柔地将骨盆向胸口倾斜，让腰部空隙几乎消失，再回到自然位置。\n\n【重点】动作幅度极小，像让'一滴水'溢出。\n【铁律】全程绝对无痛！如有不适立即减小幅度。\n【作用】松动僵硬关节，打破疼痛循环。",
+            "createdAt": "2026-01-09T08:00:00.000Z"
+          }
+        ]
+      }
+    ],
+    "activePlanId": "yellow_recovery",
+    "settings": {
+      "voiceRate": 1.0,
+      "voiceVolume": 1.0,
+      "prepareTime": 10
+    }
+  }
+}

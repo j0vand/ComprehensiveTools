@@ -1,0 +1,1560 @@
+/**
+ * 主控制器
+ * 整合所有模块，处理UI交互
+ */
+
+class RehabTrainerApp {
+    constructor() {
+        this.currentPlanId = null;
+        this.currentExercises = [];
+        this.editingExerciseId = null;
+        this.deleteTarget = null;
+        
+        this.initElements();
+        this.initModals();
+        this.initEventListeners();
+        this.initProgressCircle();
+        this.loadPlans();
+        this.initTrainingEvents();
+        // 拖拽功能已移至计划管理界面，主界面不再支持拖拽
+        this.loadVoiceSettings();
+        this.checkAndDisplayVoiceSupport();
+        
+        // 确保初始状态：主界面显示，训练界面隐藏
+        if (this.mainView) {
+            this.mainView.style.display = 'block';
+        }
+        if (this.trainingView) {
+            this.trainingView.style.display = 'none';
+            this.trainingView.style.visibility = 'hidden';
+        }
+        
+        // 所有设备都需要用户交互后才能使用TTS（浏览器安全限制）
+        this.initVoiceOnFirstInteraction();
+    }
+
+    /**
+     * 检测是否为iOS设备
+     */
+    isIOS() {
+        return /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    }
+
+    /**
+     * 加载语音设置并应用到语音管理器
+     */
+    loadVoiceSettings() {
+        try {
+            const settings = storage.getSettings();
+            if (settings) {
+                if (settings.voiceRate !== undefined) {
+                    voiceManager.setRate(settings.voiceRate);
+                }
+                if (settings.voiceVolume !== undefined) {
+                    voiceManager.setVolume(settings.voiceVolume);
+                }
+            }
+        } catch (error) {
+            console.error('加载语音设置失败:', error);
+        }
+    }
+
+    /**
+     * 检查并显示语音支持状态
+     */
+    checkAndDisplayVoiceSupport() {
+        if (!this.voiceStatusBar || !this.voiceStatusText) {
+            return;
+        }
+
+        const isSupported = 'speechSynthesis' in window;
+        const browserName = this.getBrowserName();
+        
+        if (isSupported) {
+            // 检查是否有中文语音
+            const checkChineseVoices = () => {
+                const voices = window.speechSynthesis.getVoices();
+                const chineseVoices = voices.filter(v => v.lang.startsWith('zh'));
+                
+                if (chineseVoices.length > 0) {
+                    this.voiceStatusBar.className = 'alert alert-success mb-0 text-center';
+                    this.voiceStatusText.innerHTML = '<i class="bi bi-check-circle"></i> 语音功能已启用，支持中文语音提示';
+                } else {
+                    this.voiceStatusBar.className = 'alert alert-warning mb-0 text-center';
+                    this.voiceStatusText.innerHTML = '<i class="bi bi-exclamation-triangle"></i> 浏览器支持语音，但未找到中文语音包（语音可能为英文）';
+                }
+                this.voiceStatusBar.style.display = 'block';
+            };
+
+            // 如果语音列表已加载
+            if (window.speechSynthesis.getVoices().length > 0) {
+                checkChineseVoices();
+            } else {
+                // 等待语音列表加载
+                window.speechSynthesis.addEventListener('voiceschanged', checkChineseVoices, { once: true });
+                // 设置超时，防止永远不触发
+                setTimeout(() => {
+                    if (this.voiceStatusBar.style.display === 'none') {
+                        this.voiceStatusBar.className = 'alert alert-success mb-0 text-center';
+                        this.voiceStatusText.innerHTML = '<i class="bi bi-check-circle"></i> 语音功能已启用';
+                        this.voiceStatusBar.style.display = 'block';
+                    }
+                }, 1000);
+            }
+        } else {
+            // 不支持语音
+            this.voiceStatusBar.className = 'alert alert-danger mb-0 text-center';
+            let message = '<i class="bi bi-x-circle"></i> <strong>当前浏览器不支持语音功能</strong><br>';
+            message += '<small>建议使用 Chrome、Edge 或 Safari 浏览器以获得完整的语音提示功能</small>';
+            
+            if (browserName) {
+                message += `<br><small>当前浏览器：${browserName}</small>`;
+            }
+            
+            this.voiceStatusText.innerHTML = message;
+            this.voiceStatusBar.style.display = 'block';
+        }
+    }
+
+    /**
+     * 获取浏览器名称
+     */
+    getBrowserName() {
+        const ua = navigator.userAgent;
+        if (ua.indexOf('Chrome') > -1 && ua.indexOf('Edg') === -1) return 'Chrome';
+        if (ua.indexOf('Edg') > -1) return 'Edge';
+        if (ua.indexOf('Firefox') > -1) return 'Firefox';
+        if (ua.indexOf('Safari') > -1 && ua.indexOf('Chrome') === -1) return 'Safari';
+        if (ua.indexOf('Opera') > -1 || ua.indexOf('OPR') > -1) return 'Opera';
+        if (ua.indexOf('MSIE') > -1 || ua.indexOf('Trident') > -1) return 'Internet Explorer';
+        return '未知浏览器';
+    }
+
+    /**
+     * 首次交互时初始化语音（浏览器安全限制：需要用户交互才能播放语音）
+     */
+    initVoiceOnFirstInteraction() {
+        let voiceInitialized = false;
+        
+        const initVoice = () => {
+            if (voiceInitialized) return;
+            voiceInitialized = true;
+            
+            // 测试语音功能是否可用
+            try {
+                // 使用一个很短的测试语音来激活TTS引擎
+                const testUtterance = new SpeechSynthesisUtterance('');
+                testUtterance.volume = 0.01; // 几乎静音
+                testUtterance.rate = 10; // 极快，几乎瞬间完成
+                window.speechSynthesis.speak(testUtterance);
+                
+                // 立即停止，这只是为了激活TTS引擎
+                setTimeout(() => {
+                    window.speechSynthesis.cancel();
+                }, 10);
+            } catch (error) {
+                console.warn('语音初始化失败:', error);
+            }
+        };
+        
+        // 监听多种用户交互事件
+        const events = ['touchstart', 'click', 'mousedown', 'keydown'];
+        events.forEach(eventType => {
+            document.addEventListener(eventType, initVoice, { once: true, passive: true });
+        });
+    }
+
+    /**
+     * 初始化DOM元素引用
+     */
+    initElements() {
+        // 主界面元素
+        this.planSelect = document.getElementById('planSelect');
+        this.exerciseList = document.getElementById('exerciseList');
+        this.emptyState = document.getElementById('emptyState');
+        this.startTrainingBtn = document.getElementById('startTrainingBtn');
+        this.voiceStatusBar = document.getElementById('voiceStatusBar');
+        this.voiceStatusText = document.getElementById('voiceStatusText');
+        
+        // 训练界面元素
+        this.mainView = document.getElementById('mainView');
+        this.trainingView = document.getElementById('trainingView');
+        this.exerciseName = document.getElementById('exerciseName');
+        this.exerciseProgress = document.getElementById('exerciseProgress');
+        this.setProgress = document.getElementById('setProgress');
+        this.exerciseDescription = document.getElementById('exerciseDescription');
+        
+        // 持续时间型显示
+        this.durationDisplay = document.getElementById('durationDisplay');
+        this.timerDisplay = document.getElementById('timerDisplay');
+        this.statusText = document.getElementById('statusText');
+        this.progressCircle = document.getElementById('progressCircle');
+        this.durationControls = document.getElementById('durationControls');
+        
+        // 次数型显示
+        this.repsDisplay = document.getElementById('repsDisplay');
+        this.repsNumber = document.getElementById('repsNumber');
+        this.repsStatus = document.getElementById('repsStatus');
+        this.repsControls = document.getElementById('repsControls');
+    }
+
+    /**
+     * 初始化模态框
+     */
+    initModals() {
+        try {
+            // 检查Bootstrap是否可用
+            if (typeof bootstrap === 'undefined') {
+                console.error('Bootstrap未加载，模态框功能将不可用');
+                // 创建简单的模态框替代方案
+                this.planModal = this.createFallbackModal('planModal');
+                this.exerciseModal = this.createFallbackModal('exerciseModal');
+                this.deleteModal = this.createFallbackModal('deleteModal');
+                this.planManageModal = this.createFallbackModal('planManageModal');
+            } else {
+                this.planModal = new bootstrap.Modal(document.getElementById('planModal'));
+                this.exerciseModal = new bootstrap.Modal(document.getElementById('exerciseModal'));
+                this.deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+                this.planManageModal = new bootstrap.Modal(document.getElementById('planManageModal'));
+            }
+        } catch (error) {
+            console.error('模态框初始化失败:', error);
+            // 使用备用方案
+            this.planModal = this.createFallbackModal('planModal');
+            this.exerciseModal = this.createFallbackModal('exerciseModal');
+            this.deleteModal = this.createFallbackModal('deleteModal');
+            this.planManageModal = this.createFallbackModal('planManageModal');
+        }
+    }
+
+    /**
+     * 创建备用模态框（当Bootstrap不可用时）
+     */
+    createFallbackModal(modalId) {
+        const modalElement = document.getElementById(modalId);
+        if (!modalElement) return null;
+        
+        return {
+            show: () => {
+                modalElement.style.display = 'block';
+                modalElement.style.opacity = '1';
+                // 显示背景遮罩
+                const backdrop = document.createElement('div');
+                backdrop.className = 'modal-backdrop';
+                backdrop.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1040;';
+                backdrop.id = modalId + '_backdrop';
+                document.body.appendChild(backdrop);
+                // 点击背景关闭
+                backdrop.addEventListener('click', () => this.hideFallbackModal(modalId));
+            },
+            hide: () => {
+                this.hideFallbackModal(modalId);
+            }
+        };
+    }
+
+    /**
+     * 隐藏备用模态框
+     */
+    hideFallbackModal(modalId) {
+        const modalElement = document.getElementById(modalId);
+        if (modalElement) {
+            modalElement.style.display = 'none';
+        }
+        const backdrop = document.getElementById(modalId + '_backdrop');
+        if (backdrop) {
+            backdrop.remove();
+        }
+    }
+
+    /**
+     * 添加移动端兼容的事件监听器
+     */
+    addMobileEventListener(element, event, handler) {
+        if (!element) {
+            console.error(`元素不存在: ${event}`);
+            return;
+        }
+        
+        // 移动端优先使用touchstart，桌面端使用click
+        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        
+        try {
+            if (isMobile) {
+                // 移动端：使用touchstart，并阻止默认行为避免双击缩放
+                const touchHandler = (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handler(e);
+                };
+                
+                element.addEventListener('touchstart', touchHandler, { passive: false });
+                
+                // 同时保留click作为备用
+                element.addEventListener('click', handler);
+            } else {
+                // 桌面端：只使用click
+                element.addEventListener('click', handler);
+            }
+        } catch (error) {
+            console.error(`绑定事件监听器失败: ${element.id || element.className}`, error);
+        }
+    }
+
+    /**
+     * 初始化事件监听
+     */
+    initEventListeners() {
+        try {
+            // 计划相关
+            this.addMobileEventListener(document.getElementById('newPlanBtn'), 'click', () => this.showPlanModal());
+            this.addMobileEventListener(document.getElementById('savePlanBtn'), 'click', () => this.savePlan());
+            this.planSelect.addEventListener('change', (e) => this.switchPlan(e.target.value));
+            
+            // 导入导出
+            this.addMobileEventListener(document.getElementById('exportBtn'), 'click', () => this.exportData());
+            this.addMobileEventListener(document.getElementById('importBtn'), 'click', () => this.triggerImport());
+            document.getElementById('importFile').addEventListener('change', (e) => this.importData(e));
+            
+            // 计划管理
+            this.addMobileEventListener(document.getElementById('managePlansBtn'), 'click', () => this.showPlanManageModal());
+            
+            // 训练项相关
+            this.addMobileEventListener(document.getElementById('addExerciseBtn'), 'click', () => this.showExerciseModal());
+            this.addMobileEventListener(document.getElementById('saveExerciseBtn'), 'click', () => this.saveExercise());
+            
+            // 训练类型切换
+            document.querySelectorAll('input[name="exerciseType"]').forEach(radio => {
+                radio.addEventListener('change', (e) => this.toggleExerciseType(e.target.value));
+            });
+            
+            // 开始训练
+            this.addMobileEventListener(this.startTrainingBtn, 'click', () => this.startTraining());
+            
+            // 训练控制按钮 - 持续时间型
+            this.addMobileEventListener(document.getElementById('pauseBtn'), 'click', () => this.togglePause());
+            this.addMobileEventListener(document.getElementById('skipBtn'), 'click', () => this.skipExercise());
+            this.addMobileEventListener(document.getElementById('stopBtn'), 'click', () => this.stopTraining());
+            
+            // 训练控制按钮 - 次数型
+            this.addMobileEventListener(document.getElementById('completeSetBtn'), 'click', () => this.completeSet());
+            this.addMobileEventListener(document.getElementById('skipRepsBtn'), 'click', () => this.skipExercise());
+            this.addMobileEventListener(document.getElementById('stopRepsBtn'), 'click', () => this.stopTraining());
+            
+            // 删除确认
+            this.addMobileEventListener(document.getElementById('confirmDeleteBtn'), 'click', () => this.confirmDelete());
+            
+        } catch (error) {
+            console.error('事件监听器初始化失败:', error);
+            // 显示错误提示
+            alert('初始化失败，请刷新页面重试。错误：' + error.message);
+        }
+    }
+
+    /**
+     * 初始化训练定时器事件
+     */
+    initTrainingEvents() {
+        // 准备阶段
+        trainingTimer.on('prepare', (data) => {
+            this.showTrainingView();
+            this.updateExerciseInfo(0);
+            this.statusText.textContent = '准备开始';
+            this.timerDisplay.textContent = data.duration;
+            this.showDurationDisplay();
+            voiceManager.announceStart(data.duration);
+        });
+        
+        // 时间更新
+        trainingTimer.on('tick', (data) => {
+            this.timerDisplay.textContent = data.remaining;
+            this.updateProgressCircle(data.progress);
+        });
+        
+        // 准备阶段倒计时
+        trainingTimer.on('prepareCountdown', (data) => {
+            voiceManager.announcePrepareCountdown(data.remaining);
+        });
+        
+        // 训练倒计时
+        trainingTimer.on('trainingCountdown', (data) => {
+            voiceManager.announceTrainingCountdown(data.remaining);
+        });
+        
+        // 休息倒计时
+        trainingTimer.on('restCountdown', (data) => {
+            voiceManager.announceRestCountdown(data.remaining);
+        });
+        
+        // 准备间隔倒计时
+        trainingTimer.on('transitionCountdown', (data) => {
+            voiceManager.announceTransitionCountdown(data.remaining);
+        });
+        
+        // 组间休息开始（详细提示）
+        trainingTimer.on('setRestStart', (data) => {
+            voiceManager.announceSetRestStart(data.exercise.name, data.set, data.duration);
+        });
+        
+        // 准备间隔开始
+        trainingTimer.on('transitionStart', (data) => {
+            this.statusText.textContent = '准备下一组';
+            this.timerDisplay.textContent = data.duration;
+            this.showDurationDisplay();
+            voiceManager.announceTransitionStart(data.duration);
+        });
+        
+        // 准备间隔结束，训练开始
+        trainingTimer.on('transitionEnd', (data) => {
+            // 这里会在 nextSet() 中触发 trainingStart 事件，所以不需要额外处理
+        });
+        
+        // 持续时间型训练开始
+        trainingTimer.on('trainingStart', (data) => {
+            this.updateExerciseInfo(trainingTimer.currentExerciseIndex);
+            this.statusText.textContent = '训练中';
+            this.timerDisplay.textContent = data.duration;
+            this.showDurationDisplay();
+            
+            // 播放详细的训练开始提示（包含组数信息）
+            voiceManager.announceTrainingStart(data.exercise.name, data.set, data.duration);
+        });
+        
+        // 次数型训练开始
+        trainingTimer.on('repsStart', (data) => {
+            this.updateExerciseInfo(trainingTimer.currentExerciseIndex);
+            this.repsNumber.textContent = data.reps;
+            this.repsStatus.textContent = '请按自己的节奏完成';
+            this.showRepsDisplay();
+            voiceManager.announceRepsStart(data.exercise.name, data.reps, data.set);
+        });
+        
+        // 10秒提醒（保持兼容性，但现在主要使用倒计时事件）
+        trainingTimer.on('reminder', () => {
+            // 倒计时事件已经处理了提醒，这里可以保留作为备用
+            voiceManager.announceTimeRemaining(10);
+        });
+        
+        // 组完成
+        trainingTimer.on('setComplete', (data) => {
+            voiceManager.announceSetComplete(data.set);
+        });
+        
+        // 组间休息（保持兼容性，但主要使用 setRestStart 事件）
+        trainingTimer.on('setRest', (data) => {
+            this.statusText.textContent = '组间休息';
+            this.timerDisplay.textContent = data.duration;
+            this.showDurationDisplay();
+            // setRestStart 事件已经播放了详细提示，这里不再重复播放
+        });
+        
+        // 下一个训练项
+        trainingTimer.on('nextExercise', (data) => {
+            voiceManager.announceNextExercise(data.exercise.name);
+        });
+        
+        // 暂停
+        trainingTimer.on('pause', () => {
+            this.statusText.textContent = '已暂停';
+            document.getElementById('pauseBtn').innerHTML = '<i class="bi bi-play-fill"></i> 继续';
+            voiceManager.announcePause();
+        });
+        
+        // 继续
+        trainingTimer.on('resume', () => {
+            // 根据当前状态更新UI
+            if (trainingTimer.state === trainingTimer.STATE.TRAINING) {
+                this.statusText.textContent = '训练中';
+            } else if (trainingTimer.state === trainingTimer.STATE.SET_REST) {
+                this.statusText.textContent = '组间休息';
+            } else if (trainingTimer.state === trainingTimer.STATE.TRANSITION) {
+                this.statusText.textContent = '准备下一组';
+            }
+            document.getElementById('pauseBtn').innerHTML = '<i class="bi bi-pause-fill"></i> 暂停';
+            voiceManager.announceResume();
+        });
+        
+        // 跳过
+        trainingTimer.on('skip', () => {
+            voiceManager.announceSkip();
+
+            // 释放屏幕常亮
+            if (typeof screenWakeLock !== 'undefined' && 'wakeLock' in navigator) {
+                screenWakeLock.release();
+            }
+        });
+        
+        // 完成
+        trainingTimer.on('complete', () => {
+            voiceManager.announceComplete();
+
+            // 释放屏幕常亮
+            if (typeof screenWakeLock !== 'undefined' && 'wakeLock' in navigator) {
+                screenWakeLock.release();
+            }
+
+            setTimeout(() => {
+                this.showMainView();
+            }, 2000);
+        });
+    }
+
+    // ==================== 计划管理 ====================
+
+    /**
+     * 加载所有计划
+     */
+    loadPlans() {
+        const plans = storage.getAllPlans();
+        const activePlan = storage.getActivePlan();
+        
+        // 清空选择框
+        this.planSelect.innerHTML = '<option value="">请选择训练计划</option>';
+        
+        // 如果没有任何计划，创建一个默认计划
+        if (plans.length === 0) {
+            const defaultPlan = { name: '我的训练计划' };
+            storage.savePlan(defaultPlan);
+            this.loadPlans(); // 重新加载
+            return;
+        }
+        
+        // 添加计划选项
+        plans.forEach(plan => {
+            const option = document.createElement('option');
+            option.value = plan.id;
+            option.textContent = plan.name;
+            this.planSelect.appendChild(option);
+        });
+        
+        // 设置当前选中的计划
+        if (activePlan) {
+            this.planSelect.value = activePlan.id;
+            this.switchPlan(activePlan.id);
+        }
+    }
+
+    /**
+     * 显示计划弹窗
+     */
+    showPlanModal() {
+        document.getElementById('planModalTitle').textContent = '新建训练计划';
+        document.getElementById('planName').value = '';
+        this.planModal.show();
+    }
+
+    /**
+     * 保存计划
+     */
+    savePlan() {
+        const name = document.getElementById('planName').value.trim();
+        
+        if (!name) {
+            alert('请输入计划名称');
+            return;
+        }
+        
+        const plan = { name };
+        
+        if (storage.savePlan(plan)) {
+            this.planModal.hide();
+            this.loadPlans();
+            
+            // 选中新建的计划
+            const plans = storage.getAllPlans();
+            const newPlan = plans[plans.length - 1];
+            this.planSelect.value = newPlan.id;
+            this.switchPlan(newPlan.id);
+        } else {
+            alert('保存失败');
+        }
+    }
+
+    /**
+     * 切换计划
+     */
+    switchPlan(planId) {
+        if (!planId) {
+            this.currentPlanId = null;
+            this.currentExercises = [];
+            this.renderExercises();
+            return;
+        }
+        
+        storage.setActivePlan(planId);
+        this.currentPlanId = planId;
+        this.currentExercises = storage.getExercises(planId);
+        this.renderExercises();
+    }
+
+    // ==================== 训练项管理 ====================
+
+    /**
+     * 渲染训练项列表
+     */
+    renderExercises() {
+        this.exerciseList.innerHTML = '';
+        
+        if (this.currentExercises.length === 0) {
+            this.emptyState.style.display = 'block';
+            this.startTrainingBtn.disabled = true;
+            
+            // 添加快速开始按钮
+            if (!document.getElementById('quickStartBtn')) {
+                const quickStartBtn = document.createElement('button');
+                quickStartBtn.id = 'quickStartBtn';
+                quickStartBtn.className = 'btn btn-info mt-3';
+                quickStartBtn.innerHTML = '<i class="bi bi-lightning-fill"></i> 快速添加示例训练';
+                this.addMobileEventListener(quickStartBtn, 'click', () => this.addSampleExercises());
+                this.emptyState.appendChild(quickStartBtn);
+            }
+            
+            return;
+        }
+        
+        this.emptyState.style.display = 'none';
+        this.startTrainingBtn.disabled = false;
+        
+        this.currentExercises.forEach((exercise, index) => {
+            const card = this.createExerciseCard(exercise, index);
+            this.exerciseList.appendChild(card);
+        });
+    }
+
+    /**
+     * 添加示例训练项
+     */
+    addSampleExercises() {
+        if (!this.currentPlanId) {
+            alert('请先选择训练计划');
+            return;
+        }
+
+        const samples = [
+            {
+                name: '小燕飞',
+                type: 'reps',
+                reps: 10,
+                sets: 3,
+                setRest: 60,
+                description: '俯卧，双臂双腿同时抬起，保持2秒后放下'
+            },
+            {
+                name: '平板支撑',
+                type: 'duration',
+                duration: 30,
+                sets: 3,
+                setRest: 60,
+                description: '保持身体成一条直线，收紧核心，不要塌腰'
+            },
+            {
+                name: '桥式',
+                type: 'duration',
+                duration: 30,
+                sets: 3,
+                setRest: 60,
+                description: '仰卧，臀部抬起，身体成一条直线'
+            }
+        ];
+
+        samples.forEach(exercise => {
+            storage.addExercise(this.currentPlanId, exercise);
+        });
+
+        this.currentExercises = storage.getExercises(this.currentPlanId);
+        this.renderExercises();
+        
+        // 显示成功提示
+        this.showToast('已添加3个示例训练项');
+    }
+
+    /**
+     * 显示提示消息
+     */
+    showToast(message) {
+        // 创建toast元素
+        const toast = document.createElement('div');
+        toast.className = 'toast-message';
+        toast.textContent = message;
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            z-index: 9999;
+            font-size: 14px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+        
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.transition = 'opacity 0.3s';
+            toast.style.opacity = '0';
+            setTimeout(() => {
+                document.body.removeChild(toast);
+            }, 300);
+        }, 2000);
+    }
+
+    // ==================== 数据导入导出 ====================
+
+    /**
+     * 导出数据
+     */
+    exportData() {
+        const exportData = storage.exportData();
+        
+        if (!exportData) {
+            alert('没有可导出的数据');
+            return;
+        }
+        
+        // 生成文件名（包含日期）
+        const date = new Date();
+        const dateStr = date.toISOString().split('T')[0]; // 2026-01-09
+        const fileName = `腰突康复训练_${dateStr}.json`;
+        
+        // 创建下载
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = fileName;
+        a.click();
+        
+        URL.revokeObjectURL(url);
+        
+        this.showToast('数据导出成功！');
+    }
+
+    /**
+     * 触发导入文件选择
+     */
+    triggerImport() {
+        document.getElementById('importFile').click();
+    }
+
+    /**
+     * 导入数据
+     */
+    importData(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        
+        // 检查文件类型
+        if (!file.name.endsWith('.json')) {
+            alert('请选择JSON格式的文件');
+            return;
+        }
+        
+        const reader = new FileReader();
+        
+        reader.onload = (e) => {
+            try {
+                const importData = JSON.parse(e.target.result);
+                
+                // 验证数据格式
+                if (!importData || !importData.data || !importData.data.plans) {
+                    throw new Error('数据格式不正确');
+                }
+                
+                // 获取当前计划列表
+                const currentPlans = storage.getAllPlans();
+                const importPlans = importData.data.plans;
+                const planCount = importPlans.length;
+                
+                // 检查是否有同名计划
+                const existingPlanNames = currentPlans.map(p => p.name);
+                const importPlanNames = importPlans.map(p => p.name);
+                const duplicateNames = importPlanNames.filter(name => existingPlanNames.includes(name));
+                const newPlanNames = importPlanNames.filter(name => !existingPlanNames.includes(name));
+                
+                // 构建确认消息
+                let confirmMessage = `即将导入 ${planCount} 个训练计划。\n\n`;
+                
+                if (duplicateNames.length > 0) {
+                    confirmMessage += `⚠️ 以下 ${duplicateNames.length} 个计划已存在，将被覆盖：\n`;
+                    duplicateNames.forEach(name => {
+                        confirmMessage += `  • ${name}\n`;
+                    });
+                    confirmMessage += '\n';
+                }
+                
+                if (newPlanNames.length > 0) {
+                    confirmMessage += `✅ 以下 ${newPlanNames.length} 个计划将新增：\n`;
+                    newPlanNames.forEach(name => {
+                        confirmMessage += `  • ${name}\n`;
+                    });
+                    confirmMessage += '\n';
+                }
+                
+                confirmMessage += '确定要继续吗？';
+                
+                const confirm = window.confirm(confirmMessage);
+                
+                if (!confirm) {
+                    return;
+                }
+                
+                // 执行导入（智能合并模式）
+                const result = storage.importData(importData, true);
+                
+                if (result && result.success) {
+                    let message = '数据导入成功！';
+                    if (result.added > 0 || result.updated > 0) {
+                        message += `\n新增 ${result.added} 个计划，更新 ${result.updated} 个计划`;
+                    }
+                    this.showToast(message);
+                    this.loadPlans();
+                } else {
+                    throw new Error('导入失败');
+                }
+                
+            } catch (error) {
+                console.error('导入错误:', error);
+                alert('导入失败：' + error.message);
+            } finally {
+                // 清空文件选择，允许重复导入同一文件
+                event.target.value = '';
+            }
+        };
+        
+        reader.onerror = () => {
+            alert('文件读取失败');
+            event.target.value = '';
+        };
+        
+        reader.readAsText(file);
+    }
+
+    /**
+     * 创建训练项卡片
+     */
+    createExerciseCard(exercise, index) {
+        const card = document.createElement('div');
+        card.className = 'exercise-card';
+        card.dataset.id = exercise.id;
+        // 主页面的卡片不再启用拖拽，拖拽功能移到管理界面
+        
+        const typeClass = exercise.type === 'duration' ? 'type-duration' : 'type-reps';
+        const typeText = exercise.type === 'duration' ? '持续时间型' : '次数型';
+        
+        let detailsHTML = '';
+        if (exercise.type === 'duration') {
+            detailsHTML = `
+                <div class="detail-item">
+                    <i class="bi bi-clock"></i>
+                    <span>坚持 <span class="detail-value">${exercise.duration}秒</span></span>
+                </div>
+            `;
+        } else {
+            detailsHTML = `
+                <div class="detail-item">
+                    <i class="bi bi-arrow-repeat"></i>
+                    <span>每组 <span class="detail-value">${exercise.reps}次</span></span>
+                </div>
+            `;
+        }
+        
+        card.innerHTML = `
+            <div class="exercise-card-header">
+                <h5 class="exercise-card-title">
+                    <span class="exercise-card-number">${index + 1}</span>
+                    ${exercise.name}
+                </h5>
+                <div class="exercise-card-actions">
+                    <button class="card-action-btn edit" data-id="${exercise.id}">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="card-action-btn delete" data-id="${exercise.id}">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <span class="exercise-card-type ${typeClass}">${typeText}</span>
+            <div class="exercise-card-details">
+                ${detailsHTML}
+                <div class="detail-item">
+                    <i class="bi bi-layers"></i>
+                    <span><span class="detail-value">${exercise.sets}组</span></span>
+                </div>
+                <div class="detail-item">
+                    <i class="bi bi-hourglass-split"></i>
+                    <span>组间休息 <span class="detail-value">${exercise.setRest}秒</span></span>
+                </div>
+            </div>
+            ${exercise.description ? `<p class="exercise-card-description">${exercise.description}</p>` : ''}
+        `;
+        
+        // 编辑按钮
+        const editBtn = card.querySelector('.edit');
+        if (editBtn) {
+            this.addMobileEventListener(editBtn, 'click', (e) => {
+                e.stopPropagation();
+                this.editExercise(exercise.id);
+            });
+        }
+        
+        // 删除按钮
+        const deleteBtn = card.querySelector('.delete');
+        if (deleteBtn) {
+            this.addMobileEventListener(deleteBtn, 'click', (e) => {
+                e.stopPropagation();
+                this.deleteExercise(exercise.id);
+            });
+        }
+        
+        return card;
+    }
+
+    /**
+     * 显示训练项弹窗
+     */
+    showExerciseModal(exercise = null) {
+        if (!this.currentPlanId) {
+            alert('请先选择或创建一个训练计划');
+            return;
+        }
+        
+        if (exercise) {
+            // 编辑模式
+            document.getElementById('exerciseModalTitle').textContent = '编辑训练项';
+            document.getElementById('exerciseNameInput').value = exercise.name;
+            document.getElementById('sets').value = exercise.sets;
+            document.getElementById('setRest').value = exercise.setRest;
+            document.getElementById('description').value = exercise.description || '';
+            
+            if (exercise.type === 'duration') {
+                document.getElementById('typeDuration').checked = true;
+                document.getElementById('duration').value = exercise.duration;
+                this.toggleExerciseType('duration');
+            } else {
+                document.getElementById('typeReps').checked = true;
+                document.getElementById('reps').value = exercise.reps;
+                this.toggleExerciseType('reps');
+            }
+            
+            this.editingExerciseId = exercise.id;
+        } else {
+            // 新建模式
+            document.getElementById('exerciseModalTitle').textContent = '添加训练项';
+            document.getElementById('exerciseForm').reset();
+            document.getElementById('typeDuration').checked = true;
+            this.toggleExerciseType('duration');
+            this.editingExerciseId = null;
+        }
+        
+        this.exerciseModal.show();
+    }
+
+    /**
+     * 切换训练类型显示
+     */
+    toggleExerciseType(type) {
+        const durationConfig = document.getElementById('durationConfig');
+        const repsConfig = document.getElementById('repsConfig');
+        
+        if (type === 'duration') {
+            durationConfig.style.display = 'block';
+            repsConfig.style.display = 'none';
+        } else {
+            durationConfig.style.display = 'none';
+            repsConfig.style.display = 'block';
+        }
+    }
+
+    /**
+     * 保存训练项
+     */
+    saveExercise() {
+        const name = document.getElementById('exerciseNameInput').value.trim();
+        const type = document.querySelector('input[name="exerciseType"]:checked').value;
+        const sets = parseInt(document.getElementById('sets').value);
+        const setRest = parseInt(document.getElementById('setRest').value);
+        const description = document.getElementById('description').value.trim();
+        
+        if (!name) {
+            alert('请输入训练项名称');
+            return;
+        }
+        
+        const exercise = {
+            name,
+            type,
+            sets,
+            setRest,
+            description
+        };
+        
+        if (type === 'duration') {
+            exercise.duration = parseInt(document.getElementById('duration').value);
+        } else {
+            exercise.reps = parseInt(document.getElementById('reps').value);
+        }
+        
+        let success = false;
+        
+        if (this.editingExerciseId) {
+            // 更新
+            success = storage.updateExercise(this.currentPlanId, this.editingExerciseId, exercise);
+        } else {
+            // 新建
+            success = storage.addExercise(this.currentPlanId, exercise);
+        }
+        
+        if (success) {
+            this.exerciseModal.hide();
+            this.currentExercises = storage.getExercises(this.currentPlanId);
+            this.renderExercises();
+        } else {
+            alert('保存失败');
+        }
+    }
+
+    /**
+     * 编辑训练项
+     */
+    editExercise(exerciseId) {
+        const exercise = this.currentExercises.find(e => e.id === exerciseId);
+        if (exercise) {
+            this.showExerciseModal(exercise);
+        }
+    }
+
+    /**
+     * 删除训练项
+     */
+    deleteExercise(exerciseId) {
+        const exercise = this.currentExercises.find(e => e.id === exerciseId);
+        if (!exercise) return;
+        
+        this.deleteTarget = { type: 'exercise', id: exerciseId };
+        document.getElementById('deleteMessage').textContent = `确定要删除"${exercise.name}"吗？`;
+        this.deleteModal.show();
+    }
+
+    /**
+     * 确认删除
+     */
+    confirmDelete() {
+        if (!this.deleteTarget) return;
+        
+        if (this.deleteTarget.type === 'exercise') {
+            const planId = this.deleteTarget.planId || this.currentPlanId;
+            if (storage.deleteExercise(planId, this.deleteTarget.id)) {
+                // 如果是在管理界面删除，刷新管理界面
+                const manageModal = document.getElementById('planManageModal');
+                if (manageModal && manageModal.classList.contains('show')) {
+                    this.renderPlanManageList();
+                } else {
+                    // 在主界面删除，刷新主界面
+                    this.currentExercises = storage.getExercises(this.currentPlanId);
+                    this.renderExercises();
+                }
+            }
+        }
+        
+        this.deleteModal.hide();
+        this.deleteTarget = null;
+    }
+
+    // ==================== 训练执行 ====================
+
+    /**
+     * 开始训练
+     */
+    startTraining() {
+        if (this.currentExercises.length === 0) {
+            alert('没有训练项');
+            return;
+        }
+        
+        // 确保语音设置已加载
+        this.loadVoiceSettings();
+        
+        // 确保语音功能已启用
+        if (voiceManager && 'speechSynthesis' in window) {
+            voiceManager.setEnabled(true);
+        }
+        
+        const settings = storage.getSettings();
+        const prepareTime = settings && settings.prepareTime ? settings.prepareTime : 10;
+        const transitionInterval = settings && settings.transitionInterval ? settings.transitionInterval : 5;
+        const countdownStart = settings && settings.countdownStart ? settings.countdownStart : 10;
+
+        // 激活屏幕常亮
+        if (typeof screenWakeLock !== 'undefined' && 'wakeLock' in navigator) {
+            screenWakeLock.request();
+        }
+
+        trainingTimer.start(this.currentExercises, prepareTime, transitionInterval, countdownStart);
+    }
+
+    /**
+     * 显示训练界面
+     */
+    showTrainingView() {
+        if (this.mainView) {
+            this.mainView.style.display = 'none';
+        }
+        if (this.trainingView) {
+            this.trainingView.style.display = 'flex';
+            this.trainingView.style.visibility = 'visible';
+        }
+    }
+
+    /**
+     * 显示主界面
+     */
+    showMainView() {
+        if (this.trainingView) {
+            this.trainingView.style.display = 'none';
+            this.trainingView.style.visibility = 'hidden';
+        }
+        if (this.mainView) {
+            this.mainView.style.display = 'block';
+        }
+    }
+
+    /**
+     * 更新训练项信息显示
+     */
+    updateExerciseInfo(exerciseIndex) {
+        const exercise = this.currentExercises[exerciseIndex];
+        const progress = trainingTimer.getProgress();
+        
+        this.exerciseName.textContent = exercise.name;
+        this.exerciseProgress.textContent = `第${exerciseIndex + 1}个/共${this.currentExercises.length}个`;
+        this.setProgress.textContent = `第${progress.currentSet}组/共${progress.totalSets}组`;
+        this.exerciseDescription.textContent = exercise.description || '请按照动作要领完成训练';
+    }
+
+    /**
+     * 显示持续时间型界面
+     */
+    showDurationDisplay() {
+        this.durationDisplay.style.display = 'block';
+        this.repsDisplay.style.display = 'none';
+        this.durationControls.style.display = 'block';
+        this.repsControls.style.display = 'none';
+    }
+
+    /**
+     * 显示次数型界面
+     */
+    showRepsDisplay() {
+        this.durationDisplay.style.display = 'none';
+        this.repsDisplay.style.display = 'block';
+        this.durationControls.style.display = 'none';
+        this.repsControls.style.display = 'block';
+    }
+
+    /**
+     * 更新进度圆环
+     */
+    updateProgressCircle(progress) {
+        if (!this.progressCircle) return;
+        
+        const radius = 120;
+        const circumference = 2 * Math.PI * radius;
+        const offset = circumference - (progress / 100) * circumference;
+        this.progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+        this.progressCircle.style.strokeDashoffset = offset;
+    }
+
+    /**
+     * 初始化进度圆环
+     */
+    initProgressCircle() {
+        if (!this.progressCircle) return;
+        
+        const radius = 120;
+        const circumference = 2 * Math.PI * radius;
+        this.progressCircle.style.strokeDasharray = `${circumference} ${circumference}`;
+        this.progressCircle.style.strokeDashoffset = circumference;
+    }
+
+    /**
+     * 切换暂停/继续
+     */
+    togglePause() {
+        if (trainingTimer.state === trainingTimer.STATE.PAUSED) {
+            trainingTimer.resume();
+        } else {
+            trainingTimer.pause();
+        }
+    }
+
+    /**
+     * 完成一组（次数型）
+     */
+    completeSet() {
+        trainingTimer.completeSet();
+    }
+
+    /**
+     * 跳过当前训练项
+     */
+    skipExercise() {
+        if (confirm('确定要跳过当前训练项吗？')) {
+            trainingTimer.skip();
+        }
+    }
+
+    /**
+     * 停止训练
+     */
+    stopTraining() {
+        if (confirm('确定要结束训练吗？')) {
+            trainingTimer.stop();
+
+            // 释放屏幕常亮
+            if (typeof screenWakeLock !== 'undefined' && 'wakeLock' in navigator) {
+                screenWakeLock.release();
+            }
+
+            this.showMainView();
+        }
+    }
+
+    /**
+     * 初始化拖拽排序功能（已移至管理界面，主界面不再支持拖拽）
+     */
+    initDragAndDrop() {
+        // 拖拽功能已移至计划管理界面
+        // 主界面不再支持拖拽，避免误触
+    }
+
+    // ==================== 计划管理界面 ====================
+
+    /**
+     * 显示计划管理界面
+     */
+    showPlanManageModal() {
+        this.renderPlanManageList();
+        this.planManageModal.show();
+    }
+
+    /**
+     * 渲染计划管理列表
+     */
+    renderPlanManageList() {
+        const container = document.getElementById('planManageList');
+        if (!container) return;
+
+        container.innerHTML = '';
+        const plans = storage.getAllPlans();
+
+        if (plans.length === 0) {
+            container.innerHTML = '<p class="text-muted text-center py-4">还没有训练计划，请先创建计划</p>';
+            return;
+        }
+
+        plans.forEach((plan, planIndex) => {
+            const planCard = this.createPlanManageCard(plan, planIndex);
+            container.appendChild(planCard);
+        });
+
+        // 初始化跨计划拖拽
+        this.initCrossPlanDrag();
+    }
+
+    /**
+     * 创建计划管理卡片
+     */
+    createPlanManageCard(plan, planIndex) {
+        const card = document.createElement('div');
+        card.className = 'card mb-3';
+        card.dataset.planId = plan.id;
+
+        const exercises = plan.exercises || [];
+        const exerciseCount = exercises.length;
+
+        card.innerHTML = `
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <button class="btn btn-sm btn-link p-0 text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#plan-${plan.id}">
+                        <i class="bi bi-chevron-down"></i>
+                    </button>
+                    <h6 class="mb-0">${plan.name}</h6>
+                    <span class="badge bg-secondary">${exerciseCount} 项</span>
+                </div>
+                <div>
+                    <button class="btn btn-sm btn-outline-primary edit-plan-name" data-plan-id="${plan.id}">
+                        <i class="bi bi-pencil"></i> 重命名
+                    </button>
+                </div>
+            </div>
+            <div class="collapse show" id="plan-${plan.id}">
+                <div class="card-body">
+                    <div class="plan-exercise-list" data-plan-id="${plan.id}">
+                        ${exerciseCount === 0 ? '<p class="text-muted text-center py-2 mb-0">暂无训练项，可拖动其他计划的训练项到这里</p>' : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+
+        // 渲染训练项
+        const exerciseList = card.querySelector('.plan-exercise-list');
+        exercises.forEach((exercise, index) => {
+            const exerciseItem = this.createManageExerciseItem(exercise, index, plan.id);
+            exerciseList.appendChild(exerciseItem);
+        });
+
+        // 重命名按钮
+        const renameBtn = card.querySelector('.edit-plan-name');
+        if (renameBtn) {
+            this.addMobileEventListener(renameBtn, 'click', () => {
+                this.editPlanName(plan.id);
+            });
+        }
+
+        return card;
+    }
+
+    /**
+     * 创建管理界面的训练项
+     */
+    createManageExerciseItem(exercise, index, planId) {
+        const item = document.createElement('div');
+        item.className = 'manage-exercise-item mb-2 p-2 border rounded';
+        item.dataset.exerciseId = exercise.id;
+        item.dataset.planId = planId;
+        item.draggable = true;
+
+        const typeText = exercise.type === 'duration' ? '持续时间型' : '次数型';
+        const typeClass = exercise.type === 'duration' ? 'type-duration' : 'type-reps';
+
+        item.innerHTML = `
+            <div class="d-flex align-items-center gap-2">
+                <div class="exercise-card-drag-handle" title="拖动排序或移动到其他计划">
+                    <i class="bi bi-grip-vertical"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="badge bg-primary">${index + 1}</span>
+                        <strong>${exercise.name}</strong>
+                        <span class="badge ${typeClass === 'type-duration' ? 'bg-info' : 'bg-success'}">${typeText}</span>
+                    </div>
+                    <small class="text-muted">
+                        ${exercise.type === 'duration' ? `坚持${exercise.duration}秒` : `每组${exercise.reps}次`} · 
+                        ${exercise.sets}组 · 组间休息${exercise.setRest}秒
+                    </small>
+                </div>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary edit-exercise-manage" data-exercise-id="${exercise.id}" data-plan-id="${planId}">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="btn btn-outline-danger delete-exercise-manage" data-exercise-id="${exercise.id}" data-plan-id="${planId}">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // 编辑按钮
+        const editBtn = item.querySelector('.edit-exercise-manage');
+        if (editBtn) {
+            editBtn.draggable = false;
+            this.addMobileEventListener(editBtn, 'click', (e) => {
+                e.stopPropagation();
+                const exercise = storage.getExercises(planId).find(e => e.id === editBtn.dataset.exerciseId);
+                if (exercise) {
+                    this.planManageModal.hide();
+                    this.currentPlanId = planId;
+                    this.switchPlan(planId);
+                    setTimeout(() => {
+                        this.editExercise(exercise.id);
+                    }, 300);
+                }
+            });
+        }
+
+        // 删除按钮
+        const deleteBtn = item.querySelector('.delete-exercise-manage');
+        if (deleteBtn) {
+            deleteBtn.draggable = false;
+            this.addMobileEventListener(deleteBtn, 'click', (e) => {
+                e.stopPropagation();
+                const exercise = storage.getExercises(planId).find(e => e.id === deleteBtn.dataset.exerciseId);
+                if (exercise) {
+                    this.deleteTarget = { type: 'exercise', id: deleteBtn.dataset.exerciseId, planId: planId };
+                    document.getElementById('deleteMessage').textContent = `确定要删除"${exercise.name}"吗？`;
+                    this.deleteModal.show();
+                }
+            });
+        }
+
+        // 拖拽手柄
+        const dragHandle = item.querySelector('.exercise-card-drag-handle');
+        if (dragHandle) {
+            dragHandle.draggable = true;
+            dragHandle.addEventListener('dragstart', (e) => {
+                e.stopPropagation();
+                item.draggable = true;
+                e.dataTransfer.setData('text/plain', JSON.stringify({
+                    exerciseId: exercise.id,
+                    planId: planId
+                }));
+                item.classList.add('dragging');
+            });
+        }
+
+        return item;
+    }
+
+    /**
+     * 初始化跨计划拖拽
+     */
+    initCrossPlanDrag() {
+        const planLists = document.querySelectorAll('.plan-exercise-list');
+        
+        planLists.forEach(list => {
+            list.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                e.dataTransfer.dropEffect = 'move';
+                
+                const draggingItem = document.querySelector('.manage-exercise-item.dragging');
+                if (draggingItem && draggingItem.parentElement !== list) {
+                    list.classList.add('drag-over');
+                }
+            });
+
+            list.addEventListener('dragleave', () => {
+                list.classList.remove('drag-over');
+            });
+
+            list.addEventListener('drop', (e) => {
+                e.preventDefault();
+                list.classList.remove('drag-over');
+
+                const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+                const sourcePlanId = data.planId;
+                const exerciseId = data.exerciseId;
+                const targetPlanId = list.dataset.planId;
+
+                if (sourcePlanId === targetPlanId) {
+                    // 同计划内排序
+                    this.handleSamePlanReorder(list, exerciseId, e);
+                } else {
+                    // 跨计划移动
+                    this.handleCrossPlanMove(sourcePlanId, targetPlanId, exerciseId, list);
+                }
+            });
+        });
+    }
+
+    /**
+     * 处理同计划内排序
+     */
+    handleSamePlanReorder(list, exerciseId, e) {
+        const items = Array.from(list.querySelectorAll('.manage-exercise-item'));
+        const draggedItem = items.find(item => item.dataset.exerciseId === exerciseId);
+        if (!draggedItem) return;
+
+        const afterElement = this.getDragAfterElement(list, e.clientY);
+        if (afterElement == null) {
+            list.appendChild(draggedItem);
+        } else {
+            list.insertBefore(draggedItem, afterElement);
+        }
+
+        // 更新顺序
+        const exerciseIds = Array.from(list.querySelectorAll('.manage-exercise-item'))
+            .map(item => item.dataset.exerciseId);
+        storage.reorderExercises(list.dataset.planId, exerciseIds);
+        
+        // 更新序号
+        this.updateExerciseNumbers(list);
+        draggedItem.classList.remove('dragging');
+    }
+
+    /**
+     * 处理跨计划移动
+     */
+    handleCrossPlanMove(sourcePlanId, targetPlanId, exerciseId, targetList) {
+        const exercise = storage.getExercises(sourcePlanId).find(e => e.id === exerciseId);
+        if (!exercise) return;
+
+        // 从源计划删除
+        storage.deleteExercise(sourcePlanId, exerciseId);
+
+        // 添加到目标计划
+        storage.addExercise(targetPlanId, exercise);
+
+        // 重新渲染
+        this.renderPlanManageList();
+        this.showToast(`已将"${exercise.name}"移动到目标计划`);
+    }
+
+    /**
+     * 获取拖拽后的元素位置
+     */
+    getDragAfterElement(container, y) {
+        const draggableElements = [...container.querySelectorAll('.manage-exercise-item:not(.dragging)')];
+        
+        return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+            
+            if (offset < 0 && offset > closest.offset) {
+                return { offset: offset, element: child };
+            } else {
+                return closest;
+            }
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
+    }
+
+    /**
+     * 更新训练项序号
+     */
+    updateExerciseNumbers(list) {
+        const items = list.querySelectorAll('.manage-exercise-item');
+        items.forEach((item, index) => {
+            const badge = item.querySelector('.badge.bg-primary');
+            if (badge) {
+                badge.textContent = index + 1;
+            }
+        });
+    }
+
+    /**
+     * 编辑计划名称
+     */
+    editPlanName(planId) {
+        const plan = storage.getPlanById(planId);
+        if (!plan) return;
+
+        const newName = prompt('请输入新的计划名称：', plan.name);
+        if (newName && newName.trim() && newName.trim() !== plan.name) {
+            plan.name = newName.trim();
+            if (storage.savePlan(plan)) {
+                this.renderPlanManageList();
+                this.loadPlans(); // 更新主页面的计划列表
+                this.showToast('计划名称已更新');
+            }
+        }
+    }
+}
+
+// 页面加载完成后初始化应用
+document.addEventListener('DOMContentLoaded', () => {
+    try {
+        window.app = new RehabTrainerApp();
+    } catch (error) {
+        console.error('应用初始化失败:', error);
+        alert('应用初始化失败：' + error.message + '\n请刷新页面重试。');
+    }
+});
+
+// 如果DOMContentLoaded已经触发过了，立即执行
+if (document.readyState !== 'loading') {
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+}
