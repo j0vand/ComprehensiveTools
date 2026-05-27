@@ -335,9 +335,20 @@
     
     <script src="../../utils/storage-keys.js"></script>
     <script src="../../utils/common.js"></script>
+    <script src="../../utils/form-import-export.js"></script>
     <script src="calculator-storage.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"
             onerror="console.warn('图表库加载失败，趋势图将不可用')"></script>
     <script src="calculator.js"></script>
+    <script>
+        FormImportExport.init({
+            pageId: 'retirement-calculator',
+            pageName: 'FIRE 退休规划',
+            filenamePrefix: '退休规划',
+            rootSelector: '.input-section',
+            inlineAfterSelector: '.back-to-home',
+            insertAfterSelector: 'header'
+        });
+    </script>
 </body>
 </html>

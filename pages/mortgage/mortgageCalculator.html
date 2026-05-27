@@ -493,6 +493,20 @@
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
     <script src="../../utils/storage-keys.js"></script>
     <script src="../../utils/common.js"></script>
+    <script src="../../utils/form-import-export.js"></script>
     <script src="mortgageCalculator.js"></script>
+    <script>
+        FormImportExport.init({
+            pageId: 'mortgage-calculator',
+            pageName: '房贷计算',
+            filenamePrefix: '房贷',
+            rootSelector: '.calculator-container',
+            inlineAfterSelector: '.header a[href="../../index.html"]',
+            insertAfterSelector: '.header',
+            activeButtonGroups: [
+                { selector: '.loan-type-button', attribute: 'data-loan-type', key: 'loanType' }
+            ]
+        });
+    </script>
 </body>
 </html>

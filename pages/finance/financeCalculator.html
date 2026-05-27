@@ -902,6 +902,20 @@
 
     <script src="../../utils/storage-keys.js"></script>
     <script src="../../utils/common.js"></script>
+    <script src="../../utils/form-import-export.js"></script>
     <script src="financeCalculator.js"></script>
+    <script>
+        FormImportExport.init({
+            pageId: 'finance-calculator',
+            pageName: '理财计算',
+            filenamePrefix: '理财',
+            rootSelector: '.container',
+            inlineAfterSelector: 'header a[href="../../index.html"]',
+            insertAfterSelector: 'header',
+            activeButtonGroups: [
+                { selector: '.type-button', attribute: 'data-calc-type', key: 'calculatorType' }
+            ]
+        });
+    </script>
 </body>
 </html>

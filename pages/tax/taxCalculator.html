@@ -1114,6 +1114,17 @@
 
     <script src="../../utils/storage-keys.js"></script>
     <script src="../../utils/common.js"></script>
+    <script src="../../utils/form-import-export.js"></script>
     <script src="taxCalculator.js"></script>
+    <script>
+        FormImportExport.init({
+            pageId: 'tax-calculator',
+            pageName: '个税计算',
+            filenamePrefix: '个税',
+            rootSelector: '.container',
+            inlineAfterSelector: '.header-top a[href="../../index.html"]',
+            insertAfterSelector: '.header'
+        });
+    </script>
 </body>
 </html>
