@@ -96,21 +96,25 @@
 
 ```
 ComprehensiveTools/
-├── index.html                 # 首页
-├── utils/                     # 公共工具库
-│   ├── common.js             # 通用工具函数
-│   └── storage-keys.js       # 存储键名管理
-├── pages/                     # 工具页面
-│   ├── tax/                   # 个税计算器
-│   ├── mortgage/              # 房贷计算器
-│   ├── finance/               # 理财计算器
-│   ├── inventory/             # 库存管理
-│   ├── meal/                  # 今日点餐
-│   ├── pension-calculator/    # 养老金计算器
-│   └── rehab-trainer/         # 腰突康复训练
-├── static/                    # 静态资源
-├── README.md                  # 项目说明
-└── CONTRIBUTING.md            # 开发规范文档
+├── index.html                         # 静态 Web 首页
+├── css/                               # 全局基础样式
+├── utils/                             # 公共工具库
+│   ├── common.js                      # 通用 DOM、格式化、通知和存储工具
+│   ├── storage-keys.js                # localStorage 键名管理
+│   └── form-import-export.js          # 表单导入导出工具
+├── pages/                             # 各工具页面
+│   ├── tax/                           # 个税计算器
+│   ├── mortgage/                      # 房贷计算器
+│   ├── finance/                       # 理财计算器
+│   ├── inventory/                     # 库存管理
+│   ├── meal/                          # 今日点餐
+│   ├── pension-calculator/            # 养老金计算器
+│   ├── retirement-calculator/         # FIRE退休规划工具
+│   ├── rehab-trainer/                 # 腰突康复训练
+│   └── travel-checklist/              # 出行清单
+├── tests/                             # Node.js 测试
+├── static/                            # 静态资源
+└── README.md                          # 项目说明
 ```
 
 ## 🛠️ 技术栈
@@ -169,8 +173,6 @@ ComprehensiveTools/
 ## 🤝 贡献
 
 欢迎提交Issue和Pull Request！
-
-**开发前请先阅读 [项目开发规范](CONTRIBUTING.md)**，确保代码符合项目规范。
 
 ## 📄 许可证
 
