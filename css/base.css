@@ -16,6 +16,9 @@
     /* 统一视觉系统 */
     --app-bg: #f6fbf8;
     --app-bg-soft: #eef8f6;
+    --app-background:
+        radial-gradient(circle at top left, rgba(15, 159, 143, 0.10), transparent 34rem),
+        linear-gradient(135deg, var(--app-bg) 0%, #fdfaf4 100%);
     --surface: #ffffff;
     --surface-tint: #f8fcfb;
     --surface-strong: #eef8f6;
@@ -70,9 +73,7 @@ h1, h2, h3, h4, h5, h6 {
 
 body {
     color: var(--text-strong);
-    background:
-        radial-gradient(circle at top left, rgba(15, 159, 143, 0.10), transparent 34rem),
-        linear-gradient(135deg, var(--app-bg) 0%, #fdfaf4 100%);
+    background: var(--app-background);
 }
 
 .app-surface,
