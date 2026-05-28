@@ -50,6 +50,7 @@ function saveFormData() {
         medicalMonthlyExpense: getElementValue('medical-monthly-expense', 'float', 1200),
         medicalReserve: getElementValue('medical-reserve', 'float', 0),
         targetRetireAge: getRawIntValue('target-retire-age'),
+        extraSavingYearsAfterFire: getElementValue('extra-saving-years-after-fire', 'int', 0),
         expectedPension: getElementValue('expected-pension', 'float', 0),
         pensionAge: getElementValue('pension-age', 'int', 63),
         inflationRate: getElementValue('inflation-rate', 'float', 3),
@@ -89,6 +90,7 @@ function restoreFormData() {
     } else {
         setValue('target-retire-age', formData.targetRetireAge);
     }
+    setValue('extra-saving-years-after-fire', formData.extraSavingYearsAfterFire);
     setValue('expected-pension', formData.expectedPension);
     setValue('pension-age', formData.pensionAge);
     setValue('inflation-rate', formData.inflationRate);

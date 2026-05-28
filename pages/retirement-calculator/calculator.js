@@ -40,7 +40,7 @@ function bindAutoSave() {
     const inputIds = [
         'current-age', 'life-expectancy', 'current-assets', 'annual-savings',
         'monthly-expense', 'medical-monthly-expense', 'medical-reserve',
-        'target-retire-age', 'expected-pension', 'pension-age',
+        'target-retire-age', 'extra-saving-years-after-fire', 'expected-pension', 'pension-age',
         'inflation-rate', 'investment-return', 'pension-growth-rate'
     ];
     inputIds.forEach(id => {
@@ -72,6 +72,7 @@ function collectFormInputs() {
     const medicalReserve = parseFloat(document.getElementById('medical-reserve').value) || 0;
     const targetRetireAgeInput = document.getElementById('target-retire-age').value.trim();
     const targetRetireAge = targetRetireAgeInput === '' ? null : parseInt(targetRetireAgeInput);
+    const extraSavingYearsAfterFire = parseInt(document.getElementById('extra-saving-years-after-fire').value) || 0;
     const expectedPension = parseFloat(document.getElementById('expected-pension').value) || 0;
     const pensionAge = parseInt(document.getElementById('pension-age').value) || 63;
     const inflationRate = (parseFloat(document.getElementById('inflation-rate').value) || 0) / 100;
@@ -81,7 +82,7 @@ function collectFormInputs() {
     return {
         currentAge, lifeExpectancy, currentAssets, annualSavings,
         monthlyExpense, medicalMonthlyExpense, medicalReserve,
-        targetRetireAge, expectedPension, pensionAge,
+        targetRetireAge, extraSavingYearsAfterFire, expectedPension, pensionAge,
         inflationRate, investmentReturn, pensionGrowthRate
     };
 }
@@ -279,7 +280,7 @@ function renderResults(ctx) {
         tbody.appendChild(tr);
     });
 
-    renderTrendChart(trendData, firstFireAge, pensionAge, tightestPoint);
+    renderTrendChart(trendData, firstFireAge, pensionAge, tightestPoint, ctx);
 
     renderPostRetirementMonthlyTable({
         firstFireAge, pensionAge, lifeExpectancy, currentAge,
@@ -357,7 +358,7 @@ function renderPostRetirementMonthlyTable(ctx) {
     }
 }
 
-function renderTrendChart(trendData, firstFireAge, pensionAge, tightestPoint) {
+function renderTrendChart(trendData, firstFireAge, pensionAge, tightestPoint, ctx) {
     const canvas = document.getElementById('trend-chart');
     if (!canvas) return;
 
@@ -372,6 +373,20 @@ function renderTrendChart(trendData, firstFireAge, pensionAge, tightestPoint) {
 
     const labels = trendData.map((item) => item.age + '岁');
     const assetSeries = trendData.map((item) => Math.round(item.assets));
+    const stopSavingAssetSeries = window.FireProjection.calculateStopSavingAssetSeries({
+        trendData,
+        firstFireAge,
+        extraSavingYearsAfterFire: ctx.extraSavingYearsAfterFire,
+        currentAge: ctx.currentAge,
+        monthlyExpense: ctx.monthlyExpense,
+        medicalMonthlyExpense: ctx.medicalMonthlyExpense,
+        medicalReserve: ctx.medicalReserve,
+        expectedPension: ctx.expectedPension,
+        pensionAge: ctx.pensionAge,
+        inflationRate: ctx.inflationRate,
+        pensionGrowthRate: ctx.pensionGrowthRate,
+        investmentReturn: ctx.investmentReturn
+    }).map(value => Math.round(value));
     const requiredSeries = trendData.map((item) => Math.round(item.required));
     const ageToIndex = new Map(trendData.map((item, index) => [item.age, index]));
 
@@ -444,10 +459,18 @@ function renderTrendChart(trendData, firstFireAge, pensionAge, tightestPoint) {
             labels,
             datasets: [
                 {
-                    label: '累积资产',
+                    label: '持续储蓄资产',
                     data: assetSeries,
                     borderColor: '#1e88e5',
                     backgroundColor: 'rgba(30,136,229,0.12)',
+                    tension: 0.25,
+                    pointRadius: 2
+                },
+                {
+                    label: '停止储蓄资产',
+                    data: stopSavingAssetSeries,
+                    borderColor: '#43a047',
+                    backgroundColor: 'rgba(67,160,71,0.10)',
                     tension: 0.25,
                     pointRadius: 2
                 },
@@ -471,7 +494,7 @@ function renderTrendChart(trendData, firstFireAge, pensionAge, tightestPoint) {
                     position: 'top',
                     labels: {
                         filter(item) {
-                            return item.text === '累积资产' || item.text === '退休所需资金';
+                            return item.text === '持续储蓄资产' || item.text === '停止储蓄资产' || item.text === '退休所需资金';
                         }
                     }
                 },

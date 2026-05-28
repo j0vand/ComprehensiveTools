@@ -149,6 +149,14 @@
                                     </div>
                                     <small class="form-helper">这是可选项；留空则不执行目标反推</small>
                                 </div>
+                                <div class="form-group">
+                                    <label for="extra-saving-years-after-fire">FIRE 后继续储蓄年数</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="extra-saving-years-after-fire" min="0" max="40" value="0" step="1">
+                                        <span class="unit">年</span>
+                                    </div>
+                                    <small class="form-helper">用于新增曲线：达到最早 FIRE 后继续存钱多久，再停止储蓄并开始消耗资产</small>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -272,7 +280,7 @@
                                 图表库加载失败，趋势图暂不可用。请检查网络后刷新页面重试。
                             </div>
                             <div class="table-note">
-                                蓝线为累积资产，红线为退休所需资金，曲线首次相交点即首次可退休年龄。
+                                蓝线为持续储蓄资产，绿色线为 FIRE 后按设定年数继续储蓄后停止储蓄的资产余额，红线为退休所需资金。
                             </div>
                         </div>
 
@@ -337,6 +345,7 @@
     <script src="../../utils/common.js"></script>
     <script src="../../utils/storage-service.js"></script>
     <script src="../../utils/form-import-export.js"></script>
+    <script src="../../utils/fire-projection.js"></script>
     <script src="calculator-storage.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"
             onerror="console.warn('图表库加载失败，趋势图将不可用')"></script>
