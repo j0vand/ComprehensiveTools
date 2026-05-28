@@ -8,12 +8,13 @@
     <link rel="stylesheet" href="../pension-calculator/style.css">
     <style>
         :root {
-            --primary-color: #4CAF50;
-            --hover-color: #45a049;
-            --background-color: #f5f5f5;
-            --border-color: #ddd;
-            --text-color: #333;
-            --card-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            --primary-color: #0f9f8f;
+            --hover-color: #0b8176;
+            --background-color: #f6fbf8;
+            --border-color: #dbe9e5;
+            --text-color: #16302b;
+            --text-muted: #667c76;
+            --card-shadow: 0 12px 30px rgba(24, 78, 68, 0.10);
         }
 
         * {
@@ -75,11 +76,12 @@
         }
 
         .card {
-            background: white;
+            background: rgba(255, 255, 255, 0.92);
             border-radius: 12px;
             padding: 20px;
             margin-bottom: 16px;
             box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
         }
 
         .input-group {
@@ -152,11 +154,12 @@
 
         .result-card {
             display: none;
-            background: white;
+            background: rgba(255, 255, 255, 0.92);
             border-radius: 12px;
             padding: 20px;
             margin-top: 20px;
             box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
         }
 
         .result-item {
