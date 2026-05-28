@@ -52,6 +52,8 @@ body {
     font-family: var(--font-body);
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
+    color: var(--text-strong);
+    background-color: var(--app-bg);
 }
 
 h1, h2, h3, h4, h5, h6 {
@@ -69,11 +71,6 @@ h1, h2, h3, h4, h5, h6 {
     border-radius: var(--radius-sm);
     transition: all var(--transition-fast);
     margin-bottom: var(--space-sm);
-}
-
-body {
-    color: var(--text-strong);
-    background: var(--app-background);
 }
 
 .app-surface,
@@ -102,7 +99,8 @@ a:focus-visible,
 input:focus-visible,
 select:focus-visible,
 textarea:focus-visible {
-    outline: none;
+    outline: 2px solid rgba(15, 159, 143, 0.45);
+    outline-offset: 2px;
     box-shadow: var(--focus-ring);
 }
 
