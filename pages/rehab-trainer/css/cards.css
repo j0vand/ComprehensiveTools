@@ -190,6 +190,9 @@
 /* 管理界面样式 */
 .manage-exercise-item {
     background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-card);
     transition: background-color 0.2s ease;
 }
 

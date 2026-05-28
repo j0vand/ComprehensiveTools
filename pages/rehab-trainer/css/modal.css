@@ -1,8 +1,9 @@
 /* 弹窗样式增强（设计系统变量见 main.css :root） */
 .modal-content {
+    background: var(--card-bg);
     border: 1px solid var(--border-color);
     border-radius: var(--radius);
-    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.12);
+    box-shadow: var(--shadow-card);
 }
 
 .modal-header {
