@@ -97,6 +97,10 @@ body {
     color: var(--training-text);
 }
 
+#trainingView .text-muted {
+    color: var(--training-text-muted) !important;
+}
+
 /* 计时器圆环样式 */
 .timer-circle {
     width: 280px;

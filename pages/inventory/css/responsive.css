@@ -212,6 +212,7 @@
         --text-secondary: #b0b0b0;
         --divider-color: #424242;
         --background-color: #121212;
+        --background-gradient-end: #1e1e1e;
         --card-color: #1e1e1e;
         --hover-color: #2c332a;
         
@@ -269,4 +270,4 @@
     @page {
         margin: 1.5cm;
     }
-} 
+}
