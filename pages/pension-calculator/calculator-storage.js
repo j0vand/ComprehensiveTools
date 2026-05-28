@@ -100,20 +100,9 @@ function saveFormData() {
         interestRate: getRawValue('interest-rate', 'float')
     };
     
-    if (window.StorageService && window.StorageService.setJson) {
-        const result = window.StorageService.setJson(STORAGE_KEY, formData);
-        if (!result.ok) {
-            console.warn('无法保存数据到 localStorage:', result.error);
-        }
-    } else if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
-        window.CommonUtils.setLocalStorageItem(STORAGE_KEY, formData);
-    } else {
-        // 降级处理：如果公共工具库未加载，使用本地实现
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
-        } catch (e) {
-            console.warn('无法保存数据到 localStorage:', e);
-        }
+    const result = window.StorageService.setJson(STORAGE_KEY, formData);
+    if (!result.ok) {
+        console.warn('无法保存数据到 localStorage:', result.error);
     }
 }
 
@@ -121,24 +110,8 @@ function saveFormData() {
  * 从 localStorage 恢复表单数据
  */
 function restoreFormData() {
-    let formData;
-    if (window.StorageService && window.StorageService.getJson) {
-        formData = window.StorageService.getJson(STORAGE_KEY, null);
-        if (!formData) return;
-    } else if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
-        formData = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, null);
-        if (!formData) return;
-    } else {
-        // 降级处理：如果公共工具库未加载，使用本地实现
-        try {
-            const savedData = localStorage.getItem(STORAGE_KEY);
-            if (!savedData) return;
-            formData = JSON.parse(savedData);
-        } catch (e) {
-            console.warn('无法从 localStorage 恢复数据:', e);
-            return;
-        }
-    }
+    const formData = window.StorageService.getJson(STORAGE_KEY, null);
+    if (!formData) return;
     
     // 恢复基本信息
     const genderRadio = document.querySelector(`input[name="gender"][value="${formData.gender}"]`);
@@ -231,20 +204,9 @@ function restoreFormData() {
  * 清除保存的数据
  */
 function clearFormData() {
-    if (window.StorageService && window.StorageService.remove) {
-        const result = window.StorageService.remove(STORAGE_KEY);
-        if (!result.ok) {
-            console.warn('无法清除 localStorage 数据:', result.error);
-        }
-    } else if (window.CommonUtils && window.CommonUtils.removeLocalStorageItem) {
-        window.CommonUtils.removeLocalStorageItem(STORAGE_KEY);
-    } else {
-        // 降级处理：如果公共工具库未加载，使用本地实现
-        try {
-            localStorage.removeItem(STORAGE_KEY);
-        } catch (e) {
-            console.warn('无法清除 localStorage 数据:', e);
-        }
+    const result = window.StorageService.remove(STORAGE_KEY);
+    if (!result.ok) {
+        console.warn('无法清除 localStorage 数据:', result.error);
     }
 }
 

@@ -48,7 +48,7 @@
 
 ### 存储基础设施
 
-新增 `utils/storage-service.js`，封装：
+新增 `utils/storage-service.js`，封装所有页面持久化读写：
 
 - `getJson(key, fallback)`
 - `setJson(key, value)`
@@ -61,6 +61,7 @@
 - 不改变现有 `utils/storage-keys.js` key。
 - 读取损坏 JSON 时返回 fallback，并保留错误日志。
 - 写入失败时返回结构化结果，调用方可提示用户。
+- 迁移后的页面直接依赖 `StorageService`，不再保留 `CommonUtils` 或原生 `localStorage` 的页面级旧 fallback。
 - 暂不引入数据迁移框架，只保留版本字段支持空间。
 
 ### 测试基础
@@ -205,4 +206,3 @@
 - 验证并提交
 
 大文件拆分阶段允许使用子任务和子代理，但同一文件同一时间只能由一个执行者负责。
-

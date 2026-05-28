@@ -4,7 +4,7 @@
 
 **Goal:** Establish shared CSS components, shared tool layout styles, and a tested storage service without changing existing page URLs or localStorage keys.
 
-**Architecture:** Keep `css/base.css` focused on tokens/reset/global primitives. Add `css/components.css` for reusable UI components and `css/tool-layout.css` for common tool-page structure, then migrate a small first batch of pages to load and use them. Add `utils/storage-service.js` as a browser global plus CommonJS export for tests, and migrate low-risk pages incrementally.
+**Architecture:** Keep `css/base.css` focused on tokens/reset/global primitives. Add `css/components.css` for reusable UI components and `css/tool-layout.css` for common tool-page structure, then migrate a small first batch of pages to load and use them. Add `utils/storage-service.js` as a browser global plus CommonJS export for tests, and migrate low-risk pages to depend on it directly.
 
 **Tech Stack:** Static HTML, CSS, ES6 JavaScript, CommonJS-compatible utility exports for Node tests, Node built-in `node:test`, Python static HTTP server.
 
@@ -21,8 +21,8 @@
 - Modify `pages/travel-checklist/travelChecklist.html`: load shared CSS.
 - Modify `pages/finance/financeCalculator.html`: load shared CSS and use shared return link class.
 - Modify `pages/mortgage/mortgageCalculator.html`: load shared CSS and use shared return link class.
-- Modify `pages/pension-calculator/calculator-storage.js`: migrate JSON read/write/remove to `StorageService`.
-- Modify `pages/retirement-calculator/calculator-storage.js`: migrate JSON read/write/remove to `StorageService`.
+- Modify `pages/pension-calculator/calculator-storage.js`: migrate JSON read/write/remove to `StorageService` without page-level legacy storage fallback.
+- Modify `pages/retirement-calculator/calculator-storage.js`: migrate JSON read/write/remove to `StorageService` without page-level legacy storage fallback.
 - Modify affected HTML script order: load `utils/storage-service.js` before page scripts that use it.
 
 ## Task 1: Storage Service Tests First
@@ -539,48 +539,23 @@ In `pages/retirement-calculator/retirementCalculator.html`, add before `calculat
 
 - [ ] **Step 2: Migrate pension calculator storage reads and writes**
 
-In `pages/pension-calculator/calculator-storage.js`, update `saveFormData()` so it prefers `window.StorageService` before `window.CommonUtils`:
+In `pages/pension-calculator/calculator-storage.js`, update `saveFormData()` so it uses `window.StorageService` directly:
 
 ```js
-if (window.StorageService && window.StorageService.setJson) {
-    const result = window.StorageService.setJson(STORAGE_KEY, formData);
-    if (!result.ok) {
-        console.warn('无法保存数据到 localStorage:', result.error);
-    }
-} else if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
-    window.CommonUtils.setLocalStorageItem(STORAGE_KEY, formData);
-} else {
-    try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
-    } catch (e) {
-        console.warn('无法保存数据到 localStorage:', e);
-    }
+const result = window.StorageService.setJson(STORAGE_KEY, formData);
+if (!result.ok) {
+    console.warn('无法保存数据到 localStorage:', result.error);
 }
 ```
 
-Update `restoreFormData()` so it prefers `window.StorageService` before `window.CommonUtils`:
+Update `restoreFormData()` so it uses `window.StorageService` directly:
 
 ```js
-let formData;
-if (window.StorageService && window.StorageService.getJson) {
-    formData = window.StorageService.getJson(STORAGE_KEY, null);
-    if (!formData) return;
-} else if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
-    formData = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, null);
-    if (!formData) return;
-} else {
-    try {
-        const savedData = localStorage.getItem(STORAGE_KEY);
-        if (!savedData) return;
-        formData = JSON.parse(savedData);
-    } catch (e) {
-        console.warn('无法从 localStorage 恢复数据:', e);
-        return;
-    }
-}
+const formData = window.StorageService.getJson(STORAGE_KEY, null);
+if (!formData) return;
 ```
 
-Update `clearFormData()` so it prefers `window.StorageService.remove(STORAGE_KEY)` and falls back to the existing `CommonUtils` and native `localStorage` branches.
+Update `clearFormData()` so it uses `window.StorageService.remove(STORAGE_KEY)` directly and removes the existing `CommonUtils` and native `localStorage` storage branches.
 
 - [ ] **Step 3: Migrate retirement calculator storage reads and writes**
 

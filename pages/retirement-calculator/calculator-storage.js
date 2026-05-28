@@ -57,19 +57,9 @@ function saveFormData() {
         pensionGrowthRate: getElementValue('pension-growth-rate', 'float', 0)
     };
 
-    if (window.StorageService && window.StorageService.setJson) {
-        const result = window.StorageService.setJson(STORAGE_KEY, formData);
-        if (!result.ok) {
-            console.warn('无法保存数据到 localStorage:', result.error);
-        }
-    } else if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
-        window.CommonUtils.setLocalStorageItem(STORAGE_KEY, formData);
-    } else {
-        try {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(formData));
-        } catch (e) {
-            console.warn('无法保存数据到 localStorage:', e);
-        }
+    const result = window.StorageService.setJson(STORAGE_KEY, formData);
+    if (!result.ok) {
+        console.warn('无法保存数据到 localStorage:', result.error);
     }
 }
 
@@ -77,21 +67,7 @@ function saveFormData() {
  * 从 localStorage 恢复表单数据
  */
 function restoreFormData() {
-    let formData;
-    if (window.StorageService && window.StorageService.getJson) {
-        formData = window.StorageService.getJson(STORAGE_KEY, null);
-    } else if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
-        formData = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, null);
-    } else {
-        try {
-            const savedData = localStorage.getItem(STORAGE_KEY);
-            if (!savedData) return;
-            formData = JSON.parse(savedData);
-        } catch (e) {
-            console.warn('无法从 localStorage 恢复数据:', e);
-            return;
-        }
-    }
+    const formData = window.StorageService.getJson(STORAGE_KEY, null);
 
     if (!formData) return;
 
@@ -127,19 +103,9 @@ function restoreFormData() {
  * 清除保存的数据
  */
 function clearFormData() {
-    if (window.StorageService && window.StorageService.remove) {
-        const result = window.StorageService.remove(STORAGE_KEY);
-        if (!result.ok) {
-            console.warn('无法清除 localStorage 数据:', result.error);
-        }
-    } else if (window.CommonUtils && window.CommonUtils.removeLocalStorageItem) {
-        window.CommonUtils.removeLocalStorageItem(STORAGE_KEY);
-    } else {
-        try {
-            localStorage.removeItem(STORAGE_KEY);
-        } catch (e) {
-            console.warn('无法清除 localStorage 数据:', e);
-        }
+    const result = window.StorageService.remove(STORAGE_KEY);
+    if (!result.ok) {
+        console.warn('无法清除 localStorage 数据:', result.error);
     }
 }
 
