@@ -79,11 +79,9 @@
      * @param {string} type
      */
     function showMessage(message, type) {
-        if (window.CommonUtils && window.CommonUtils.showNotification) {
-            window.CommonUtils.showNotification(message, type, type === 'error' ? 5000 : 3000);
-        } else {
-            alert(message);
-        }
+        window.DialogService.showToast(message, type, {
+            duration: type === 'error' ? 5000 : 3000
+        });
     }
 
     /**
@@ -283,14 +281,17 @@
             return;
         }
         const list = state.lists.find(function(l) { return l.id === listId; });
-        if (!list || !confirm('确定删除清单「' + list.name + '」？')) return;
-        state.lists = state.lists.filter(function(l) { return l.id !== listId; });
-        if (state.activeListId === listId) {
-            state.activeListId = state.lists[0].id;
-        }
-        saveData();
-        renderList();
-        showMessage('已删除', 'success');
+        if (!list) return;
+        window.DialogService.confirmAction('确定删除清单「' + list.name + '」？').then(function(confirmed) {
+            if (!confirmed) return;
+            state.lists = state.lists.filter(function(l) { return l.id !== listId; });
+            if (state.activeListId === listId) {
+                state.activeListId = state.lists[0].id;
+            }
+            saveData();
+            renderList();
+            showMessage('已删除', 'success');
+        });
     }
 
     /**
@@ -393,11 +394,14 @@
         const list = state.lists.find(function(l) { return l.id === listId; });
         if (!list) return;
         const item = list.items.find(function(i) { return i.id === itemId; });
-        if (!item || !confirm('确定删除「' + item.text + '」？')) return;
-        list.items = list.items.filter(function(i) { return i.id !== itemId; });
-        saveData();
-        renderList();
-        showMessage('已删除', 'success');
+        if (!item) return;
+        window.DialogService.confirmAction('确定删除「' + item.text + '」？').then(function(confirmed) {
+            if (!confirmed) return;
+            list.items = list.items.filter(function(i) { return i.id !== itemId; });
+            saveData();
+            renderList();
+            showMessage('已删除', 'success');
+        });
     }
 
     function updateItemText(listId, itemId, text) {
@@ -435,11 +439,14 @@
 
     function resetChecked(listId) {
         const list = state.lists.find(function(l) { return l.id === listId; });
-        if (!list || !confirm('将取消所有勾选，列表不变。确定吗？')) return;
-        list.items.forEach(function(i) { i.checked = false; });
-        saveData();
-        renderList();
-        showMessage('已重置勾选，可重新逐项确认', 'success');
+        if (!list) return;
+        window.DialogService.confirmAction('将取消所有勾选，列表不变。确定吗？').then(function(confirmed) {
+            if (!confirmed) return;
+            list.items.forEach(function(i) { i.checked = false; });
+            saveData();
+            renderList();
+            showMessage('已重置勾选，可重新逐项确认', 'success');
+        });
     }
 
     /**
@@ -973,8 +980,10 @@
                     renderModalTypes();
                 }
                 if (btn.classList && btn.classList.contains('modal-type-delete')) {
-                    if (confirm('删除该类型后，其下所有项将归入第一种类型。确定删除？')) deleteType(list.id, typeId);
-                    renderModalTypes();
+                    window.DialogService.confirmAction('删除该类型后，其下所有项将归入第一种类型。确定删除？').then(function(confirmed) {
+                        if (confirmed) deleteType(list.id, typeId);
+                        renderModalTypes();
+                    });
                 }
             });
         }
@@ -1032,11 +1041,10 @@
             importFile.addEventListener('change', function() {
                 const file = importFile.files && importFile.files[0];
                 if (!file) return;
-                const mode = confirm('是否覆盖当前清单？\n点击「确定」覆盖当前清单，点击「取消」则导入为新清单。')
-                    ? 'overwrite'
-                    : 'new';
-                importData(file, mode);
-                importFile.value = '';
+                window.DialogService.confirmAction('是否覆盖当前清单？\n点击「确定」覆盖当前清单，点击「取消」则导入为新清单。').then(function(confirmed) {
+                    importData(file, confirmed ? 'overwrite' : 'new');
+                    importFile.value = '';
+                });
             });
         }
 
