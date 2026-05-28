@@ -901,8 +901,8 @@ ul, ol {
     background-color: var(--primary-color);
     font-weight: 600;
     color: var(--text-on-primary);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    text-transform: none;
+    letter-spacing: 0;
     font-family: var(--font-heading);
 }
 
