@@ -74,17 +74,28 @@
         };
     }
 
-    const defaultStorage = global.localStorage || {
+    const fallbackStorage = {
         getItem() { return null; },
         setItem() {},
         removeItem() {}
     };
 
+    function getDefaultStorage() {
+        try {
+            return global.localStorage || fallbackStorage;
+        } catch (error) {
+            if (global.console && typeof global.console.warn === 'function') {
+                global.console.warn('localStorage is not available:', error);
+            }
+            return fallbackStorage;
+        }
+    }
+
     const api = {
         createStorageService,
         safeParseJson,
         isQuotaExceeded,
-        ...createStorageService(defaultStorage)
+        ...createStorageService(getDefaultStorage())
     };
 
     global.StorageService = api;

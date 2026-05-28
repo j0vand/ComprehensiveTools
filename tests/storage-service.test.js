@@ -1,5 +1,8 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+const vm = require('node:vm');
+const fs = require('node:fs');
+const path = require('node:path');
 
 function withSilentWarn(callback) {
     const originalWarn = console.warn;
@@ -80,4 +83,25 @@ test('setJson reports quota exceeded errors', () => {
     assert.equal(result.ok, false);
     assert.equal(result.reason, 'quota-exceeded');
     assert.equal(service.isQuotaExceeded(quotaError), true);
+});
+
+test('browser initialization falls back when localStorage access throws', () => {
+    const source = fs.readFileSync(path.join(__dirname, '../utils/storage-service.js'), 'utf8');
+    const context = {
+        console: { warn() {} }
+    };
+
+    vm.createContext(context);
+    vm.runInContext(`
+        Object.defineProperty(globalThis, 'localStorage', {
+            get() {
+                throw new Error('Blocked');
+            }
+        });
+    `, context);
+    vm.runInContext(source, context);
+
+    assert.equal(typeof context.StorageService.getJson, 'function');
+    assert.deepEqual(context.StorageService.getJson('missing', { fallback: true }), { fallback: true });
+    assert.equal(context.StorageService.setJson('sample', { value: 1 }).ok, true);
 });
