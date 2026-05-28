@@ -104,4 +104,7 @@ test('browser initialization falls back when localStorage access throws', () => 
     assert.equal(typeof context.StorageService.getJson, 'function');
     assert.deepEqual(context.StorageService.getJson('missing', { fallback: true }), { fallback: true });
     assert.equal(context.StorageService.setJson('sample', { value: 1 }).ok, true);
+    assert.equal(context.StorageService.getJson('sample', null).value, 1);
+    assert.equal(context.StorageService.remove('sample').ok, true);
+    assert.equal(context.StorageService.getJson('sample', { removed: true }).removed, true);
 });
