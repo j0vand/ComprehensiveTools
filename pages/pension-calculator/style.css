@@ -1,18 +1,18 @@
 :root {
-    --primary-color: #0f172a; /* 深石板灰/黑 */
-    --primary-hover: #334155;
-    --accent-color: #047857; /* 墨绿强调色 */
-    --secondary-bg: #f8fafc;
+    --primary-color: #0f9f8f;
+    --primary-hover: #0b8176;
+    --accent-color: #f59e0b;
+    --secondary-bg: #f4fbf9;
     --card-bg: #ffffff;
-    --text-main: #0f172a;
-    --text-sub: #64748b;
-    --border-color: #e2e8f0;
-    --success-color: #4caf50;
-    --warning-color: #ff9800;
-    --danger-color: #f44336;
-    --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
-    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1);
-    --radius: 0px; /* 瑞士风：直角或极小圆角 */
+    --text-main: #16302b;
+    --text-sub: #667c76;
+    --border-color: #dbe9e5;
+    --success-color: #16a34a;
+    --warning-color: #f59e0b;
+    --danger-color: #e85d75;
+    --shadow-sm: 0 4px 12px rgba(24, 78, 68, 0.06);
+    --shadow-md: 0 12px 30px rgba(24, 78, 68, 0.10);
+    --radius: 14px;
 }
 
 * {
@@ -22,7 +22,7 @@
 }
 
 body {
-    background-color: var(--secondary-bg);
+    background: radial-gradient(circle at top left, rgba(15,159,143,0.12), transparent 30rem), linear-gradient(135deg, #f6fbf8 0%, #fff8ec 100%);
     color: var(--text-main);
     line-height: 1.5;
     padding-bottom: 40px;
@@ -37,7 +37,10 @@ body {
 header {
     text-align: center;
     margin-bottom: 30px;
-    padding: 20px 0;
+    padding: 22px;
+    background: linear-gradient(135deg, rgba(15,159,143,0.14), rgba(59,130,246,0.10));
+    border: 1px solid rgba(219,233,229,0.9);
+    border-radius: 18px;
 }
 
 header h1 {
@@ -85,7 +88,7 @@ header h1 {
 .panel {
     background: var(--card-bg);
     border-radius: var(--radius);
-    box-shadow: none;
+    box-shadow: var(--shadow-sm);
     border: 1px solid var(--border-color);
     overflow: hidden;
     margin-bottom: 20px;
@@ -93,8 +96,8 @@ header h1 {
 
 .panel-header {
     padding: 15px 20px;
-    border-bottom: 2px solid var(--primary-color);
-    background-color: var(--card-bg);
+    border-bottom: 1px solid var(--border-color);
+    background: linear-gradient(90deg, rgba(15,159,143,0.12), rgba(245,158,11,0.08));
 }
 
 .panel-header h2 {
@@ -148,17 +151,17 @@ select {
     width: 100%;
     padding: 10px 12px;
     border: 1px solid var(--border-color);
-    border-radius: 0;
+    border-radius: 10px;
     font-size: 1rem;
     transition: all 0.2s;
-    background-color: var(--secondary-bg);
+    background-color: #fbfefd;
 }
 
 input[type="number"]:focus,
 select:focus {
     border-color: var(--primary-color);
     outline: none;
-    box-shadow: none;
+    box-shadow: 0 0 0 3px rgba(15,159,143,0.16);
     background-color: var(--card-bg);
 }
 
@@ -233,13 +236,13 @@ select:focus {
     flex: 1;
     padding: 12px;
     border: none;
-    border-radius: 0;
+    border-radius: 10px;
     font-size: 1rem;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.2s;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
+    text-transform: none;
+    letter-spacing: 0;
 }
 
 .btn-primary {
