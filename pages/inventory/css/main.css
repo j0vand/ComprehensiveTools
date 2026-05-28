@@ -15,6 +15,7 @@
     --text-secondary: #667c76;
     --divider-color: #dbe9e5;
     --background-color: #f6fbf8;
+    --background-gradient-end: #eef7ff;
     --card-color: rgba(255, 255, 255, 0.94);
     --hover-color: #eef8f6;
     
@@ -69,6 +70,7 @@
     --text-secondary: #b0b0b0;
     --divider-color: #424242;
     --background-color: #121212;
+    --background-gradient-end: #1e1e1e;
     --card-color: #1e1e1e;
     --hover-color: #2c332a;
     
@@ -93,7 +95,7 @@ html, body {
     color: var(--text-primary);
     background:
         radial-gradient(circle at top left, rgba(15, 159, 143, 0.10), transparent 32rem),
-        linear-gradient(135deg, var(--background-color) 0%, #eef7ff 100%);
+        linear-gradient(135deg, var(--background-color) 0%, var(--background-gradient-end) 100%);
     transition: background-color var(--transition-normal);
 }
 

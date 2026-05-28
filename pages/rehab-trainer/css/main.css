@@ -4,6 +4,8 @@
     --card-bg: rgba(255, 255, 255, 0.94);
     --text-main: #16302b;
     --text-sub: #667c76;
+    --training-text: #f3fff9;
+    --training-text-muted: #b8d8cf;
     --accent-neon: #16a34a;
     --accent-neon-dim: rgba(22, 163, 74, 0.16);
     --border-color: #dbe9e5;
@@ -69,6 +71,7 @@ body {
     bottom: 0;
     z-index: 2000;
     background: #12332d;
+    color: var(--training-text);
     display: none; /* 默认隐藏，但允许JS覆盖 */
     visibility: hidden; /* 完全隐藏，但允许JS覆盖 */
 }
@@ -86,12 +89,12 @@ body {
     font-family: var(--font-heading);
     font-size: 1.8rem;
     font-weight: 700;
-    color: var(--text);
+    color: var(--training-text);
 }
 
 .training-main {
     background: #12332d;
-    color: var(--text-main);
+    color: var(--training-text);
 }
 
 /* 计时器圆环样式 */
@@ -146,6 +149,7 @@ body {
     font-size: 1.5rem;
     font-weight: 500;
     opacity: 0.95;
+    color: var(--training-text);
 }
 
 /* 主界面：标题与返回 */
@@ -251,25 +255,26 @@ body {
 .reps-status {
     font-size: 1.3rem;
     opacity: 0.9;
+    color: var(--training-text-muted);
 }
 
 /* 动作说明 */
 .exercise-description {
-    background: var(--card-bg);
+    background: #174239;
     min-height: 60px;
-    border-top: 1px solid var(--border-color);
+    border-top: 1px solid rgba(184, 216, 207, 0.24);
 }
 
 .exercise-description p {
     font-size: 1.1rem;
     margin: 0;
-    color: var(--text-main) !important;
+    color: var(--training-text) !important;
 }
 
 /* 训练控制按钮 */
 .training-controls {
-    background: var(--card-bg);
-    box-shadow: 0 -4px 20px rgba(0,0,0,0.5);
+    background: #174239;
+    box-shadow: 0 -4px 20px rgba(0,0,0,0.28);
 }
 
 .training-controls .btn-lg {
