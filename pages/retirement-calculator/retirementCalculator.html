@@ -77,18 +77,18 @@
                                 <div class="form-group">
                                     <label for="current-assets">当前已有资产</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="current-assets" min="0" value="500000" step="10000">
-                                        <span class="unit">元</span>
+                                        <input type="number" id="current-assets" min="0" value="500" step="10">
+                                        <span class="unit">千元</span>
                                     </div>
-                                    <small class="form-helper">目前已经准备好的可投资本金</small>
+                                    <small class="form-helper">按千元填写，例：500 表示 50 万元</small>
                                 </div>
                                 <div class="form-group">
                                     <label for="annual-savings">每年可存金额</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="annual-savings" min="0" value="100000" step="1000">
-                                        <span class="unit">元/年</span>
+                                        <input type="number" id="annual-savings" min="0" value="100" step="1">
+                                        <span class="unit">千元/年</span>
                                     </div>
-                                    <small class="form-helper">从现在到退休前，每年能存下的钱</small>
+                                    <small class="form-helper">按千元填写，例：100 表示每年存 10 万元</small>
                                 </div>
                             </div>
                         </div>
@@ -110,9 +110,10 @@
                                 <div class="form-group">
                                     <label for="medical-reserve">医疗备用金 (按当前物价)</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="medical-reserve" min="0" value="500000" step="10000">
-                                        <span class="unit">元</span>
+                                        <input type="number" id="medical-reserve" min="0" value="500" step="10">
+                                        <span class="unit">千元</span>
                                     </div>
+                                    <small class="form-helper">按千元填写，例：500 表示 50 万元</small>
                                 </div>
                             </div>
                             <div class="form-row">
@@ -151,6 +152,11 @@
                                 </div>
                                 <div class="form-group">
                                     <label for="extra-saving-years-after-fire">FIRE 后继续储蓄年数</label>
+                                    <div class="scenario-controls" role="group" aria-label="FIRE 后继续储蓄场景">
+                                        <button type="button" class="scenario-button active" data-extra-saving-years="0">立即退休</button>
+                                        <button type="button" class="scenario-button" data-extra-saving-years="3">再工作 3 年</button>
+                                        <button type="button" class="scenario-button" data-extra-saving-years="5">再工作 5 年</button>
+                                    </div>
                                     <div class="input-wrapper">
                                         <input type="number" id="extra-saving-years-after-fire" min="0" max="40" value="0" step="1">
                                         <span class="unit">年</span>
@@ -193,7 +199,7 @@
                                 </div>
                                 <div class="form-group"></div>
                             </div>
-                            <small class="form-helper" style="margin-top: -10px;">注：投资收益率代表长期平均年化收益。生活费、月医疗支出、医疗备用金都按通货膨胀率增长；退休金按“退休金年增长比例”增长。</small>
+                            <small class="form-helper" style="margin-top: -10px;">注：投资收益率代表长期平均年化收益。生活费、月医疗支出、医疗备用金都按通货膨胀率增长；退休金按“退休金年增长比例”增长。医疗备用金仅单独展示，不参与 FIRE 曲线、缺口和安全垫判断。</small>
                         </div>
                     </div>
 
@@ -219,7 +225,7 @@
                                     <span id="res-fire-age">0</span> <span class="value-unit">岁</span>
                                 </div>
                                 <div class="sub-text">
-                                    届时您将攒下本金约: ¥ <span id="res-fire-assets">0</span>
+                                    届时资产余额约: ¥ <span id="res-fire-assets">0</span>
                                 </div>
                                 <div class="sub-text">
                                     折算当前购买力约: ¥ <span id="res-fire-assets-real">0</span>
@@ -251,9 +257,19 @@
                                 <div class="data-value"><span id="res-pension-age-display">0</span> 岁</div>
                             </div>
                             <div class="data-card">
-                                <h4>退休时医疗备用金（分段通胀后）</h4>
+                                <h4>实际开始退休年龄</h4>
+                                <div class="data-value"><span id="res-actual-retire-age">0</span> 岁</div>
+                                <div class="data-desc">含 FIRE 后继续储蓄年数</div>
+                            </div>
+                            <div class="data-card">
+                                <h4>资产预计耗尽年龄</h4>
+                                <div class="data-value"><span id="res-depletion-age">—</span></div>
+                                <div class="data-desc" id="res-depletion-desc">按当前退休场景测算</div>
+                            </div>
+                            <div class="data-card">
+                                <h4>退休时医疗备用金（单独预留）</h4>
                                 <div class="data-value">¥ <span id="res-medical-reserve-inflated">0</span></div>
-                                <div class="data-desc">按 <span id="res-medical-age">0</span> 岁退休测算</div>
+                                <div class="data-desc">按 <span id="res-medical-age">0</span> 岁退休测算，不计入曲线和安全垫</div>
                             </div>
                             <div class="data-card" id="target-reverse-card">
                                 <h4>目标反推：每年需存</h4>
@@ -266,6 +282,11 @@
                                 <div class="data-desc">当前购买力约 ¥ <span id="res-gap-amount-real">0</span></div>
                             </div>
                             <div class="data-card">
+                                <h4>退休安全垫</h4>
+                                <div class="data-value"><span id="res-safety-level">—</span></div>
+                                <div class="data-desc">安全垫 ¥ <span id="res-safety-buffer">0</span>，覆盖比例 <span id="res-safety-ratio">0</span>x</div>
+                            </div>
+                            <div class="data-card">
                                 <h4>实际收益率（估算）</h4>
                                 <div class="data-value"><span id="res-real-return-rate">0</span>%</div>
                                 <div class="data-desc">按投资收益率与通胀率推算</div>
@@ -274,13 +295,50 @@
 
                         <div class="section-layer-title">趋势与明细</div>
                         <div class="year-details-table result-block">
-                            <h4>资产与需求折线图</h4>
-                            <canvas id="trend-chart" height="150"></canvas>
-                            <div id="chart-fallback" class="hidden" style="text-align:center;padding:24px 0;color:#999;font-size:0.9rem;">
-                                图表库加载失败，趋势图暂不可用。请检查网络后刷新页面重试。
+                            <div class="chart-tabs" role="tablist" aria-label="FIRE 图表视图">
+                                <button type="button" class="chart-tab active" data-chart-view="assets">资产可行性</button>
+                                <button type="button" class="chart-tab" data-chart-view="cashflow">退休后现金流</button>
                             </div>
-                            <div class="table-note">
-                                蓝线为持续储蓄资产，绿色线为 FIRE 后按设定年数继续储蓄后停止储蓄的资产余额，红线为退休所需资金。
+                            <div class="chart-panel" id="chart-panel-assets">
+                                <h4>资产与需求折线图</h4>
+                                <canvas id="trend-chart" height="150"></canvas>
+                                <div id="chart-fallback" class="hidden" style="text-align:center;padding:24px 0;color:#999;font-size:0.9rem;">
+                                    图表库加载失败，趋势图暂不可用。请检查网络后刷新页面重试。
+                                </div>
+                                <div class="table-note">
+                                    资产图用于判断 FIRE 可行性：蓝线为按当前场景继续储蓄后的资产余额，绿色线为 FIRE 后立即停止储蓄，红线为实际开始退休前年龄对应的退休现金流所需资金；医疗备用金不计入曲线。
+                                </div>
+                            </div>
+                            <div class="chart-panel hidden" id="chart-panel-cashflow">
+                                <h4>退休后现金流</h4>
+                                <canvas id="cashflow-chart" height="150"></canvas>
+                                <div id="cashflow-chart-fallback" class="hidden" style="text-align:center;padding:24px 0;color:#999;font-size:0.9rem;">
+                                    图表库加载失败，现金流图暂不可用。请检查网络后刷新页面重试。
+                                </div>
+                                <div class="table-note">
+                                    现金流图用于解释退休后的年度消费、年度净支出、退休金和资产余额消耗。
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="year-details-table result-block">
+                            <h4>场景对比</h4>
+                            <div class="table-wrapper">
+                                <table id="scenario-table">
+                                    <thead>
+                                        <tr>
+                                            <th>场景</th>
+                                            <th>实际退休年龄</th>
+                                            <th>退休时资产</th>
+                                            <th>安全垫比例</th>
+                                            <th>资产耗尽年龄</th>
+                                            <th>风险等级</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="scenario-table-body">
+                                        <!-- JS 填充 -->
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
 
@@ -292,8 +350,8 @@
                                     <thead>
                                         <tr>
                                             <th>假定退休年龄</th>
-                                            <th>届时累积资产</th>
-                                            <th>退休所需总资金 <span class="tip-icon" title="该值是把退休后每年的净支出折现到退休当年，再加上一次性医疗备用金得到。">?</span></th>
+                                            <th>届时资产余额</th>
+                                            <th>退休现金流所需资金 <span class="tip-icon" title="该值是把退休后每年的净支出折现到退休当年，不包含医疗备用金。医疗备用金在核心指标中单独展示。">?</span></th>
                                             <th>状态</th>
                                         </tr>
                                     </thead>
@@ -303,10 +361,10 @@
                                 </table>
                             </div>
                             <ul class="table-note note-list">
-                                <li><strong>届时累积资产</strong> = 当前资产 + 年储蓄，按投资收益率复利增长。</li>
-                                <li><strong>退休所需总资金</strong> = 通胀后净支出现值 + 通胀后医疗备用金。</li>
-                                <li>当【累积资产】≥【所需资金】时，即可实现 FIRE。</li>
-                                <li>表格高亮关键拐点：首次可退休年龄、退休金起领年龄、资金最紧张年龄。</li>
+                                <li><strong>届时资产余额</strong> = 当前资产 + 年储蓄，按投资收益率复利增长。</li>
+                                <li><strong>退休现金流所需资金</strong> = 退休后年度净支出的折现值，不包含医疗备用金。</li>
+                                <li>当【资产余额】≥【现金流所需资金】时，即可实现 FIRE；医疗备用金作为额外预留单独查看。</li>
+                                <li>表格高亮关键拐点：首次可退休年龄、退休金起领年龄。</li>
                             </ul>
                         </div>
 
