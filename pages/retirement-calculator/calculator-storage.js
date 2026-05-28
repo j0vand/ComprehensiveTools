@@ -57,7 +57,12 @@ function saveFormData() {
         pensionGrowthRate: getElementValue('pension-growth-rate', 'float', 0)
     };
 
-    if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
+    if (window.StorageService && window.StorageService.setJson) {
+        const result = window.StorageService.setJson(STORAGE_KEY, formData);
+        if (!result.ok) {
+            console.warn('无法保存数据到 localStorage:', result.error);
+        }
+    } else if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
         window.CommonUtils.setLocalStorageItem(STORAGE_KEY, formData);
     } else {
         try {
@@ -73,7 +78,9 @@ function saveFormData() {
  */
 function restoreFormData() {
     let formData;
-    if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
+    if (window.StorageService && window.StorageService.getJson) {
+        formData = window.StorageService.getJson(STORAGE_KEY, null);
+    } else if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
         formData = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, null);
     } else {
         try {
@@ -120,7 +127,12 @@ function restoreFormData() {
  * 清除保存的数据
  */
 function clearFormData() {
-    if (window.CommonUtils && window.CommonUtils.removeLocalStorageItem) {
+    if (window.StorageService && window.StorageService.remove) {
+        const result = window.StorageService.remove(STORAGE_KEY);
+        if (!result.ok) {
+            console.warn('无法清除 localStorage 数据:', result.error);
+        }
+    } else if (window.CommonUtils && window.CommonUtils.removeLocalStorageItem) {
         window.CommonUtils.removeLocalStorageItem(STORAGE_KEY);
     } else {
         try {
