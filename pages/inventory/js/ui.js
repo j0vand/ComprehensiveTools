@@ -584,62 +584,6 @@ class UIManager {
     }
     
     /**
-     * 渲染摘要信息
-     */
-    renderSummary() {
-        const stats = InventoryData.getInventoryStats();
-        const overview = InventoryData.getQuickOverview();
-        const reminders = InventoryData.getReminders();
-        
-        if (this.elements.totalItemsCount) {
-            this.elements.totalItemsCount.textContent = overview.totalItems;
-        }
-        
-        if (this.elements.totalBatchesCount) {
-            this.elements.totalBatchesCount.textContent = stats.totalBatches;
-        }
-        
-        if (this.elements.totalValue) {
-            this.elements.totalValue.textContent = Utils.formatPrice(stats.totalValue);
-        }
-        
-        if (this.elements.needToBuyCount) {
-            this.elements.needToBuyCount.textContent = overview.needToBuyCount;
-        }
-        
-        if (this.elements.expiringSoonCount) {
-            this.elements.expiringSoonCount.textContent = overview.expiringSoonCount;
-        }
-        
-        if (this.elements.recentItemsCount) {
-            this.elements.recentItemsCount.textContent = overview.recentItemsCount;
-        }
-        
-        // 更新购物清单和提醒徽章
-        const shoppingList = InventoryData.getShoppingList();
-        const unpurchasedCount = shoppingList.filter(item => !item.purchased).length;
-        const totalReminders = reminders.expiringSoon.length + reminders.needToBuy.length;
-        
-        if (this.elements.shoppingListBadge) {
-            if (unpurchasedCount > 0) {
-                this.elements.shoppingListBadge.textContent = unpurchasedCount;
-                this.elements.shoppingListBadge.style.display = 'inline-block';
-            } else {
-                this.elements.shoppingListBadge.style.display = 'none';
-            }
-        }
-        
-        if (this.elements.remindersBadge) {
-            if (totalReminders > 0) {
-                this.elements.remindersBadge.textContent = totalReminders;
-                this.elements.remindersBadge.style.display = 'inline-block';
-            } else {
-                this.elements.remindersBadge.style.display = 'none';
-            }
-        }
-    }
-    
-    /**
      * 渲染主内容
      */
     renderContent() {
@@ -1038,116 +982,6 @@ class UIManager {
         return row;
     }
     
-    /**
-     * 渲染分页控件
-     */
-    renderPagination() {
-        if (!this.elements.paginationControls) return;
-        
-        const { currentPage, totalPages } = this.pagination;
-        
-        // 如果只有一页，隐藏分页控件
-        if (totalPages <= 1) {
-            this.elements.paginationControls.style.display = 'none';
-            return;
-        }
-        
-        this.elements.paginationControls.style.display = 'flex';
-        this.elements.paginationControls.innerHTML = '';
-        
-        // 上一页按钮
-        const prevButton = document.createElement('button');
-        prevButton.className = `page-button ${currentPage === 1 ? 'disabled' : ''}`;
-        prevButton.textContent = '←';
-        prevButton.disabled = currentPage === 1;
-        prevButton.addEventListener('click', () => {
-            if (currentPage > 1) {
-                this.pagination.currentPage--;
-                this.renderContent();
-            }
-        });
-        this.elements.paginationControls.appendChild(prevButton);
-        
-        // 页码按钮
-        const maxPageButtons = 5;
-        let startPage = Math.max(1, currentPage - Math.floor(maxPageButtons / 2));
-        const endPage = Math.min(totalPages, startPage + maxPageButtons - 1);
-        
-        if (endPage - startPage + 1 < maxPageButtons) {
-            startPage = Math.max(1, endPage - maxPageButtons + 1);
-        }
-        
-        // 第一页
-        if (startPage > 1) {
-            const firstPageButton = document.createElement('button');
-            firstPageButton.className = 'page-button';
-            firstPageButton.textContent = '1';
-            firstPageButton.addEventListener('click', () => {
-                this.pagination.currentPage = 1;
-                this.renderContent();
-            });
-            this.elements.paginationControls.appendChild(firstPageButton);
-            
-            // 省略号
-            if (startPage > 2) {
-                const ellipsisButton = document.createElement('button');
-                ellipsisButton.className = 'page-button disabled';
-                ellipsisButton.textContent = '...';
-                ellipsisButton.disabled = true;
-                this.elements.paginationControls.appendChild(ellipsisButton);
-            }
-        }
-        
-        // 页码
-        for (let i = startPage; i <= endPage; i++) {
-            const pageButton = document.createElement('button');
-            pageButton.className = `page-button ${i === currentPage ? 'active' : ''}`;
-            pageButton.textContent = i.toString();
-            
-            if (i !== currentPage) {
-                pageButton.addEventListener('click', () => {
-                    this.pagination.currentPage = i;
-                    this.renderContent();
-                });
-            }
-            
-            this.elements.paginationControls.appendChild(pageButton);
-        }
-        
-        // 最后一页
-        if (endPage < totalPages) {
-            // 省略号
-            if (endPage < totalPages - 1) {
-                const ellipsisButton = document.createElement('button');
-                ellipsisButton.className = 'page-button disabled';
-                ellipsisButton.textContent = '...';
-                ellipsisButton.disabled = true;
-                this.elements.paginationControls.appendChild(ellipsisButton);
-            }
-            
-            const lastPageButton = document.createElement('button');
-            lastPageButton.className = 'page-button';
-            lastPageButton.textContent = totalPages.toString();
-            lastPageButton.addEventListener('click', () => {
-                this.pagination.currentPage = totalPages;
-                this.renderContent();
-            });
-            this.elements.paginationControls.appendChild(lastPageButton);
-        }
-        
-        // 下一页按钮
-        const nextButton = document.createElement('button');
-        nextButton.className = `page-button ${currentPage === totalPages ? 'disabled' : ''}`;
-        nextButton.textContent = '→';
-        nextButton.disabled = currentPage === totalPages;
-        nextButton.addEventListener('click', () => {
-            if (currentPage < totalPages) {
-                this.pagination.currentPage++;
-                this.renderContent();
-            }
-        });
-        this.elements.paginationControls.appendChild(nextButton);
-    }
 }
 
 // 在文档加载完成后初始化UI管理器
@@ -1157,4 +991,4 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 创建全局UI管理器实例
     window.InventoryUI = new UIManager();
-}); 
+});
