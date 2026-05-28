@@ -6,10 +6,10 @@
 }
 
 .inventory-card {
-    background-color: var(--card-color);
+    background: var(--card-color);
+    border: 1px solid var(--divider-color);
     border-radius: var(--border-radius);
-    border: 2px solid var(--divider-color);
-    box-shadow: none;
+    box-shadow: var(--shadow-light);
     padding: var(--spacing-md);
     transition: all var(--transition-normal);
     position: relative;
@@ -343,4 +343,4 @@
     color: var(--text-secondary);
     display: flex;
     justify-content: space-between;
-} 
+}

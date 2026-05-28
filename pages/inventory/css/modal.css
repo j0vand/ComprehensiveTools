@@ -21,10 +21,10 @@
 }
 
 .modal-content {
-    background-color: var(--card-color);
+    background: var(--card-color);
+    border: 1px solid var(--divider-color);
     border-radius: var(--border-radius);
-    border: 2px solid var(--divider-color);
-    box-shadow: none;
+    box-shadow: var(--shadow-light);
     width: 90%;
     max-width: 600px;
     max-height: 90vh;
@@ -108,10 +108,11 @@
 }
 
 .batch-item-form {
+    background: var(--card-color);
     border: 1px solid var(--divider-color);
     border-radius: var(--border-radius);
+    box-shadow: var(--shadow-light);
     padding: var(--spacing-md);
-    background-color: rgba(0, 0, 0, 0.02);
     position: relative;
 }
 
@@ -332,9 +333,11 @@ textarea.form-control {
 }
 
 .item-detail-card {
-    background-color: rgba(0, 0, 0, 0.02);
-    padding: var(--spacing-md);
+    background: var(--card-color);
+    border: 1px solid var(--divider-color);
     border-radius: var(--border-radius);
+    box-shadow: var(--shadow-light);
+    padding: var(--spacing-md);
 }
 
 .item-detail-title {
@@ -597,4 +600,4 @@ textarea.form-control {
 
 .add-category-input {
     flex: 1;
-} 
+}
