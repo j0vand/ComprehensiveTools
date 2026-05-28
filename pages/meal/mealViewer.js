@@ -817,32 +817,27 @@
 
         // 清除所有数据
         function clearData() {
-            try {
-                if (!confirm('确定要清除所有安排吗？此操作不可恢复！')) {
-                    return;
+            window.DialogService.confirmAction('确定要清除所有安排吗？此操作不可恢复！').then(function(confirmed) {
+                if (!confirmed) return;
+                try {
+                    if (window.CommonUtils && window.CommonUtils.removeLocalStorageItem) {
+                        window.CommonUtils.removeLocalStorageItem(MEAL_STORAGE_KEY);
+                    } else {
+                        localStorage.removeItem(MEAL_STORAGE_KEY);
+                    }
+                    displayMeals();
+                    displayTodayMeals();
+                    showToast('已清除所有安排', 'success');
+                } catch (e) {
+                    showToast('清除数据时出错: ' + e.message, 'error');
+                    console.error('清除数据时出错:', e);
                 }
-                if (window.CommonUtils && window.CommonUtils.removeLocalStorageItem) {
-                    window.CommonUtils.removeLocalStorageItem(MEAL_STORAGE_KEY);
-                } else {
-                    localStorage.removeItem(MEAL_STORAGE_KEY);
-                }
-                displayMeals();
-                displayTodayMeals();
-                showToast('已清除所有安排', 'success');
-            } catch (e) {
-                showToast('清除数据时出错: ' + e.message, 'error');
-                console.error('清除数据时出错:', e);
-            }
+            });
         }
 
         // 使用公共工具库的通知函数
         function showToast(message, type = 'info') {
-            if (window.CommonUtils && window.CommonUtils.showNotification) {
-                window.CommonUtils.showNotification(message, type, 3000);
-            } else {
-                // 降级处理
-                alert(message);
-            }
+            window.DialogService.showToast(message, type, { duration: 3000 });
         }
 
         // 初始化事件监听器
