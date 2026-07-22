@@ -106,7 +106,7 @@ function collectFormInputs() {
     const annualSavings = readNumber('annual-savings') * 10000;
     const monthlyExpense = readNumber('monthly-expense');
     const medicalMonthlyExpense = readNumber('medical-monthly-expense');
-    const medicalReserve = readNumber('medical-reserve') * 1000;
+    const medicalReserve = readNumber('medical-reserve') * 10000;
     const targetRetireAgeInput = document.getElementById('target-retire-age').value.trim();
     const targetRetireAge = targetRetireAgeInput === '' ? null : Number(targetRetireAgeInput);
     const extraSavingYearsAfterFire = readNumber('extra-saving-years-after-fire');

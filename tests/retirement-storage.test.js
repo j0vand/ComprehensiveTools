@@ -88,7 +88,7 @@ test('FIRE 表单恢复会忽略无效性别，且不阻断初始化', () => {
         StorageService: {
             getJson() {
                 return {
-                    version: 1,
+                    version: 2,
                     fields: {
                         gender: '"]',
                         'current-age': '42',
@@ -144,7 +144,7 @@ test('FIRE 表单保存保留原始展示值，并写入当前版本格式', () 
     });
 
     assert.equal(context.retirementCalculatorStorage.saveFormData(), true);
-    assert.equal(saved.version, 1);
+    assert.equal(saved.version, 2);
     assert.equal(saved.fields['current-age'], '30.5');
     assert.equal(saved.fields['life-expectancy'], '');
     assert.equal(saved.fields['target-retire-age'], '55.5');

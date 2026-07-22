@@ -3,7 +3,8 @@
  */
 
 // 单位调整后只恢复当前表单格式，旧格式直接忽略。
-const STORAGE_VERSION = 1;
+// v2：医疗备用金展示单位由千元改为万元。
+const STORAGE_VERSION = 2;
 const STORAGE_KEY = window.StorageKeys.RETIREMENT_CALCULATOR;
 let saveWarningShown = false;
 
