@@ -90,10 +90,7 @@
                 return;
             }
             if (control.type === 'checkbox') {
-                const value = fields[key];
-                if (value !== true && value !== false && value !== 'true' && value !== 'false') {
-                    throw new Error('导入文件包含无效选项');
-                }
+                // 无效布尔值跳过该控件，不阻断其余字段导入。
                 return;
             }
 
@@ -154,6 +151,9 @@
 
             if (control.type === 'checkbox') {
                 const fieldValue = fields[key];
+                if (fieldValue !== true && fieldValue !== false && fieldValue !== 'true' && fieldValue !== 'false') {
+                    return;
+                }
                 const nextChecked = fieldValue === true || fieldValue === 'true';
                 const changed = control.checked !== nextChecked;
                 control.checked = nextChecked;
@@ -218,9 +218,6 @@
         if (!isPlainObject(parsed)) {
             throw new Error('导入文件不是有效的配置对象');
         }
-        if (parsed.schema !== SCHEMA) {
-            throw new Error('导入文件版本不兼容');
-        }
         if (!isPlainObject(parsed.fields)) {
             throw new Error('导入文件缺少表单数据');
         }
@@ -238,6 +235,9 @@
         }
         if (expectedPageId !== undefined && parsed.pageId !== expectedPageId) {
             throw new Error('导入文件不属于当前页面');
+        }
+        if (parsed.schema !== undefined && parsed.schema !== SCHEMA) {
+            throw new Error('导入文件版本不兼容');
         }
         return parsed;
     }

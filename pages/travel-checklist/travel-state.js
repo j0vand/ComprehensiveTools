@@ -184,12 +184,78 @@
         return validId(data.activeListId) && listIds.has(data.activeListId);
     }
 
+    /**
+     * 将旧版仅含 items 的存储结构迁移为当前 lists 结构，合法数据才保留。
+     */
+    function migrateLegacyData(data) {
+        if (!data || typeof data !== 'object' || Array.isArray(data) || Array.isArray(data.lists)) {
+            return null;
+        }
+        if (!Array.isArray(data.items) || data.items.length === 0) return null;
+
+        const idPattern = /^[A-Za-z0-9_-]{1,128}$/;
+        const types = Array.isArray(data.types) && data.types.length >= 2
+            ? data.types.map(function(type) {
+                return { id: type.id, name: type.name };
+            })
+            : getDefaultTypes();
+        const typeIds = new Set(types.map(function(type) { return type.id; }));
+        const itemIds = new Set();
+        const itemTexts = new Set();
+        const orders = new Set();
+        const items = [];
+
+        for (const item of data.items) {
+            if (!item || Array.isArray(item) || typeof item.id !== 'string' || !idPattern.test(item.id)
+                || itemIds.has(item.id) || typeof item.text !== 'string'
+                || item.text !== item.text.trim() || item.text.length === 0
+                || item.text.length > TRAVEL_LIMITS.itemText
+                || /[\u0000-\u001f\u007f]/.test(item.text)
+                || typeof item.checked !== 'boolean' || !Number.isSafeInteger(item.order)
+                || item.order < 0 || orders.has(item.order)) {
+                return null;
+            }
+            const foldedText = item.text.toLocaleLowerCase('zh-CN');
+            if (itemTexts.has(foldedText)) return null;
+            if (typeof item.type !== 'string' || !typeIds.has(item.type)) return null;
+            itemIds.add(item.id);
+            itemTexts.add(foldedText);
+            orders.add(item.order);
+            items.push({
+                id: item.id,
+                text: item.text,
+                checked: item.checked,
+                order: item.order,
+                type: item.type
+            });
+        }
+
+        items.sort(function(left, right) { return left.order - right.order; });
+        items.forEach(function(item, index) { item.order = index; });
+
+        const list = {
+            id: generateId(),
+            name: '我的清单',
+            types: types,
+            items: items
+        };
+        return { lists: [list], activeListId: list.id };
+    }
+
     function loadData() {
         const raw = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, null);
-        if (raw && raw.version === DATA_VERSION && isValidStoredState(raw.data)) {
-            state.lists = raw.data.lists;
-            state.activeListId = raw.data.activeListId;
-            return;
+        if (raw && raw.version === DATA_VERSION) {
+            if (isValidStoredState(raw.data)) {
+                state.lists = raw.data.lists;
+                state.activeListId = raw.data.activeListId;
+                return;
+            }
+            const migrated = migrateLegacyData(raw.data);
+            if (migrated && isValidStoredState(migrated)) {
+                state.lists = migrated.lists;
+                state.activeListId = migrated.activeListId;
+                return;
+            }
         }
         state.lists = [{ id: generateId(), name: '我的清单', types: getDefaultTypes(), items: buildInitialItems() }];
         state.activeListId = state.lists[0].id;
@@ -541,6 +607,28 @@
         });
     }
 
+    function reorderItems(listId, itemIds) {
+        const list = state.lists.find(function(l) { return l.id === listId; });
+        if (!list || !Array.isArray(itemIds) || itemIds.length !== list.items.length) return false;
+        const existingIds = new Set(list.items.map(function(item) { return item.id; }));
+        if (itemIds.length !== new Set(itemIds).size
+            || itemIds.some(function(id) { return !existingIds.has(id); })) {
+            return false;
+        }
+        const nextState = copyState();
+        const nextList = nextState.lists.find(function(entry) { return entry.id === listId; });
+        const itemMap = Object.create(null);
+        nextList.items.forEach(function(item) { itemMap[item.id] = item; });
+        nextList.items = itemIds.map(function(id, index) {
+            const item = itemMap[id];
+            item.order = index;
+            return item;
+        });
+        if (!commitState(nextState)) return false;
+        renderList();
+        return true;
+    }
+
     window.TravelChecklistState = {
         DATA_VERSION: DATA_VERSION,
         LIMITS: TRAVEL_LIMITS,
@@ -565,6 +653,7 @@
         deleteItem: deleteItem,
         updateItemText: updateItemText,
         toggleItem: toggleItem,
-        resetChecked: resetChecked
+        resetChecked: resetChecked,
+        reorderItems: reorderItems
     };
 })();

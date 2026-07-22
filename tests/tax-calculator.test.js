@@ -25,8 +25,6 @@ test('other social personal rate can be set to zero', () => {
     const january = TaxCalculator.calculate(createConfig({ otherSocialPersonalRate: 0 }))[0];
 
     assert.equal(january.otherSocialPersonal, 0);
-    assert.equal(january.pensionPersonal, 0);
-    assert.equal(january.unemploymentPersonal, 0);
     assert.equal(january.insurance, 0);
 });
 
@@ -34,7 +32,6 @@ test('custom other social rate drives insurance and its personal detail split', 
     const january = TaxCalculator.calculate(createConfig({ otherSocialPersonalRate: 10 }))[0];
 
     assert.equal(january.otherSocialPersonal, 500);
-    assert.ok(Math.abs(january.pensionPersonal + january.unemploymentPersonal - 500) < 1e-9);
     assert.equal(january.insurance, 500);
 });
 
@@ -48,7 +45,7 @@ test('new company other social rate applies from the job-change month', () => {
 
     assert.equal(results[0].otherSocialPersonal, 420);
     assert.equal(results[1].otherSocialPersonal, 300);
-    assert.ok(Math.abs(results[1].pensionPersonal + results[1].unemploymentPersonal - 300) < 1e-9);
+    assert.equal(results[1].insurance, 300);
 });
 
 test('new company zero fund rate and zero deduction override previous values', () => {

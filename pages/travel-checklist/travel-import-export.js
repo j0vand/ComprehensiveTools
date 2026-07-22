@@ -295,21 +295,24 @@
             return false;
         }
 
+        let importSucceeded = true;
         const reader = new FileReader();
         reader.onload = function(event) {
             try {
                 const parsedImport = parseImportedText(event.target && event.target.result);
-                applyImport(parsedImport, mode, targetListId);
+                importSucceeded = applyImport(parsedImport, mode, targetListId);
             } catch (error) {
                 console.error('导入失败:', error);
                 showMessage('导入失败：' + (error.message || '文件格式错误'), 'error');
+                importSucceeded = false;
             }
         };
         reader.onerror = function() {
             showMessage('读取文件失败', 'error');
+            importSucceeded = false;
         };
         reader.readAsText(file, 'UTF-8');
-        return true;
+        return importSucceeded;
     }
 
     window.TravelChecklistImportExport = {

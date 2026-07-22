@@ -421,13 +421,13 @@ test('wake lock can be reacquired after browser release and explicit release win
     });
 
     assert.equal(await manager.request(), true);
-    assert.equal(manager.isActive(), true);
+    assert.equal(manager.active, true);
     locks[0].fireRelease();
-    assert.equal(manager.isActive(), false);
+    assert.equal(manager.active, false);
     assert.equal(await manager.request(), true);
-    assert.equal(manager.isActive(), true);
+    assert.equal(manager.active, true);
     await manager.release();
-    assert.equal(manager.isActive(), false);
+    assert.equal(manager.active, false);
 
     let resolveRequest;
     const lateLock = fakeLock();
@@ -439,7 +439,7 @@ test('wake lock can be reacquired after browser release and explicit release win
     resolveRequest(lateLock);
     assert.equal(await pending, false);
     assert.equal(lateLock.released, true);
-    assert.equal(pendingManager.isActive(), false);
+    assert.equal(pendingManager.active, false);
 });
 
 test('wake lock retries a request queued while an obsolete lock is being released', async () => {
@@ -477,7 +477,7 @@ test('wake lock retries a request queued while an obsolete lock is being release
     await new Promise(function(resolve) { setImmediate(resolve); });
 
     assert.equal(requestCount, 2);
-    assert.equal(manager.isActive(), true);
+    assert.equal(manager.active, true);
     assert.equal(staleLock.released, true);
     assert.equal(replacementLock.released, false);
 });

@@ -507,16 +507,21 @@
                 dateDiv.style.marginBottom = '16px';
 
                 const dateObj = parseDateString(date);
-                const month = dateObj.getMonth() + 1;
-                const day = dateObj.getDate();
-                const weekDay = reverseWeekDayMap[dateObj.getDay()];
                 const dateTitle = document.createElement('div');
                 dateTitle.style.fontWeight = 'bold';
                 dateTitle.style.color = 'var(--primary-color)';
                 dateTitle.style.fontSize = '16px';
                 dateTitle.style.padding = '8px 0';
                 dateTitle.style.borderBottom = '1px solid #eee';
-                dateTitle.textContent = `${month}月${day}日 (周${weekDay})`;
+                if (dateObj) {
+                    const month = dateObj.getMonth() + 1;
+                    const day = dateObj.getDate();
+                    const weekDay = reverseWeekDayMap[dateObj.getDay()];
+                    dateTitle.textContent = `${month}月${day}日 (周${weekDay})`;
+                } else {
+                    // 无法解析的日期键原样展示，避免恶意或损坏数据导致渲染中断。
+                    dateTitle.textContent = date;
+                }
                 dateDiv.appendChild(dateTitle);
                 historyDiv.appendChild(dateDiv);
 

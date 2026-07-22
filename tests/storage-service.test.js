@@ -103,8 +103,13 @@ test('browser initialization falls back when localStorage access throws', () => 
 
     assert.equal(typeof context.StorageService.getJson, 'function');
     assert.deepEqual(context.StorageService.getJson('missing', { fallback: true }), { fallback: true });
-    assert.equal(context.StorageService.setJson('sample', { value: 1 }).ok, true);
-    assert.equal(context.StorageService.getJson('sample', null).value, 1);
-    assert.equal(context.StorageService.remove('sample').ok, true);
-    assert.equal(context.StorageService.getJson('sample', { removed: true }).removed, true);
+    // localStorage 不可用时 storage 为 null，读写应安全降级而非抛错
+    const writeResult = context.StorageService.setJson('sample', { value: 1 });
+    assert.equal(writeResult.ok, false);
+    assert.equal(writeResult.reason, 'unavailable');
+    assert.equal(context.StorageService.getJson('sample', null), null);
+    const removeResult = context.StorageService.remove('sample');
+    assert.equal(removeResult.ok, false);
+    assert.equal(removeResult.reason, 'unavailable');
+    assert.deepEqual(context.StorageService.getJson('sample', { removed: true }), { removed: true });
 });

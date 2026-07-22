@@ -148,6 +148,14 @@ test('saveFormData persists the explicit retirement age', () => {
     let saved;
     const context = { console, document };
     context.window = context;
+    context.CommonUtils = {
+        getRadioValue(name, defaultValue) {
+            if (name === 'gender') return 'male';
+            if (name === 'base-change-mode') return 'follow_salary';
+            if (name === 'payment-plan') return 'continuous';
+            return defaultValue;
+        }
+    };
     context.StorageService = {
         setJson(key, value) {
             saved = value;
@@ -192,6 +200,14 @@ test('saveFormData preserves blank required numeric fields instead of defaults',
     let saved;
     const context = { console, document };
     context.window = context;
+    context.CommonUtils = {
+        getRadioValue(name, defaultValue) {
+            if (name === 'gender') return 'male';
+            if (name === 'base-change-mode') return 'follow_salary';
+            if (name === 'payment-plan') return 'continuous';
+            return defaultValue;
+        }
+    };
     context.StorageService = {
         setJson(key, value) {
             saved = value;

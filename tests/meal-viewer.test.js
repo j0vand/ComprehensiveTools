@@ -135,7 +135,7 @@ function mealHarness(now, options = {}) {
         }
     };
     const context = vm.createContext(sandbox);
-    vm.runInContext(`${source}\n;globalThis.MealTest = {\n        detectWeekFromHeader, standardizeDate, isValidDateFormat, parseDateString, processMealData,\n        removeExpiredArrangements, renderArrangements, startRefreshTimer\n    };`, context, { filename: 'mealViewer.js' });
+    vm.runInContext(`${source}\n;globalThis.MealTest = {\n        detectWeekFromHeader, standardizeDate, parseDateString, processMealData,\n        removeExpiredArrangements, renderArrangements, startRefreshTimer\n    };`, context, { filename: 'mealViewer.js' });
 
     return {
         api: sandbox.MealTest,
