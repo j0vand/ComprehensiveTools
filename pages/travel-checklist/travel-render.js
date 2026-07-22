@@ -25,6 +25,10 @@
         if (!container) return;
         var list = store.getCurrentList();
         var types = store.getListTypes(list);
+        var selectedType = container.querySelector('input[name="new-item-type"]:checked');
+        var selectedTypeId = selectedType && types.some(function(t) { return t.id === selectedType.value; })
+            ? selectedType.value
+            : null;
         container.innerHTML = '';
         types.forEach(function(t, index) {
             var label = document.createElement('label');
@@ -33,7 +37,7 @@
             radio.type = 'radio';
             radio.name = 'new-item-type';
             radio.value = t.id;
-            if (index === 0) radio.checked = true;
+            radio.checked = selectedTypeId ? t.id === selectedTypeId : index === 0;
             radio.setAttribute('aria-label', t.name);
             var span = document.createElement('span');
             span.textContent = t.name;
@@ -73,7 +77,7 @@
             checkbox.setAttribute('aria-label', (isDone ? '取消勾选：' : '勾选：') + item.text);
 
             const typeTag = document.createElement('span');
-            typeTag.className = 'item-type-tag' + (item.type === 'task' ? ' task' : '');
+            typeTag.className = 'item-type-tag';
             typeTag.textContent = store.getTypeName(list, item.type);
 
             const textSpan = document.createElement('span');
@@ -84,6 +88,7 @@
             editInput.type = 'text';
             editInput.className = 'item-edit-input';
             editInput.value = item.text;
+            editInput.maxLength = store.LIMITS.itemText;
             editInput.setAttribute('aria-label', '编辑');
 
             labelWrap.appendChild(checkbox);
@@ -109,7 +114,7 @@
             return li;
         }
 
-        function buildSubsections(containerEl, itemsByStatus) {
+        function buildSubsections(containerEl, itemsByStatus, isDone) {
             containerEl.innerHTML = '';
             types.forEach(function(t) {
                 var blockItems = itemsByStatus.filter(function(i) { return i.type === t.id; });
@@ -122,15 +127,15 @@
                 var ul = document.createElement('ul');
                 ul.className = 'checklist-ul';
                 ul.setAttribute('data-type-id', t.id);
-                blockItems.forEach(function(item) { ul.appendChild(makeItemNode(item, itemsByStatus === done)); });
+                blockItems.forEach(function(item) { ul.appendChild(makeItemNode(item, isDone)); });
                 subsection.appendChild(h3);
                 subsection.appendChild(ul);
                 containerEl.appendChild(subsection);
             });
         }
 
-        buildSubsections(pendingContainer, pending);
-        buildSubsections(doneContainer, done);
+        buildSubsections(pendingContainer, pending, false);
+        buildSubsections(doneContainer, done, true);
 
         if (progressText) progressText.textContent = done.length + ' / ' + items.length;
         if (allDoneEl) allDoneEl.classList.toggle('hidden', items.length === 0 || done.length < items.length);
@@ -187,9 +192,6 @@
     }
 
     window.TravelChecklistRender = {
-        renderListSwitcher: renderListSwitcher,
-        renderTypeOptions: renderTypeOptions,
-        renderPendingDone: renderPendingDone,
         renderModalTypes: renderModalTypes,
         fillTemplateSelect: fillTemplateSelect,
         renderList: renderList

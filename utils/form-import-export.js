@@ -7,16 +7,29 @@
 })(typeof window !== 'undefined' ? window : globalThis, function() {
     const SCHEMA = 'comprehensive-tools.form.v1';
     const DEFAULT_FILENAME = 'calculator-form';
+    // 导入文件上限用于在 FileReader 分配内存前拦截异常大文件。
+    const MAX_IMPORT_FILE_SIZE = 2 * 1024 * 1024;
+
+    /**
+     * 仅接受 JSON 表单协议中的普通键值对象，数组等复合结构由导入边界拒绝。
+     */
+    function isPlainObject(value) {
+        if (value === null || typeof value !== 'object') return false;
+        const prototype = Object.getPrototypeOf(value);
+        return prototype === Object.prototype || prototype === null;
+    }
 
     function getControlKey(control) {
-        if (!control || control.disabled) return '';
+        if (!control || control.disabled || control.readOnly) return '';
         if (control.type === 'file' || control.type === 'button' || control.type === 'submit' || control.type === 'reset') return '';
+        if (control.type === 'radio') return control.name || control.id || '';
         return control.id || control.name || '';
     }
 
     function getControls(root) {
         if (!root || !root.querySelectorAll) return [];
-        return Array.from(root.querySelectorAll('input, select, textarea'));
+        return Array.from(root.querySelectorAll('input, select, textarea'))
+            .filter(control => getControlKey(control));
     }
 
     function collectFormData(root) {
@@ -50,38 +63,117 @@
 
     function applyFormData(root, data) {
         const fields = data && data.fields ? data.fields : data || {};
-        let appliedCount = 0;
+        if (!isPlainObject(fields)) {
+            throw new Error('导入文件缺少表单数据');
+        }
+        const controls = getControls(root);
+        const checkedRadioGroups = new Set();
 
-        getControls(root).forEach(control => {
+        // 完整预校验后才修改 DOM，失败路径不触发页面联动。
+        controls.forEach(control => {
             const key = getControlKey(control);
-            if (!key || !Object.prototype.hasOwnProperty.call(fields, key)) return;
+            if (!key) return;
+            if (!Object.prototype.hasOwnProperty.call(fields, key)) {
+                if (control.required) throw new Error('导入文件缺少必填项');
+                return;
+            }
 
             if (control.type === 'radio') {
-                const shouldCheck = String(control.value) === String(fields[key]);
-                const changed = control.checked !== shouldCheck;
-                control.checked = shouldCheck;
-                if (shouldCheck) {
-                    appliedCount += 1;
-                    if (changed) dispatchControlEvents(control);
+                if (checkedRadioGroups.has(key)) return;
+                checkedRadioGroups.add(key);
+                const hasTarget = controls.some(item =>
+                    item.type === 'radio'
+                    && getControlKey(item) === key
+                    && String(item.value) === String(fields[key])
+                );
+                if (!hasTarget) throw new Error('导入文件包含无效选项');
+                return;
+            }
+            if (control.type === 'checkbox') {
+                const value = fields[key];
+                if (value !== true && value !== false && value !== 'true' && value !== 'false') {
+                    throw new Error('导入文件包含无效选项');
                 }
                 return;
             }
 
+            const nextValue = fields[key] == null ? '' : String(fields[key]);
+            if (String(control.tagName).toUpperCase() === 'SELECT') {
+                const hasOption = Array.from(control.options || [])
+                    .some(option => String(option.value) === nextValue);
+                if (!hasOption) throw new Error('导入文件包含无效选项');
+                return;
+            }
+            if (control.type !== 'number') {
+                if (control.required && nextValue === '') throw new Error('导入文件缺少必填项');
+                return;
+            }
+            if (nextValue !== '' && (nextValue.trim() === '' || !Number.isFinite(Number(nextValue)))) {
+                throw new Error('导入文件包含无效数值');
+            }
+
+            const previousValue = control.value;
+            control.value = nextValue;
+            const number = Number(control.value);
+            const min = control.min === '' || control.min === undefined ? -Infinity : Number(control.min);
+            const max = control.max === '' || control.max === undefined ? Infinity : Number(control.max);
+            const invalid = control.value === ''
+                ? control.required || nextValue !== ''
+                : !Number.isFinite(number)
+                    || number < min
+                    || number > max
+                    || Boolean(control.validity && control.validity.stepMismatch);
+            control.value = previousValue;
+            if (invalid) throw new Error('导入数值为空、格式错误或不符合步长/范围');
+        });
+
+        let appliedCount = 0;
+
+        // 选项联动可能写入建议值，显式导入的普通字段最后覆盖它们。
+        const restoredRadioGroups = new Set();
+        controls.forEach(control => {
+            const key = getControlKey(control);
+            if (!key || !Object.prototype.hasOwnProperty.call(fields, key)) return;
+
+            if (control.type === 'radio') {
+                if (restoredRadioGroups.has(key)) return;
+                restoredRadioGroups.add(key);
+
+                const group = controls.filter(item => item.type === 'radio' && getControlKey(item) === key);
+                const target = group.find(item => String(item.value) === String(fields[key]));
+                if (!target) return;
+
+                const changed = group.some(item => item.checked !== (item === target));
+                group.forEach(item => {
+                    item.checked = item === target;
+                });
+                appliedCount += 1;
+                if (changed) dispatchControlEvents(target);
+                return;
+            }
+
             if (control.type === 'checkbox') {
-                const nextChecked = Boolean(fields[key]);
+                const fieldValue = fields[key];
+                const nextChecked = fieldValue === true || fieldValue === 'true';
                 const changed = control.checked !== nextChecked;
                 control.checked = nextChecked;
                 appliedCount += 1;
                 if (changed) dispatchControlEvents(control);
-                return;
             }
+        });
 
+        const changedControls = [];
+        controls.forEach(control => {
+            if (control.type === 'radio' || control.type === 'checkbox') return;
+            const key = getControlKey(control);
+            if (!key || !Object.prototype.hasOwnProperty.call(fields, key)) return;
             const nextValue = fields[key] == null ? '' : String(fields[key]);
             const changed = control.value !== nextValue;
             control.value = nextValue;
             appliedCount += 1;
-            if (changed) dispatchControlEvents(control);
+            if (changed) changedControls.push(control);
         });
+        changedControls.forEach(dispatchControlEvents);
 
         return { appliedCount };
     }
@@ -121,16 +213,31 @@
         };
     }
 
-    function parseImportedText(text) {
+    function parseImportedText(text, expectedPageId) {
         const parsed = JSON.parse(text);
-        if (!parsed || typeof parsed !== 'object') {
+        if (!isPlainObject(parsed)) {
             throw new Error('导入文件不是有效的配置对象');
         }
-        if (parsed.schema && parsed.schema !== SCHEMA) {
+        if (parsed.schema !== SCHEMA) {
             throw new Error('导入文件版本不兼容');
         }
-        if (!parsed.fields && typeof parsed !== 'object') {
+        if (!isPlainObject(parsed.fields)) {
             throw new Error('导入文件缺少表单数据');
+        }
+        for (const value of Object.values(parsed.fields)) {
+            const type = typeof value;
+            if (value !== null && type !== 'string' && type !== 'number' && type !== 'boolean') {
+                throw new Error('导入文件包含不支持的表单值');
+            }
+            if (type === 'number' && !Number.isFinite(value)) {
+                throw new Error('导入文件包含无效数值');
+            }
+        }
+        if (parsed.activeState !== undefined && !isPlainObject(parsed.activeState)) {
+            throw new Error('导入文件的页面状态无效');
+        }
+        if (expectedPageId !== undefined && parsed.pageId !== expectedPageId) {
+            throw new Error('导入文件不属于当前页面');
         }
         return parsed;
     }
@@ -163,7 +270,11 @@
             window.CommonUtils.showNotification(message, type || 'info');
             return;
         }
-        window.alert(message);
+        if (window.DialogService && typeof window.DialogService.showToast === 'function') {
+            window.DialogService.showToast(message, type || 'info');
+            return;
+        }
+        console.error(message);
     }
 
     function downloadJson(payload, filename) {
@@ -175,7 +286,7 @@
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
     function createToolbar(options) {
@@ -285,6 +396,7 @@
 
     function init(options) {
         const config = Object.assign({
+            pageId: '',
             rootSelector: 'body',
             insertAfterSelector: 'header',
             inlineAfterSelector: '',
@@ -314,9 +426,14 @@
 
         importButton.addEventListener('click', () => fileInput.click());
 
-        exportButton.addEventListener('click', () => {
+        exportButton.addEventListener('click', async () => {
             const defaultName = `${config.filenamePrefix || DEFAULT_FILENAME}-${timestamp()}`;
-            const inputName = window.prompt('请输入导出文件名', defaultName);
+            const inputName = window.DialogService && typeof window.DialogService.promptAction === 'function'
+                ? await window.DialogService.promptAction('请输入导出文件名', {
+                    defaultValue: defaultName,
+                    confirmText: '导出'
+                })
+                : defaultName;
             if (inputName === null) return;
 
             const filename = sanitizeFilename(inputName, defaultName);
@@ -333,13 +450,18 @@
         fileInput.addEventListener('change', () => {
             const file = fileInput.files && fileInput.files[0];
             if (!file) return;
+            if (file.size > MAX_IMPORT_FILE_SIZE) {
+                notify('导入文件不能超过 2 MiB', 'error');
+                fileInput.value = '';
+                return;
+            }
 
             const reader = new FileReader();
             reader.onload = () => {
                 try {
-                    const data = parseImportedText(String(reader.result || ''));
-                    applyActiveState(config.activeButtonGroups, data.activeState || {});
+                    const data = parseImportedText(String(reader.result || ''), config.pageId);
                     const result = applyFormData(formRoot, data);
+                    applyActiveState(config.activeButtonGroups, data.activeState || {});
                     if (typeof config.afterImport === 'function') {
                         config.afterImport(data, result);
                     }

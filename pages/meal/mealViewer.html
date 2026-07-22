@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>订餐安排查看器</title>
+    <link rel="icon" href="../../static/logo.png" type="image/png">
     <link rel="stylesheet" href="../../css/base.css">
     <link rel="stylesheet" href="../../css/components.css">
     <link rel="stylesheet" href="../../css/tool-layout.css">
@@ -79,7 +80,7 @@
         .meal-input:focus {
             outline: none;
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+            box-shadow: 0 0 0 3px rgba(15, 159, 143, 0.16);
         }
 
         .button {
@@ -93,7 +94,7 @@
             font-weight: bold;
             width: 100%;
             transition: all 0.2s ease;
-            box-shadow: 0 4px 10px rgba(245, 158, 11, 0.2);
+            box-shadow: 0 4px 10px rgba(15, 159, 143, 0.2);
         }
 
         .button:hover {
@@ -119,24 +120,10 @@
             transform: translateX(4px);
         }
 
-        .meal-date {
-            font-family: var(--font-heading);
-            font-weight: bold;
-            color: var(--primary-color);
-            margin-bottom: 8px;
-            font-size: 1.1rem;
-        }
-
         .meal-content {
             font-size: 0.95rem;
             line-height: 1.5;
             color: var(--text-color);
-        }
-
-        .meal-number {
-            color: #ef4444;
-            font-weight: bold;
-            font-size: 1.2rem;
         }
 
         .today-meals {
@@ -237,8 +224,8 @@
                     <b>提示:</b> 系统会根据粘贴内容头部的日期范围（如"4月13日-4月17日"），自动判断是本周还是下周的记录，无需手动选择。
                 </div>
             </div>
-            <button class="button" id="save-meal-btn">保存安排</button>
-            <button class="button clear-button" id="clear-meal-btn">清除所有安排</button>
+            <button type="button" class="button" id="save-meal-btn">保存安排</button>
+            <button type="button" class="button clear-button" id="clear-meal-btn">清除所有安排</button>
         </div>
 
         <div class="card">

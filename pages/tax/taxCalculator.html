@@ -2,11 +2,12 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#10b981">
     <title>个税计算器</title>
+    <link rel="icon" href="../../static/logo.png" type="image/png">
     <link rel="stylesheet" href="../../css/base.css">
-    <link rel="stylesheet" href="../pension-calculator/style.css">
+    <link rel="stylesheet" href="../../css/components.css">
     <style>
         :root {
             --primary: #0f9f8f;
@@ -21,9 +22,7 @@
             --border: #dbe9e5;
             --radius: 16px;
             --radius-sm: 10px;
-            --shadow-sm: 0 4px 12px rgba(24, 78, 68, 0.06);
             --shadow: 0 12px 30px rgba(24, 78, 68, 0.10);
-            --shadow-lg: 0 20px 45px rgba(24, 78, 68, 0.14);
         }
 
         * {
@@ -357,7 +356,7 @@
         .insurance-detail-table td {
             padding: 8px 6px;
         }
-        /* 个人列底色：医保个人、养老个人、公积金个人、个人合计 */
+        /* 个人列底色：医保、养老/失业、公积金及合计 */
         .insurance-detail-table th:nth-child(2),
         .insurance-detail-table th:nth-child(4),
         .insurance-detail-table th:nth-child(6),
@@ -368,7 +367,7 @@
         .insurance-detail-table td:nth-child(8) {
             background: #ecfdf5;
         }
-        /* 公司列底色：医保公司、养老公司、公积金公司、公司合计 */
+        /* 公司列底色：医保、养老/失业、公积金及合计 */
         .insurance-detail-table th:nth-child(3),
         .insurance-detail-table th:nth-child(5),
         .insurance-detail-table th:nth-child(7),
@@ -542,6 +541,9 @@
             color: var(--text-sub);
             cursor: pointer;
             padding: 4px;
+            border: 0;
+            background: none;
+            line-height: 1;
         }
 
         .help-item {
@@ -578,103 +580,12 @@
             cursor: pointer;
         }
         
-        /* Toast提示样式 */
-        .toast {
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 24px;
-            border-radius: 8px;
-            color: white;
-            font-size: 14px;
-            z-index: 10000;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            animation: toastSlideUp 0.3s ease-out;
-            max-width: 90%;
-            text-align: center;
-        }
-        
-        .toast.success {
-            background-color: var(--primary);
-        }
-        
-        .toast.error {
-            background-color: var(--danger);
-        }
-        
-        .toast.warning {
-            background-color: var(--warning);
-        }
-        
-        .toast.info {
-            background-color: #3b82f6;
-        }
-        
-        @keyframes toastSlideUp {
-            from {
-                opacity: 0;
-                transform: translateX(-50%) translateY(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(-50%) translateY(0);
-            }
-        }
-
         /* 移动端优化 */
         @media (max-width: 768px) {
             .container {
                 padding: 10px;
             }
 
-            /* 表格横向滚动 */
-            .result-table-wrapper {
-                overflow-x: auto;
-                -webkit-overflow-scrolling: touch;
-                margin: 0 -10px;
-                padding: 0 10px;
-            }
-
-            .result-table {
-                min-width: 600px;
-            }
-
-            /* 添加滚动提示 */
-            .result-table-wrapper::after {
-                content: '← 左右滑动查看更多 →';
-                display: block;
-                text-align: center;
-                color: #999;
-                font-size: 12px;
-                padding: 8px 0;
-            }
-
-            /* 优化按钮布局 */
-            .input-group button {
-                font-size: 14px;
-                padding: 10px 15px;
-            }
-
-            /* 优化表格字体 */
-            .result-table th,
-            .result-table td {
-                font-size: 13px;
-                padding: 10px 8px;
-            }
-
-            /* 汇总卡片优化 */
-            .summary-item {
-                padding: 12px;
-            }
-
-            .summary-label {
-                font-size: 13px;
-            }
-
-            .summary-value {
-                font-size: 18px;
-            }
         }
 
         @media (max-width: 480px) {
@@ -686,11 +597,6 @@
                 margin-bottom: 15px;
             }
 
-            .result-table th,
-            .result-table td {
-                font-size: 12px;
-                padding: 8px 5px;
-            }
         }
     </style>
 </head>
@@ -702,9 +608,9 @@
                 ← 返回主页
             </a>
             <h1>个税计算器</h1>
-            <button class="help-btn" id="help-btn">说明</button>
+            <button class="help-btn" id="help-btn" type="button" aria-controls="helpModal" aria-expanded="false">说明</button>
         </div>
-        <p style="font-size: 13px; opacity: 0.9;">2024版 · 累计预扣预缴法</p>
+        <p style="font-size: 13px; opacity: 0.9;">现行综合所得税率 · 累计预扣预缴法</p>
     </div>
 
     <div class="container">
@@ -715,7 +621,7 @@
                 <!-- 基础工资 -->
                 <div class="input-group">
                     <div class="label-row">
-                        <label class="input-label">基础月薪</label>
+                        <label class="input-label" for="baseSalary">基础月薪</label>
                         <span class="input-hint-badge">税前</span>
                     </div>
                     <div class="input-wrapper">
@@ -728,7 +634,7 @@
                 <!-- 专项扣除 -->
                 <div class="input-group">
                     <div class="label-row">
-                        <label class="input-label">专项附加扣除</label>
+                        <label class="input-label" for="specialDeduction">专项附加扣除</label>
                         <span class="input-hint-badge">每月</span>
                     </div>
                     <div class="input-wrapper">
@@ -747,10 +653,10 @@
                 <!-- 社保基数 -->
                 <div class="input-group">
                     <div class="label-row">
-                        <label class="input-label">社保基数</label>
+                        <label class="input-label" for="socialBase">社保基数</label>
                     </div>
                     <div class="input-wrapper">
-                        <input type="number" id="socialBase" class="input-field" placeholder="0" value="5000">
+                        <input type="number" id="socialBase" class="input-field" placeholder="0" value="5000" min="0" step="0.01">
                         <span class="input-unit">元</span>
                     </div>
                 </div>
@@ -758,11 +664,11 @@
                 <!-- 公积金基数 -->
                 <div class="input-group">
                     <div class="label-row">
-                        <label class="input-label">公积金基数</label>
+                        <label class="input-label" for="fundBase">公积金基数</label>
                         <span class="input-hint-badge">可选</span>
                     </div>
                     <div class="input-wrapper">
-                        <input type="number" id="fundBase" class="input-field" placeholder="留空则同月薪">
+                        <input type="number" id="fundBase" class="input-field" placeholder="留空则同月薪" min="0" step="0.01">
                         <span class="input-unit">元</span>
                     </div>
                 </div>
@@ -770,11 +676,11 @@
                 <!-- 公积金比例 -->
                 <div class="input-group">
                     <div class="label-row">
-                        <label class="input-label">公积金比例</label>
-                        <span class="input-hint-badge">5-12%</span>
+                        <label class="input-label" for="fundRate">公积金比例</label>
+                        <span class="input-hint-badge">常见5-12%</span>
                     </div>
                     <div class="input-wrapper">
-                        <input type="number" id="fundRate" class="input-field" placeholder="5-12" value="5">
+                        <input type="number" id="fundRate" class="input-field" placeholder="5-12" value="5" min="0" max="100" step="0.1">
                         <span class="input-unit">%</span>
                     </div>
                 </div>
@@ -782,7 +688,7 @@
                 <!-- 医保个人比例 -->
                 <div class="input-group">
                     <div class="label-row">
-                        <label class="input-label">医保个人比例</label>
+                        <label class="input-label" for="medicalPersonalRate">医保个人比例</label>
                         <span class="input-hint-badge">成都2%</span>
                     </div>
                     <div class="input-wrapper">
@@ -794,11 +700,11 @@
                 <!-- 医保单位比例 -->
                 <div class="input-group">
                     <div class="label-row">
-                        <label class="input-label">医保单位比例</label>
-                        <span class="input-hint-badge">7.55%</span>
+                        <label class="input-label" for="medicalCompanyRate">医保单位比例</label>
+                        <span class="input-hint-badge">成都参考8.3%</span>
                     </div>
                     <div class="input-wrapper">
-                        <input type="number" id="medicalCompanyRate" class="input-field" placeholder="7.55" value="7.55" min="0" max="100" step="0.01">
+                        <input type="number" id="medicalCompanyRate" class="input-field" placeholder="8.3" value="8.3" min="0" max="100" step="0.01">
                         <span class="input-unit">%</span>
                     </div>
                 </div>
@@ -806,7 +712,7 @@
                 <!-- 其他社保个人比例（养老+失业） -->
                 <div class="input-group">
                     <div class="label-row">
-                        <label class="input-label">其他社保个人比例</label>
+                        <label class="input-label" for="otherSocialPersonalRate">其他社保个人比例</label>
                         <span class="input-hint-badge">成都养老+失业8.4%</span>
                     </div>
                     <div class="input-wrapper">
@@ -825,12 +731,12 @@
             </div>
             
             <div style="margin-top: 16px; display: flex; gap: 12px;">
-                <button id="toggleBonusBtn" class="bonus-toggle" style="flex:1;">
+                <button id="toggleBonusBtn" class="bonus-toggle" type="button" style="flex:1;">
                     <span id="bonusBtnText">展开奖金设置</span>
                     <span id="bonusArrow">▼</span>
                 </button>
                 
-                <button id="toggleJobChangeBtn" class="bonus-toggle" style="flex:1;">
+                <button id="toggleJobChangeBtn" class="bonus-toggle" type="button" style="flex:1;">
                     <span id="jobChangeBtnText">年度中间换工作?</span>
                     <span id="jobChangeArrow">▼</span>
                 </button>
@@ -839,7 +745,7 @@
             <!-- 换工作设置区域 -->
             <div id="jobChangeSection" class="bonus-section">
                 <div class="input-group">
-                    <label class="input-label" style="display:block;margin-bottom:8px;">选择入职新公司的月份</label>
+                    <label class="input-label" for="jobChangeMonth" style="display:block;margin-bottom:8px;">选择入职新公司的月份</label>
                     <div class="input-wrapper">
                         <select id="jobChangeMonth" class="input-field" style="-webkit-appearance: none; background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%206l5%205%205-5%22%20stroke%3D%22%23999%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 10px center;">
                             <option value="">无换工作</option>
@@ -864,72 +770,72 @@
                     <div class="form-grid">
                         <!-- 基础工资 -->
                         <div class="input-group">
-                            <label class="input-label">新月薪</label>
+                            <label class="input-label" for="newBaseSalary">新月薪</label>
                             <div class="input-wrapper">
-                                <input type="number" id="newBaseSalary" class="input-field" placeholder="同原月薪">
+                                <input type="number" id="newBaseSalary" class="input-field" placeholder="同原月薪" min="0" step="0.01">
                                 <span class="input-unit">元</span>
                             </div>
                         </div>
 
                         <!-- 社保基数 -->
                         <div class="input-group">
-                            <label class="input-label">新社保基数</label>
+                            <label class="input-label" for="newSocialBase">新社保基数</label>
                             <div class="input-wrapper">
-                                <input type="number" id="newSocialBase" class="input-field" placeholder="同原基数">
+                                <input type="number" id="newSocialBase" class="input-field" placeholder="同原基数" min="0" step="0.01">
                                 <span class="input-unit">元</span>
                             </div>
                         </div>
 
                         <!-- 公积金基数 -->
                         <div class="input-group">
-                            <label class="input-label">新公积金基数</label>
+                            <label class="input-label" for="newFundBase">新公积金基数</label>
                             <div class="input-wrapper">
-                                <input type="number" id="newFundBase" class="input-field" placeholder="同原基数">
+                                <input type="number" id="newFundBase" class="input-field" placeholder="同原基数" min="0" step="0.01">
                                 <span class="input-unit">元</span>
                             </div>
                         </div>
                         
                         <!-- 公积金比例 -->
                         <div class="input-group">
-                            <label class="input-label">新公积金比例</label>
+                            <label class="input-label" for="newFundRate">新公积金比例</label>
                             <div class="input-wrapper">
-                                <input type="number" id="newFundRate" class="input-field" placeholder="同原比例">
+                                <input type="number" id="newFundRate" class="input-field" placeholder="同原比例" min="0" max="100" step="0.1">
                                 <span class="input-unit">%</span>
                             </div>
                         </div>
                         
                          <!-- 专项附加扣除 -->
                         <div class="input-group">
-                            <label class="input-label">新专项扣除</label>
+                            <label class="input-label" for="newSpecialDeduction">新专项扣除</label>
                             <div class="input-wrapper">
-                                <input type="number" id="newSpecialDeduction" class="input-field" placeholder="同原扣除">
+                                <input type="number" id="newSpecialDeduction" class="input-field" placeholder="同原扣除" min="0" step="0.01">
                                 <span class="input-unit">元</span>
                             </div>
                         </div>
 
                         <!-- 新公司医保个人比例 -->
                         <div class="input-group">
-                            <label class="input-label">新医保个人比例</label>
+                            <label class="input-label" for="newMedicalPersonalRate">新医保个人比例</label>
                             <div class="input-wrapper">
-                                <input type="number" id="newMedicalPersonalRate" class="input-field" placeholder="同原比例">
+                                <input type="number" id="newMedicalPersonalRate" class="input-field" placeholder="同原比例" min="0" max="100" step="0.1">
                                 <span class="input-unit">%</span>
                             </div>
                         </div>
 
                         <!-- 新公司医保单位比例 -->
                         <div class="input-group">
-                            <label class="input-label">新医保单位比例</label>
+                            <label class="input-label" for="newMedicalCompanyRate">新医保单位比例</label>
                             <div class="input-wrapper">
-                                <input type="number" id="newMedicalCompanyRate" class="input-field" placeholder="同原比例">
+                                <input type="number" id="newMedicalCompanyRate" class="input-field" placeholder="同原比例" min="0" max="100" step="0.01">
                                 <span class="input-unit">%</span>
                             </div>
                         </div>
 
                         <!-- 新公司其他社保个人比例 -->
                         <div class="input-group">
-                            <label class="input-label">新其他社保个人比例</label>
+                            <label class="input-label" for="newOtherSocialPersonalRate">新其他社保个人比例</label>
                             <div class="input-wrapper">
-                                <input type="number" id="newOtherSocialPersonalRate" class="input-field" placeholder="同原比例">
+                                <input type="number" id="newOtherSocialPersonalRate" class="input-field" placeholder="同原比例" min="0" max="100" step="0.1">
                                 <span class="input-unit">%</span>
                             </div>
                         </div>
@@ -940,7 +846,7 @@
 
             <div id="bonusSection" class="bonus-section">
                 <div class="input-group" style="margin-bottom: 16px;">
-                    <label class="input-label" style="display:block;margin-bottom:8px;">年终奖单独计税月份</label>
+                    <label class="input-label" for="bonusTaxMonth" style="display:block;margin-bottom:8px;">年终奖单独计税月份</label>
                     <div class="input-wrapper">
                         <select id="bonusTaxMonth" class="input-field" style="-webkit-appearance: none; background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20width%3D%2220%22%20height%3D%2220%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M5%206l5%205%205-5%22%20stroke%3D%22%23999%22%20stroke-width%3D%222%22%20fill%3D%22none%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%2F%3E%3C%2Fsvg%3E'); background-repeat: no-repeat; background-position: right 10px center;">
                             <option value="">不使用单独计税</option>
@@ -964,11 +870,11 @@
                     <!-- JS动态生成 -->
                 </div>
 
-                <button class="clear-btn" id="clear-bonuses-btn">清空所有奖金</button>
+                <button class="clear-btn" id="clear-bonuses-btn" type="button">清空所有奖金</button>
             </div>
         </div>
 
-        <button class="btn-main" id="calculate-tax-btn">开始计算</button>
+        <button class="btn-main" id="calculate-tax-btn" type="button">开始计算</button>
 
         <!-- 结果展示 -->
         <div id="resultSection" class="result-section">
@@ -988,7 +894,7 @@
                     <div class="value" id="summaryTotalIncome">0.00</div>
                 </div>
                 <div class="summary-card">
-                    <div class="label">五险一金总扣除</div>
+                    <div class="label">个人五险一金扣除</div>
                     <div class="value" id="summaryInsurance">0.00</div>
                 </div>
             </div>
@@ -1003,8 +909,8 @@
                                 <th>项目</th>
                                 <th>医保个人</th>
                                 <th>医保公司</th>
-                                <th>养老个人</th>
-                                <th>养老公司</th>
+                                <th>养老/失业个人</th>
+                                <th>养老/失业公司</th>
                                 <th>公积金个人</th>
                                 <th>公积金公司</th>
                                 <th>个人合计</th>
@@ -1025,7 +931,7 @@
                             <th>月份</th>
                             <th>实际到手</th>
                             <th>个税</th>
-                            <th>应纳税额</th>
+                            <th>累计应纳税所得额</th>
                             <th>税率</th>
                         </tr>
                     </thead>
@@ -1042,12 +948,13 @@
     </div>
 
     <!-- 帮助弹窗 -->
-    <div class="modal-overlay" id="helpModal">
+    <div class="modal-overlay" id="helpModal" role="dialog" aria-modal="true" aria-labelledby="helpModalTitle">
         <div class="modal">
             <div class="modal-header">
-                <div class="modal-title">使用说明</div>
-                <div class="close-icon" id="close-help-btn">×</div>
+                <div class="modal-title" id="helpModalTitle">使用说明</div>
+                <button class="close-icon" id="close-help-btn" type="button" aria-label="关闭说明">×</button>
             </div>
+            <dl>
             <div class="help-item">
                 <dt>📊 基础月薪</dt>
                 <dd>您的每月固定税前工资（不含奖金）。例如：月薪10000元，不包括年终奖或季度奖。</dd>
@@ -1057,14 +964,15 @@
                 <dd>
                     <strong>可扣除项目：</strong>
                     <ul style="margin:8px 0;padding-left:20px;">
-                        <li>子女教育：1000元/月/子女（3岁至博士）</li>
+                        <li>3岁以下婴幼儿照护：2000元/月/子女</li>
+                        <li>子女教育：2000元/月/子女（学前教育至全日制学历教育）</li>
                         <li>继续教育：400元/月 或 3600元/年</li>
                         <li>大病医疗：最高80000元/年</li>
                         <li>住房贷款利息：1000元/月（首套房，最多20年）</li>
                         <li>住房租金：800-1500元/月（根据城市）</li>
-                        <li>赡养老人：2000元/月（独生子女）或分摊</li>
+                        <li>赡养老人：3000元/月（独生子女）或按规定分摊</li>
                     </ul>
-                    <strong>示例：</strong>有1个孩子+首套房贷+赡养父母 = 1000+1000+2000 = 4000元/月
+                    <strong>示例：</strong>有1个学龄子女+首套房贷+赡养老人 = 2000+1000+3000 = 6000元/月
                 </dd>
             </div>
             <div class="help-item">
@@ -1072,14 +980,14 @@
                 <dd>
                     <strong>政策说明：</strong>全年一次性奖金可选择单独计税（通常更省税）或并入综合所得。
                     <br><strong>计算方法：</strong>奖金÷12找税率，用奖金总额×税率-速算扣除数
-                    <br><strong>建议：</strong>年终奖36000元以下，单独计税一定更优；超过则需对比计算
+                    <br><strong>建议：</strong>是否单独计税取决于全年综合所得和扣除情况，建议分别测算后比较
                 </dd>
             </div>
             <div class="help-item">
                 <dt>🏥 五险一金与个税</dt>
                 <dd>
                     <strong>专项扣除：</strong>个税税前只能扣除<strong>个人</strong>缴纳的社保与公积金（医保个人+养老/失业个人+公积金个人），不含单位缴纳部分。
-                    <br><strong>医保/公积金比例：</strong>本计算器默认医保个人2%、单位7.55%（按基数5000个人100、公司377.5）；其他社保（养老8%+失业0.4%）个人8.4%；公积金个人与单位同比例（5%–12%可设）。实际以当地政策为准。
+                    <br><strong>医保/公积金比例：</strong>本计算器默认医保个人2%、单位8.3%（按基数5000个人100、公司415）；单位比例按输入的完整比例计算，不再额外叠加费用。其他社保（养老8%+失业0.4%）个人8.4%；公积金个人与单位同比例（5%–12%可设）。实际以当地政策为准。
                     <br><strong>明细表：</strong>计算结果下方会展示「社保公积金明细」，包含单月（或换工作时的原公司/新公司单月）及全年合计的个人/公司缴纳金额。
                 </dd>
             </div>
@@ -1109,11 +1017,13 @@
                     </ul>
                 </dd>
             </div>
+            </dl>
         </div>
     </div>
 
     <script src="../../utils/storage-keys.js"></script>
     <script src="../../utils/common.js"></script>
+    <script src="../../utils/dialog.js"></script>
     <script src="../../utils/form-import-export.js"></script>
     <script src="taxCalculator.js"></script>
     <script>

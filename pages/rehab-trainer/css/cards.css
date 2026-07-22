@@ -51,11 +51,20 @@
     color: var(--text);
     margin: 0;
     flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+}
+
+.exercise-card-title span:last-child {
+    min-width: 0;
+    overflow-wrap: anywhere;
 }
 
 .exercise-card-actions {
     display: flex;
     gap: 0.5rem;
+    flex-shrink: 0;
 }
 
 .card-action-btn {
@@ -127,44 +136,7 @@
     margin: 0;
     padding-top: 0.75rem;
     border-top: 1px solid var(--border-color);
-}
-
-/* 拖拽样式 */
-.exercise-card {
-    user-select: none; /* 防止拖拽时选中文本 */
-}
-
-.exercise-card.dragging {
-    opacity: 0.5;
-    cursor: grabbing;
-}
-
-.exercise-card.drag-over {
-    border: 2px dashed var(--primary);
-    background-color: rgba(13, 148, 136, 0.06);
-}
-
-.exercise-card.drag-over-top {
-    border-top: 3px solid var(--primary);
-}
-
-.exercise-card.drag-over-bottom {
-    border-bottom: 3px solid var(--primary);
-}
-
-/* 按钮区域不触发拖拽 */
-.card-action-btn {
-    cursor: pointer;
-    user-select: none;
-}
-
-/* 占位符样式（触摸拖拽用） */
-.exercise-card-placeholder {
-    height: 80px;
-    background: rgba(13, 148, 136, 0.06);
-    border: 2px dashed var(--primary);
-    border-radius: var(--radius);
-    margin-bottom: 1rem;
+    overflow-wrap: anywhere;
 }
 
 /* 空状态图标 */
@@ -185,6 +157,7 @@
     font-size: 0.85rem;
     font-weight: 600;
     margin-right: 0.5rem;
+    flex-shrink: 0;
 }
 
 /* 管理界面样式 */
@@ -202,6 +175,50 @@
 
 .manage-exercise-item.dragging {
     opacity: 0.5;
+}
+
+.plan-manage-summary {
+    min-width: 0;
+    flex: 1;
+}
+
+.plan-manage-summary h6 {
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.plan-manage-summary .badge,
+.exercise-card-drag-handle {
+    flex-shrink: 0;
+}
+
+.exercise-card-drag-handle {
+    padding: 0.25rem;
+    cursor: grab;
+}
+
+.exercise-card-drag-handle:active {
+    cursor: grabbing;
+}
+
+.manage-exercise-content {
+    min-width: 0;
+}
+
+.manage-exercise-content > div {
+    flex-wrap: wrap;
+}
+
+.manage-exercise-content strong,
+.manage-exercise-content small {
+    overflow-wrap: anywhere;
+}
+
+.manage-exercise-content small {
+    display: block;
 }
 
 .plan-exercise-list.drag-over {

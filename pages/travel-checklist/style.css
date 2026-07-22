@@ -1,8 +1,6 @@
 /* ==========================================
-   出行清单 - 样式（SKILL：清爽可靠、出行场景）
+   出行清单
    ========================================== */
-
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=DM+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap');
 
 :root {
     --tc-bg: #f6fbf8;
@@ -82,7 +80,6 @@ body {
 .list-toolbar {
     background: var(--tc-bg-card);
     border: 1px solid var(--tc-border);
-    border-color: var(--tc-border);
     border-radius: var(--tc-radius);
     box-shadow: var(--tc-shadow);
     padding: 16px;
@@ -130,7 +127,7 @@ body {
     font-size: 0.95rem;
     font-weight: 600;
     border: none;
-    border-radius: 50px; /* 大圆角按钮 */
+    border-radius: 50px;
     cursor: pointer;
     transition: background-color 0.2s, box-shadow 0.2s, transform 0.1s;
 }
@@ -217,7 +214,6 @@ body {
     gap: 12px;
     background: var(--tc-bg-card);
     border: 1px solid var(--tc-border);
-    border-color: var(--tc-border);
     border-radius: var(--tc-radius);
     box-shadow: var(--tc-shadow);
     padding: 14px 16px;
@@ -247,7 +243,6 @@ body {
     gap: 8px;
     background: var(--tc-bg-card);
     border: 1px solid var(--tc-border);
-    border-color: var(--tc-border);
     border-radius: var(--tc-radius);
     box-shadow: var(--tc-shadow);
     padding: 16px;
@@ -274,15 +269,20 @@ body {
 /* 类型：物品/事项 平铺可选，不收起 */
 .type-options {
     display: flex;
+    min-width: 0;
+    max-width: 100%;
     gap: 0;
     border-radius: var(--tc-radius-sm);
     border: 1px solid var(--tc-border);
     background: var(--tc-bg-card);
-    overflow: hidden;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-inline: contain;
 }
 
 .type-option {
     display: flex;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: center;
     min-height: var(--tc-touch-min);
@@ -367,17 +367,13 @@ body {
     background: var(--tc-bg-card);
     padding: 12px 8px;
     border-bottom: 1px solid var(--tc-border);
-    border-color: var(--tc-border);
     box-shadow: var(--tc-shadow);
     animation: itemReveal 0.25s ease-out;
-    transition: background 0.2s ease, border-radius 0.2s;
+    transition: background 0.2s ease;
 }
 
 .checklist-item:hover {
     background: #f9fafb;
-    border-radius: 8px;
-    margin: 0 -8px;
-    padding: 12px 16px;
 }
 
 .checklist-item:last-child {
@@ -416,16 +412,15 @@ body {
 
 .item-type-tag {
     flex-shrink: 0;
+    max-width: 30%;
+    overflow: hidden;
     font-size: 0.75rem;
     padding: 2px 8px;
     border-radius: 4px;
     background: var(--tc-bg);
     color: var(--tc-text-muted);
-}
-
-.item-type-tag.task {
-    background: #e2e8f0;
-    color: #475569;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .item-label-wrap {
@@ -462,17 +457,6 @@ body {
 
 .item-edit-input.show {
     display: block;
-}
-
-.empty-hint {
-    font-size: 0.9rem;
-    color: var(--tc-text-muted);
-    padding: 16px 0;
-    text-align: center;
-}
-
-.empty-hint.hidden {
-    display: none;
 }
 
 /* ----- 操作区 ----- */
@@ -515,6 +499,9 @@ body {
     padding: 24px;
     width: 100%;
     max-width: 360px;
+    max-height: calc(100vh - 40px);
+    max-height: calc(100dvh - 40px);
+    overflow-y: auto;
 }
 
 .modal-title {
@@ -589,11 +576,13 @@ body {
 
 .modal-type-add input {
     flex: 1;
+    min-width: 0;
     padding: 8px 12px;
     font-family: var(--tc-font-body);
     font-size: 0.95rem;
     border: 1px solid var(--tc-border);
     border-radius: var(--tc-radius-sm);
+    margin-bottom: 0;
 }
 
 .modal-types-ul {
@@ -615,7 +604,9 @@ body {
 
 .modal-type-name {
     flex: 1;
+    min-width: 0;
     font-weight: 500;
+    overflow-wrap: anywhere;
 }
 
 /* ----- 无障碍 ----- */
@@ -652,9 +643,18 @@ body {
         width: 100%;
     }
 
+    .action-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .action-row .btn {
-        flex: 1;
+        width: 100%;
         min-width: 0;
+        min-height: var(--tc-touch-min);
+        padding: 0 12px;
+        white-space: nowrap;
+        word-break: keep-all;
     }
 
     .section-title {

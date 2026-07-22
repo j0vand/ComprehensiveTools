@@ -55,8 +55,8 @@ class ExportManager {
                             '存放位置': item.storage,
                             '备注': item.remark,
                             '总数量': item.quantity,
-                            '批次购买日期': Utils.formatDate(batch.purchaseDate),
-                            '批次过期日期': batch.expiryDate ? Utils.formatDate(batch.expiryDate) : '',
+                            '批次购买日期': batch.purchaseDate,
+                            '批次过期日期': batch.expiryDate || '',
                             '批次数量': batch.quantity,
                             '批次单价': batch.price || 0,
                             '批次总价': (batch.quantity * (batch.price || 0))
@@ -90,7 +90,8 @@ class ExportManager {
             XLSX.utils.book_append_sheet(wb, ws, "库存数据");
 
             // 导出文件
-            const fileName = `库存导出_${new Date().toISOString().slice(0, 10)}.xlsx`;
+            const now = new Date();
+            const fileName = `库存导出_${calendarDateFromParts(now.getFullYear(), now.getMonth() + 1, now.getDate())}.xlsx`;
             XLSX.writeFile(wb, fileName);
             
             Utils.showNotification('导出成功', 'success');
@@ -129,7 +130,9 @@ class ExportManager {
                 // 转换为 JSON
                 const jsonData = XLSX.utils.sheet_to_json(worksheet);
                 
-                this.processImportData(jsonData);
+                this.processImportData(jsonData, {
+                    date1904: Boolean(workbook.Workbook?.WBProps?.date1904)
+                });
                 
                 // 重置 input 以便允许重复选择同一文件
                 this.fileInput.value = '';
@@ -146,99 +149,130 @@ class ExportManager {
     /**
      * 处理导入的数据
      */
-    processImportData(data) {
-        if (!data || data.length === 0) {
+    processImportData(data, dateOptions = {}) {
+        if (!Array.isArray(data) || data.length === 0) {
             Utils.showNotification('文件中没有数据', 'warning');
-            return;
+            return { success: false, successCount: 0, failCount: 0 };
         }
 
-        let successCount = 0;
         let failCount = 0;
-        
-        // 用于临时存储按 ID 分组的数据，以便重构批次结构
         const itemsMap = new Map();
 
         data.forEach(row => {
             try {
-                const id = row['ID'] || Utils.generateUUID();
-                const name = row['商品名称'];
-                
-                if (!name) {
-                    failCount++; // 必须有名称
-                    return;
-                }
+                if (!row || typeof row !== 'object' || Array.isArray(row)) throw new Error('行不是对象');
+                const name = typeof row['商品名称'] === 'string' ? row['商品名称'].trim() : '';
+                if (!name) throw new Error('商品名称无效');
 
-                if (!itemsMap.has(id)) {
-                    // 初始化商品对象
-                    itemsMap.set(id, {
-                        id: id,
-                        name: name,
-                        category: row['分类'] || '其他',
-                        brand: row['品牌'] || '',
-                        spec: row['规格'] || '',
-                        storage: row['存放位置'] || '',
-                        remark: row['备注'] || '',
-                        batches: []
+                const rawId = row['ID'];
+                const id = (typeof rawId === 'string' || typeof rawId === 'number') ? String(rawId).trim() : '';
+                if (id.length > 128 || /[\u0000-\u001f\u007f]/.test(id)) throw new Error('ID 无效');
+                const category = typeof row['分类'] === 'string' && row['分类'].trim() ? row['分类'].trim() : '其他';
+                const brand = typeof row['品牌'] === 'string' ? row['品牌'].trim() : '';
+                const spec = typeof row['规格'] === 'string' ? row['规格'].trim() : '';
+                const storage = typeof row['存放位置'] === 'string' ? row['存放位置'].trim() : '';
+                const remark = typeof row['备注'] === 'string' ? row['备注'].trim() : '';
+                const groupKey = id ? `id:${id}` :
+                    `item:${[name, category, brand, spec, storage].map(value => value.toLocaleLowerCase()).join('\u0000')}`;
+
+                const quantityValue = row['批次数量'];
+                const priceValue = row['批次单价'];
+                const quantity = quantityValue === undefined || quantityValue === '' ? 0 : inventoryNumber(quantityValue);
+                const price = priceValue === undefined || priceValue === '' ? 0 : inventoryNumber(priceValue);
+                if (quantity === null || quantity < 0 || price === null || price < 0 ||
+                    !Number.isFinite(quantity * price)) {
+                    throw new Error('批次数值无效');
+                }
+                const purchaseDate = row['批次购买日期'] === undefined || row['批次购买日期'] === '' ?
+                    null : this.parseExcelDate(row['批次购买日期'], null, dateOptions);
+                const expiryDate = row['批次过期日期'] === undefined || row['批次过期日期'] === '' ?
+                    null : this.parseExcelDate(row['批次过期日期'], null, dateOptions);
+                if (row['批次购买日期'] && !purchaseDate) throw new Error('购买日期无效');
+                if (row['批次过期日期'] && !expiryDate) throw new Error('过期日期无效');
+
+                if (!itemsMap.has(groupKey)) {
+                    itemsMap.set(groupKey, {
+                        id,
+                        name,
+                        category,
+                        brand,
+                        spec,
+                        storage,
+                        remark,
+                        batches: [],
+                        batchSignatures: new Set()
                     });
                 }
+                const item = itemsMap.get(groupKey);
+                const identity = [name, category, brand, spec, storage].join('\u0000');
+                const itemIdentity = [item.name, item.category, item.brand, item.spec, item.storage].join('\u0000');
+                if (identity !== itemIdentity) throw new Error('同一 ID 对应不同商品');
 
-                // 添加批次
-                const quantity = parseInt(row['批次数量']) || 0;
-                // 如果是新导入的行且有数量，则视为有效批次
-                if (quantity > 0 || row['批次购买日期']) {
-                    itemsMap.get(id).batches.push({
-                        id: Utils.generateUUID(),
-                        quantity: quantity,
-                        price: parseFloat(row['批次单价']) || 0,
-                        purchaseDate: this.parseExcelDate(row['批次购买日期']),
-                        expiryDate: row['批次过期日期'] ? this.parseExcelDate(row['批次过期日期']) : null
-                    });
+                if (quantity > 0 || purchaseDate || expiryDate || price > 0) {
+                    const signature = [quantity, price, purchaseDate || '', expiryDate || ''].join('|');
+                    if (!item.batchSignatures.has(signature)) {
+                        item.batchSignatures.add(signature);
+                        item.batches.push({
+                            id: Utils.generateUUID(),
+                            quantity,
+                            price,
+                            purchaseDate: purchaseDate || localCalendarDate(),
+                            expiryDate
+                        });
+                    }
                 }
-
             } catch (err) {
                 console.warn('行数据处理失败:', row, err);
                 failCount++;
             }
         });
 
-        // 将整理好的数据存入 InventoryData
-        itemsMap.forEach(item => {
-            // 计算总数量
-            item.quantity = item.batches.reduce((sum, b) => sum + b.quantity, 0);
-            
-            // 如果ID已存在，更新；否则添加
-            const existing = InventoryData.getItem(item.id);
-            if (existing) {
-                InventoryData.updateItem(item.id, item);
-            } else {
-                InventoryData.addItem(item);
-            }
-            successCount++;
+        const items = [...itemsMap.values()].map(item => {
+            const { batchSignatures, ...importedItem } = item;
+            return importedItem;
         });
+        const result = InventoryData.importItems(items);
+        if (!result.success) {
+            Utils.showNotification('导入失败，原库存未发生变化', 'error');
+            return { success: false, successCount: 0, failCount };
+        }
 
-        Utils.showNotification(`导入完成: 成功 ${successCount} 个商品，忽略/失败 ${failCount} 行`, 'success');
-        
-        // 刷新 UI
+        Utils.showNotification(`导入完成: 成功 ${result.count} 个商品，忽略/失败 ${failCount} 行`, 'success');
         if (window.InventoryUI) window.InventoryUI.refreshData();
+        return { success: true, successCount: result.count, failCount };
     }
 
     /**
      * 解析 Excel 日期
      * Excel 日期可能是字符串或数字（天数）
      */
-    parseExcelDate(dateVal) {
-        if (!dateVal) return new Date().toISOString();
-        
-        if (dateVal instanceof Date) return dateVal.toISOString();
-        
-        // 尝试作为字符串解析
-        const d = new Date(dateVal);
-        if (!isNaN(d.getTime())) return d.toISOString();
-        
-        return new Date().toISOString();
+    parseExcelDate(dateVal, fallback = null, options = {}) {
+        if (dateVal === undefined || dateVal === null || dateVal === '') return fallback;
+        if (dateVal instanceof Date) return localCalendarDate(dateVal) || fallback;
+
+        const numericValue = typeof dateVal === 'number' ? inventoryNumber(dateVal) :
+            (typeof dateVal === 'string' && /^\d+(?:\.\d+)?$/.test(dateVal.trim()) ? inventoryNumber(dateVal) : null);
+        if (numericValue !== null && numericValue >= 0) {
+            const serialDay = Math.floor(numericValue);
+            if (!options.date1904 && serialDay === 60) return fallback;
+            const epoch = options.date1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 31);
+            const elapsedDays = options.date1904 ? serialDay : (serialDay < 60 ? serialDay : serialDay - 1);
+            const date = new Date(epoch + elapsedDays * 86400000);
+            return Number.isFinite(date.getTime()) ? calendarDateFromParts(
+                date.getUTCFullYear(), date.getUTCMonth() + 1, date.getUTCDate()
+            ) : fallback;
+        }
+
+        if (typeof dateVal === 'string') {
+            const match = dateVal.trim().match(/^(\d{4})(?:-|\/|年)(\d{1,2})(?:-|\/|月)(\d{1,2})(?:日)?$/);
+            if (match) {
+                return calendarDateFromParts(Number(match[1]), Number(match[2]), Number(match[3])) || fallback;
+            }
+        }
+
+        return fallback;
     }
 }
 
 // 导出实例
 window.ExportManager = new ExportManager();
-

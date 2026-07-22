@@ -24,6 +24,8 @@ Thumbs.db
 
 # 测试文件
 test_ignore/
+test-results/
+playwright-report/
 
 # 备份文件
 *.bak

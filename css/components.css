@@ -124,9 +124,17 @@
     box-shadow: var(--shadow-lift, 0 18px 45px rgba(24, 78, 68, 0.14));
 }
 
+.tool-dialog-message {
+    white-space: pre-line;
+}
+
 .tool-dialog-actions {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
     margin-top: 18px;
+}
+
+.tool-dialog-input {
+    margin-top: 14px;
 }

@@ -69,19 +69,10 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 500);
     }
     
-    // 监听数据变化事件，以便刷新图表
-    // 这里我们简单地通过 hook DataManager 的方法来实现，或者在 UI 刷新时顺便刷新图表
-    // 在 js/ui.js 的 refreshData 和 renderContent 中可以添加更新图表的调用
-    // 为了解耦，我们可以在 ui.js 中触发自定义事件，或者在 ui.js 中显式调用
-    // 目前 ui.js 没有显式调用 ChartsManager，我们通过覆盖 InventoryData 的 save 方法来自动更新图表
-    
-    const originalSaveItems = InventoryData.saveItems.bind(InventoryData);
-    InventoryData.saveItems = function() {
-        originalSaveItems();
+    // 所有成功事务都由数据层发布同一事件，避免遗漏非 saveItems 路径。
+    window.addEventListener('inventory-data-changed', () => {
         if (window.ChartsManager) window.ChartsManager.updateChart();
-        if (window.InventoryUI) window.InventoryUI.renderSummary(); // 确保摘要也更新
-    };
+        if (window.InventoryUI) window.InventoryUI.renderSummary();
+    });
 
-    console.log('Inventory Management System Initialized');
 });
-

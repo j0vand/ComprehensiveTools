@@ -8,8 +8,7 @@ const STORAGE_KEYS = {
     PENSION_CALCULATOR: 'pensionCalculator_data',
     
     // 康复训练器
-    REHAB_TRAINER_PLANS: 'rehabTrainer',  // 保持与旧版本一致
-    REHAB_TRAINER_SETTINGS: 'rehabTrainer_settings',
+    REHAB_TRAINER_PLANS: 'rehabTrainer',
     
     // 库存管理
     INVENTORY_ITEMS: 'inventory-items',
@@ -20,17 +19,16 @@ const STORAGE_KEYS = {
     INVENTORY_SHOPPING_LIST: 'inventory-shopping-list',
     
     // 今日点餐
-    MEAL_VIEWER_DATA: 'mealArrangements',  // 保持与旧版本一致
+    MEAL_VIEWER_DATA: 'mealArrangements',
     
     // 个税计算器
-    TAX_CALCULATOR_DATA: 'tax_calculator_state',  // 保持与旧版本一致
+    TAX_CALCULATOR_DATA: 'tax_calculator_state',
     
     // 房贷计算器
     MORTGAGE_CALCULATOR_DATA: 'mortgageCalculator_data',
     
     // 理财计算器
-    FINANCE_CALCULATOR_DATA: 'financeCalculator_data',
-    FINANCE_CALCULATOR_INPUTS: 'financeCalculator_inputs', // 用于保存输入值
+    FINANCE_CALCULATOR_INPUTS: 'financeCalculator_inputs',
 
     // 出行清单
     TRAVEL_CHECKLIST: 'travelChecklist_data',

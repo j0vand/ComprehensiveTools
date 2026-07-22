@@ -37,7 +37,15 @@
 ### 👵 养老金计算器
 - 基于中国养老保险制度
 - 估算退休后可领取的养老金金额
-- 支持不同城市和缴费基数
+- 支持自定义退休年龄、缴费计划和缴费基数
+
+### 🏖️ FIRE 退休规划
+- 估算达到财务独立所需资产和最早退休年龄
+- 支持通胀、投资收益、养老金和医疗支出场景
+
+### 🧳 出行清单
+- 管理多份出行清单和自定义事项类型
+- 支持导入导出、复制清单和重置勾选
 
 ### 🏃 腰突康复训练
 - 专业的腰椎间盘突出康复训练计时器
@@ -83,10 +91,9 @@
 1. **Fork本仓库**
 
 2. **启用GitHub Pages**
-   - 进入仓库 Settings
-   - 找到 Pages 选项
-   - Source 选择 `main` 分支
-   - 保存
+   - 进入仓库 Settings → Pages
+   - Source 选择 `GitHub Actions`
+   - 推送到 `main` 后，部署工作流会先运行测试、语法检查和浏览器冒烟，再发布静态文件
 
 3. **访问**
    
@@ -121,9 +128,25 @@ ComprehensiveTools/
 
 - **前端**: HTML5, CSS3, JavaScript (ES6+)
 - **UI框架**: Bootstrap 5 (部分页面)
-- **图表**: Chart.js (库存管理)
+- **图表**: Chart.js、ECharts
 - **存储**: LocalStorage
 - **语音**: Web Speech API (康复训练)
+
+## ✅ 测试
+
+运行 Node.js 逻辑与静态完整性测试：
+
+```bash
+node --test
+```
+
+检查全部 JavaScript 语法：
+
+```bash
+find . -path './.git' -prune -o -path './node_modules' -prune -o -name '*.js' -print0 | xargs -0 -n1 node --check
+```
+
+桌面与移动端浏览器冒烟由 `.github/workflows/deploy.yml` 自动执行。
 
 ## 📱 浏览器支持
 

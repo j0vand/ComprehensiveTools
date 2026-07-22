@@ -10,7 +10,6 @@ class TrainingTimer {
             IDLE: 'idle',           // 空闲
             PREPARING: 'preparing',  // 准备中
             TRAINING: 'training',    // 训练中
-            RESTING: 'resting',      // 组内休息（持续时间型）
             SET_REST: 'set_rest',    // 组间休息
             TRANSITION: 'transition', // 准备间隔（休息结束到训练开始之间）
             WAITING: 'waiting',      // 等待用户操作（次数型）
@@ -47,11 +46,12 @@ class TrainingTimer {
      * 开始训练流程
      */
     start(exercises, prepareTime = 10, transitionInterval = 5, countdownStart = 10) {
-        if (!exercises || exercises.length === 0) {
-            console.error('没有训练项');
+        if (!this.isValidStart(exercises, prepareTime, transitionInterval, countdownStart)) {
+            console.error('训练参数不合法');
             return false;
         }
 
+        this.stopTimer();
         this.reset();
         this.exercises = exercises;
         this.prepareTime = prepareTime;
@@ -61,6 +61,30 @@ class TrainingTimer {
         // 开始准备倒计时
         this.startPrepare();
         return true;
+    }
+
+    /**
+     * 在创建计时器前校验整套训练参数，避免NaN或Infinity让状态机永久停滞。
+     */
+    isValidStart(exercises, prepareTime, transitionInterval, countdownStart) {
+        const isIntegerInRange = (value, minimum, maximum) => (
+            Number.isSafeInteger(value) && value >= minimum && value <= maximum
+        );
+        if (!Array.isArray(exercises) || exercises.length === 0 || exercises.length > 1000) return false;
+        if (!isIntegerInRange(prepareTime, 0, 300)) return false;
+        if (!isIntegerInRange(transitionInterval, 0, 60)) return false;
+        if (!isIntegerInRange(countdownStart, 1, 60)) return false;
+
+        return exercises.every(exercise => {
+            if (!exercise || typeof exercise !== 'object') return false;
+            if (exercise.type !== 'duration' && exercise.type !== 'reps') return false;
+            if (!isIntegerInRange(exercise.sets, 1, 100)) return false;
+            if (!isIntegerInRange(exercise.setRest, 0, 86400)) return false;
+            if (exercise.type === 'duration') {
+                return isIntegerInRange(exercise.duration, 1, 86400);
+            }
+            return isIntegerInRange(exercise.reps, 1, 10000);
+        });
     }
 
     /**
@@ -143,12 +167,6 @@ class TrainingTimer {
                 duration: exercise.setRest
             });
             
-            // 也触发原来的setRest事件以保持兼容性
-            this.trigger('setRest', {
-                exercise: exercise,
-                set: this.currentSet,
-                duration: exercise.setRest
-            });
         } else {
             // 没有组间休息，直接进入准备间隔
             this.startTransition();
@@ -159,6 +177,7 @@ class TrainingTimer {
      * 启动计时器
      */
     startTimer() {
+        this.stopTimer();
         this.startTime = Date.now();
         this.pausedTime = 0;
         
@@ -193,7 +212,7 @@ class TrainingTimer {
         }
 
         // 倒计时提醒逻辑
-        const countdownStart = this.countdownStart || 10;
+        const countdownStart = this.countdownStart;
         
         // 准备阶段倒计时：剩余时间 <= 3 且 > 0 时，每秒播报
         if (this.state === this.STATE.PREPARING && remainingCeil <= 3 && remainingCeil > 0) {
@@ -256,11 +275,6 @@ class TrainingTimer {
                 break;
 
             case this.STATE.TRANSITION:
-                // 准备间隔完成，触发transitionEnd事件，然后开始下一组
-                this.trigger('transitionEnd', {
-                    exercise: this.getCurrentExercise(),
-                    set: this.currentSet + 1
-                });
                 this.nextSet();
                 break;
         }
@@ -280,7 +294,10 @@ class TrainingTimer {
      * 暂停
      */
     pause() {
-        if (this.state !== this.STATE.TRAINING && this.state !== this.STATE.SET_REST && this.state !== this.STATE.TRANSITION) {
+        if (this.state !== this.STATE.PREPARING
+            && this.state !== this.STATE.TRAINING
+            && this.state !== this.STATE.SET_REST
+            && this.state !== this.STATE.TRANSITION) {
             return false;
         }
 
@@ -318,11 +335,6 @@ class TrainingTimer {
             return false;
         }
 
-        this.trigger('setComplete', {
-            exercise: this.getCurrentExercise(),
-            set: this.currentSet
-        });
-
         if (this.hasMoreSets()) {
             this.startSetRest();
         } else {
@@ -336,12 +348,11 @@ class TrainingTimer {
      * 跳过当前项
      */
     skip() {
+        if (this.state === this.STATE.IDLE || this.state === this.STATE.COMPLETED) return false;
         this.stopTimer();
-        this.trigger('skip', {
-            exercise: this.getCurrentExercise(),
-            set: this.currentSet
-        });
+        this.previousState = null;
         this.nextExercise();
+        return true;
     }
 
     /**
@@ -349,7 +360,6 @@ class TrainingTimer {
      */
     stop() {
         this.stopTimer();
-        this.trigger('stop');
         this.reset();
     }
 
@@ -383,9 +393,6 @@ class TrainingTimer {
         this.currentExerciseIndex++;
         
         if (this.currentExerciseIndex < this.exercises.length) {
-            this.trigger('nextExercise', {
-                exercise: this.getCurrentExercise()
-            });
             this.startExercise();
         } else {
             this.complete();
@@ -446,19 +453,6 @@ class TrainingTimer {
     }
 
     /**
-     * 移除事件监听
-     */
-    off(event, callback) {
-        if (!this.callbacks[event]) return;
-        
-        if (callback) {
-            this.callbacks[event] = this.callbacks[event].filter(cb => cb !== callback);
-        } else {
-            delete this.callbacks[event];
-        }
-    }
-
-    /**
      * 开始准备间隔（休息结束到训练开始之间）
      */
     startTransition() {
@@ -474,23 +468,6 @@ class TrainingTimer {
         });
     }
 
-    /**
-     * 获取状态文本
-     */
-    getStateText() {
-        const stateTexts = {
-            [this.STATE.IDLE]: '空闲',
-            [this.STATE.PREPARING]: '准备中',
-            [this.STATE.TRAINING]: '训练中',
-            [this.STATE.RESTING]: '休息中',
-            [this.STATE.SET_REST]: '组间休息',
-            [this.STATE.TRANSITION]: '准备下一组',
-            [this.STATE.WAITING]: '等待操作',
-            [this.STATE.PAUSED]: '已暂停',
-            [this.STATE.COMPLETED]: '已完成'
-        };
-        return stateTexts[this.state] || '未知';
-    }
 }
 
 // 创建全局实例

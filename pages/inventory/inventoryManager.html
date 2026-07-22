@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>库存管理系统</title>
+    <link rel="icon" href="../../static/logo.png" type="image/png">
+    <link rel="stylesheet" href="../../css/components.css">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/modal.css">
     <link rel="stylesheet" href="css/cards.css">
@@ -266,14 +268,21 @@
         总大小约935KB，权衡离线可用性和加载速度，当前使用CDN。
     -->
     <script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.18.2/dist/index.js"
+            integrity="sha384-oOzlBbyTRPCSLZF7MUBwr2iOMUkVopRZkQgV/eyy5AusOQg4UmNgp73E59pYMrN3"
+            crossorigin="anonymous"
             onerror="console.warn('拼音库加载失败，搜索功能将受限')"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"
+            integrity="sha384-b0GXujLkk9eYYSmcSfoyZbfyElGAQnDyY0skCHSG6w3JgTMFnz11ggrTAr7seu9f"
+            crossorigin="anonymous"
             onerror="console.warn('图表库加载失败，统计图表不可用')"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"
+            integrity="sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw"
+            crossorigin="anonymous"
             onerror="console.warn('Excel库加载失败，导入导出功能受限')"></script>
     <!-- 公共工具库 -->
     <script src="../../utils/storage-keys.js"></script>
     <script src="../../utils/common.js"></script>
+    <script src="../../utils/dialog.js"></script>
     <!-- 模块文件（按依赖顺序） -->
     <script src="js/utils.js"></script>
     <script src="js/data.js"></script>

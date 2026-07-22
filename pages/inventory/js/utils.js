@@ -36,8 +36,14 @@ function checkDependencies() {
  */
 function formatDate(date, options = {}) {
     if (!date) return '';
-    
-    const dateObj = date instanceof Date ? date : new Date(date);
+
+    let dateObj;
+    if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        const [year, month, day] = date.split('-').map(Number);
+        dateObj = new Date(year, month - 1, day);
+    } else {
+        dateObj = date instanceof Date ? date : new Date(date);
+    }
     
     if (isNaN(dateObj.getTime())) return '';
     
@@ -59,9 +65,17 @@ function formatDate(date, options = {}) {
  */
 function daysBetween(date1, date2) {
     if (!date1 || !date2) return 0;
-    
-    const d1 = date1 instanceof Date ? date1 : new Date(date1);
-    const d2 = date2 instanceof Date ? date2 : new Date(date2);
+
+    const parseDate = value => {
+        if (value instanceof Date) return value;
+        if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+            const [year, month, day] = value.split('-').map(Number);
+            return new Date(year, month - 1, day);
+        }
+        return new Date(value);
+    };
+    const d1 = parseDate(date1);
+    const d2 = parseDate(date2);
     
     if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return 0;
     
@@ -176,8 +190,11 @@ function showNotification(message, type = 'info', duration = 3000) {
     // 降级处理：如果公共工具库未加载，使用本地实现（依赖 alertContainer）
     const container = document.getElementById('alertContainer');
     if (!container) {
-        // 如果连 alertContainer 都没有，使用 alert
-        alert(message);
+        if (window.DialogService && typeof window.DialogService.showToast === 'function') {
+            window.DialogService.showToast(message, type, { duration });
+        } else {
+            console.warn(message);
+        }
         return;
     }
     
@@ -192,10 +209,13 @@ function showNotification(message, type = 'info', duration = 3000) {
         'info': 'ℹ️'
     };
     
-    alert.innerHTML = `
-        <span class="alert-icon">${icons[type] || icons.info}</span>
-        <span>${message}</span>
-    `;
+    const icon = document.createElement('span');
+    icon.className = 'alert-icon';
+    icon.textContent = icons[type] || icons.info;
+    const content = document.createElement('span');
+    content.textContent = message;
+    alert.appendChild(icon);
+    alert.appendChild(content);
     
     container.appendChild(alert);
     
@@ -354,7 +374,7 @@ function groupBy(array, key) {
         }
         result[groupKey].push(item);
         return result;
-    }, {});
+    }, Object.create(null));
 }
 
 /**
@@ -451,16 +471,14 @@ function initDarkMode() {
     themeToggle.addEventListener('click', () => {
         const currentTheme = document.body.getAttribute('data-theme');
         const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        
-        document.body.setAttribute('data-theme', newTheme);
-        // 使用统一的存储函数
-        const STORAGE_KEY = 'inventory-theme'; // 主题存储可以保持独立
-        if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
-            window.CommonUtils.setLocalStorageItem(STORAGE_KEY, newTheme);
-        } else {
-            localStorage.setItem(STORAGE_KEY, newTheme);
+
+        if (!setLocalStorageItem(STORAGE_KEY, newTheme)) {
+            showNotification('主题设置保存失败，请检查浏览器存储空间', 'error');
+            return;
         }
-        
+
+        document.body.setAttribute('data-theme', newTheme);
+
         // 如果存在图表，更新图表主题
         if (typeof updateChartsTheme === 'function') {
             updateChartsTheme();
@@ -597,4 +615,4 @@ window.Utils = {
     isMobileDevice,
     validateForm,
     escapeHtml
-}; 
+};

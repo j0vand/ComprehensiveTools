@@ -27,6 +27,7 @@
 
     function createStorageService(storage) {
         function getJson(key, fallback) {
+            if (!storage) return fallback;
             try {
                 return safeParseJson(storage.getItem(key), fallback);
             } catch (error) {
@@ -38,6 +39,7 @@
         }
 
         function setJson(key, value) {
+            if (!storage) return { ok: false, reason: 'unavailable' };
             try {
                 storage.setItem(key, JSON.stringify(value));
                 return { ok: true };
@@ -54,6 +56,7 @@
         }
 
         function remove(key) {
+            if (!storage) return { ok: false, reason: 'unavailable' };
             try {
                 storage.removeItem(key);
                 return { ok: true };
@@ -74,31 +77,14 @@
         };
     }
 
-    function createMemoryStorage() {
-        const data = new Map();
-        return {
-            getItem(key) {
-                return data.has(key) ? data.get(key) : null;
-            },
-            setItem(key, value) {
-                data.set(key, String(value));
-            },
-            removeItem(key) {
-                data.delete(key);
-            }
-        };
-    }
-
-    const fallbackStorage = createMemoryStorage();
-
     function getDefaultStorage() {
         try {
-            return global.localStorage || fallbackStorage;
+            return global.localStorage || null;
         } catch (error) {
             if (global.console && typeof global.console.warn === 'function') {
                 global.console.warn('localStorage is not available:', error);
             }
-            return fallbackStorage;
+            return null;
         }
     }
 

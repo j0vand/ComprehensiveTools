@@ -2,18 +2,20 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="format-detection" content="telephone=no">
     <title>腰突康复训练</title>
+    <link rel="icon" href="../../static/logo.png" type="image/png">
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=DM+Sans:ital,wght@0,400;0,500;0,600&display=swap" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet" integrity="sha384-QuGBSgV5Im3DzL2z+8Ko9/hqNy/N0O7zwvXAtfd1MvPKWa/UbeLV65cfm4BV5Wgq" crossorigin="anonymous">
     <link rel="stylesheet" href="../../css/base.css">
+    <link rel="stylesheet" href="../../css/components.css">
     <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/cards.css">
     <link rel="stylesheet" href="css/modal.css">
@@ -43,7 +45,6 @@
             </h1>
             <!-- 语音支持状态 -->
             <div id="voiceStatusBar" class="alert alert-info mb-0 text-center" style="display: none;">
-                <i class="bi bi-info-circle"></i>
                 <span id="voiceStatusText">检测中...</span>
             </div>
         </header>
@@ -59,19 +60,19 @@
                         </select>
                     </div>
                     <div class="col-4 text-end">
-                        <button id="newPlanBtn" class="btn btn-outline-primary btn-sm mt-4">
+                        <button type="button" id="newPlanBtn" class="btn btn-outline-primary btn-sm mt-4">
                             <i class="bi bi-plus-circle"></i> 新建计划
                         </button>
                     </div>
                 </div>
                 <div class="row g-2">
                     <div class="col-6">
-                        <button id="exportBtn" class="btn btn-outline-success btn-sm w-100">
+                        <button type="button" id="exportBtn" class="btn btn-outline-success btn-sm w-100">
                             <i class="bi bi-download"></i> 导出数据
                         </button>
                     </div>
                     <div class="col-6">
-                        <button id="importBtn" class="btn btn-outline-info btn-sm w-100">
+                        <button type="button" id="importBtn" class="btn btn-outline-info btn-sm w-100">
                             <i class="bi bi-upload"></i> 导入数据
                         </button>
                         <input type="file" id="importFile" accept=".json" style="display: none;">
@@ -79,7 +80,7 @@
                 </div>
                 <div class="row g-2 mt-2">
                     <div class="col-12">
-                        <button id="managePlansBtn" class="btn btn-outline-secondary btn-sm w-100">
+                        <button type="button" id="managePlansBtn" class="btn btn-outline-secondary btn-sm w-100">
                             <i class="bi bi-list-ul"></i> 管理计划与顺序
                         </button>
                     </div>
@@ -103,12 +104,12 @@
             <div class="container">
                 <div class="row g-2">
                     <div class="col-6">
-                        <button id="addExerciseBtn" class="btn btn-outline-primary w-100">
+                        <button type="button" id="addExerciseBtn" class="btn btn-outline-primary w-100">
                             <i class="bi bi-plus-lg"></i> 添加训练项
                         </button>
                     </div>
                     <div class="col-6">
-                        <button id="startTrainingBtn" class="btn btn-success w-100" disabled>
+                        <button type="button" id="startTrainingBtn" class="btn btn-success w-100" disabled>
                             <i class="bi bi-play-fill"></i> 开始训练
                         </button>
                     </div>
@@ -118,7 +119,7 @@
     </div>
 
     <!-- 训练执行界面 -->
-    <div id="trainingView" class="container-fluid vh-100 d-flex flex-column" style="display: none; visibility: hidden;">
+    <div id="trainingView" class="container-fluid vh-100 flex-column" style="display: none;">
         <!-- 顶部进度信息 -->
         <div class="training-header text-center py-3">
             <h2 id="exerciseName" class="mb-2">平板支撑</h2>
@@ -130,11 +131,11 @@
         </div>
 
         <!-- 中央显示区 -->
-        <div class="training-main flex-grow-1 d-flex flex-column align-items-center justify-content-center">
+        <div class="training-main flex-grow-1 d-flex flex-column align-items-center">
             <!-- 持续时间型显示 -->
             <div id="durationDisplay" style="display: none;">
                 <div class="timer-circle mb-3 position-relative">
-                    <svg class="progress-ring" width="280" height="280">
+                    <svg class="progress-ring" width="280" height="280" viewBox="0 0 280 280">
                         <circle class="progress-ring-bg" cx="140" cy="140" r="120" />
                         <circle id="progressCircle" class="progress-ring-circle" cx="140" cy="140" r="120" />
                     </svg>
@@ -167,17 +168,17 @@
                 <!-- 持续时间型按钮 -->
                 <div id="durationControls" style="display: none;">
                     <div class="d-grid gap-2">
-                        <button id="pauseBtn" class="btn btn-warning btn-lg" aria-label="暂停当前计时训练">
+                        <button type="button" id="pauseBtn" class="btn btn-warning btn-lg" aria-label="暂停当前计时训练">
                             <i class="bi bi-pause-fill"></i> 暂停
                         </button>
                         <div class="row g-2">
                             <div class="col-6">
-                                <button id="skipBtn" class="btn btn-outline-secondary w-100" aria-label="跳过当前动作">
+                                <button type="button" id="skipBtn" class="btn btn-outline-secondary w-100" aria-label="跳过当前动作">
                                     <i class="bi bi-skip-forward"></i> 跳过
                                 </button>
                             </div>
                             <div class="col-6">
-                                <button id="stopBtn" class="btn btn-outline-danger w-100" aria-label="结束本次训练">
+                                <button type="button" id="stopBtn" class="btn btn-outline-danger w-100" aria-label="结束本次训练">
                                     <i class="bi bi-stop-fill"></i> 结束
                                 </button>
                             </div>
@@ -188,17 +189,17 @@
                 <!-- 次数型按钮 -->
                 <div id="repsControls" style="display: none;">
                     <div class="d-grid gap-2">
-                        <button id="completeSetBtn" class="btn btn-success btn-lg" aria-label="完成当前一组训练">
+                        <button type="button" id="completeSetBtn" class="btn btn-success btn-lg" aria-label="完成当前一组训练">
                             <i class="bi bi-check-circle-fill"></i> 完成一组
                         </button>
                         <div class="row g-2">
                             <div class="col-6">
-                                <button id="skipRepsBtn" class="btn btn-outline-secondary w-100" aria-label="跳过当前计数组">
+                                <button type="button" id="skipRepsBtn" class="btn btn-outline-secondary w-100" aria-label="跳过当前计数组">
                                     <i class="bi bi-skip-forward"></i> 跳过
                                 </button>
                             </div>
                             <div class="col-6">
-                                <button id="stopRepsBtn" class="btn btn-outline-danger w-100" aria-label="结束本次训练">
+                                <button type="button" id="stopRepsBtn" class="btn btn-outline-danger w-100" aria-label="结束本次训练">
                                     <i class="bi bi-stop-fill"></i> 结束
                                 </button>
                             </div>
@@ -214,20 +215,20 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="planModalTitle">新建训练计划</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title">新建训练计划</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
                 </div>
                 <div class="modal-body">
                     <form id="planForm">
                         <div class="mb-3">
                             <label for="planName" class="form-label">计划名称</label>
-                            <input type="text" class="form-control" id="planName" required placeholder="例如：第一阶段">
+                            <input type="text" class="form-control" id="planName" required maxlength="100" placeholder="例如：第一阶段">
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" id="savePlanBtn">保存</button>
+                    <button type="submit" class="btn btn-primary" form="planForm">保存</button>
                 </div>
             </div>
         </div>
@@ -239,13 +240,13 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="exerciseModalTitle">添加训练项</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
                 </div>
                 <div class="modal-body">
                     <form id="exerciseForm">
                         <div class="mb-3">
-                            <label for="exerciseName" class="form-label">训练项名称</label>
-                            <input type="text" class="form-control" id="exerciseNameInput" required placeholder="例如：平板支撑">
+                            <label for="exerciseNameInput" class="form-label">训练项名称</label>
+                            <input type="text" class="form-control" id="exerciseNameInput" required maxlength="100" placeholder="例如：平板支撑">
                         </div>
 
                         <div class="mb-3">
@@ -263,7 +264,7 @@
                         <div id="durationConfig">
                             <div class="mb-3">
                                 <label for="duration" class="form-label">坚持时间（秒）</label>
-                                <input type="number" class="form-control" id="duration" min="1" value="30">
+                                <input type="number" class="form-control" id="duration" min="1" max="86400" value="30">
                             </div>
                         </div>
 
@@ -271,30 +272,30 @@
                         <div id="repsConfig" style="display: none;">
                             <div class="mb-3">
                                 <label for="reps" class="form-label">每组次数</label>
-                                <input type="number" class="form-control" id="reps" min="1" value="10">
+                                <input type="number" class="form-control" id="reps" min="1" max="10000" value="10">
                             </div>
                         </div>
 
                         <!-- 共同配置 -->
                         <div class="mb-3">
                             <label for="sets" class="form-label">组数</label>
-                            <input type="number" class="form-control" id="sets" min="1" value="3">
+                            <input type="number" class="form-control" id="sets" min="1" max="100" value="3">
                         </div>
 
                         <div class="mb-3">
                             <label for="setRest" class="form-label">组间休息（秒）</label>
-                            <input type="number" class="form-control" id="setRest" min="0" value="60">
+                            <input type="number" class="form-control" id="setRest" min="0" max="86400" value="60">
                         </div>
 
                         <div class="mb-3">
                             <label for="description" class="form-label">动作说明</label>
-                            <textarea class="form-control" id="description" rows="3" placeholder="描述动作要领"></textarea>
+                            <textarea class="form-control" id="description" rows="3" maxlength="2000" placeholder="描述动作要领"></textarea>
                         </div>
                     </form>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
-                    <button type="button" class="btn btn-primary" id="saveExerciseBtn">保存</button>
+                    <button type="submit" class="btn btn-primary" form="exerciseForm">保存</button>
                 </div>
             </div>
         </div>
@@ -306,7 +307,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">确认删除</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
                 </div>
                 <div class="modal-body">
                     <p id="deleteMessage">确定要删除这个项目吗？</p>
@@ -327,18 +328,9 @@
                     <h5 class="modal-title">
                         <i class="bi bi-list-ul"></i> 管理计划与顺序
                     </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
                 </div>
                 <div class="modal-body" style="max-height: calc(100vh - 200px); overflow-y: auto;">
-                    <div class="alert alert-info mb-3">
-                        <i class="bi bi-info-circle"></i>
-                        <strong>使用说明：</strong>
-                        <ul class="mb-0 mt-2">
-                            <li>按住左侧 <i class="bi bi-grip-vertical"></i> 图标可以拖动训练项调整顺序</li>
-                            <li>拖动训练项到其他计划可以跨计划移动</li>
-                            <li>点击训练项右侧按钮可以编辑或删除</li>
-                        </ul>
-                    </div>
                     <div id="planManageList">
                         <!-- 动态生成计划列表 -->
                     </div>
@@ -350,7 +342,7 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
     <script>
         // 检测Bootstrap是否加载
         window.addEventListener('load', function() {
@@ -364,6 +356,7 @@
     </script>
     <script src="../../utils/storage-keys.js"></script>
     <script src="../../utils/common.js"></script>
+    <script src="../../utils/dialog.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/audio.js"></script>
     <script src="js/timer.js"></script>

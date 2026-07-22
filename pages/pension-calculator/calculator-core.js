@@ -1,18 +1,18 @@
 /**
  * 养老金计算器 - 核心计算逻辑模块
- * 包含养老金计算的核心算法和常量定义
+ * 当前账户余额按“当前年龄对应年份年初”口径输入，缴费在年末计入。
  */
 
-// ==========================================
-// 常量定义
-// ==========================================
+/** 个人账户每月缴费比例，当前模型按8%估算。 */
+const PERSONAL_CONTRIBUTION_RATE = 0.08;
+/** 基础养老金每缴费一年对应的计发比例。 */
+const BASIC_PENSION_RATE = 0.01;
+/** 缴费基数不得低于当年社会平均工资的60%。 */
+const MIN_CONTRIBUTION_RATE = 0.6;
+/** 缴费基数不得高于当年社会平均工资的300%。 */
+const MAX_CONTRIBUTION_RATE = 3;
 
-// 养老金计算相关常量
-const PERSONAL_CONTRIBUTION_RATE = 0.08;  // 个人缴费比例 8%
-const BASIC_PENSION_RATE = 0.01;          // 基础养老金系数 1%
-const MIN_CONTRIBUTION_RATE = 0.6;         // 最低缴费比例（社平工资的60%）
-
-// 计发月数表 (国发[2005]38号)
+/** 个人账户养老金计发月数，依据国发[2005]38号。 */
 const PAYMENT_MONTHS = {
     40: 233, 41: 230, 42: 226, 43: 223, 44: 220,
     45: 216, 46: 212, 47: 208, 48: 204, 49: 199,
@@ -24,408 +24,225 @@ const PAYMENT_MONTHS = {
 };
 
 /**
- * 获取计发月数
- * @param {number} age - 退休年龄
+ * 获取退休年龄对应的个人账户养老金计发月数。
+ * 超出表格范围时使用最近边界，核心调用方仍应先校验退休年龄。
+ * @param {number} age 退休年龄
  * @returns {number} 计发月数
  */
 function getPaymentMonths(age) {
-    // 边界处理
-    if (age < 40) return 233;
-    if (age > 70) return 56;
-    const floorAge = Math.floor(age);
-    // 确保返回有效值
-    return PAYMENT_MONTHS[floorAge] || PAYMENT_MONTHS[Math.min(70, Math.max(40, floorAge))] || 139;
+    if (!Number.isFinite(age)) throw new RangeError('退休年龄必须是有效数值');
+    if (age < 40) return PAYMENT_MONTHS[40];
+    if (age > 70) return PAYMENT_MONTHS[70];
+    return PAYMENT_MONTHS[Math.floor(age)];
 }
 
 /**
- * 养老金计算核心函数
- * @param {Object} data - 输入数据
- * @param {Object} retirementInfo - 退休信息
- * @returns {Object} 计算结果
+ * 获取退休年份适用的最低缴费年限。
+ * 2030年起每年提高半年，2039年达到20年后不再增加。
+ * @param {number} retireYear 退休年份
+ * @returns {number} 最低缴费年限
  */
-function calculatePension(data, retirementInfo) {
-    const { yearsToRetire, retireAge } = retirementInfo;
+function getMinimumContributionYears(retireYear) {
+    if (!Number.isInteger(retireYear)) throw new RangeError('退休年份必须是整数');
+    if (retireYear <= 2029) return 15;
+    return Math.min(20, 15 + (retireYear - 2029) * 0.5);
+}
 
-    // 确定实际未来缴费年限
-    let futurePaymentYears = yearsToRetire;
-    if (data.paymentPlan === 'stop_early') {
-        // 如果选择提前停止，未来缴费年限 = 停止年龄 - 当前年龄
-        // 注意：Math.min 确保不超过退休时间
-        futurePaymentYears = Math.max(0, Math.min(yearsToRetire, data.stopAge - data.currentAge));
+/**
+ * 生成从当前年龄年初到退休年龄年初的唯一年度轨迹。
+ * 每行“如现在停止”取该行年初状态；“按计划年末”才包含该年利息和缴费。
+ * @param {Object} data 表单输入
+ * @param {Object} retirementInfo 退休年龄、剩余年限和退休年份
+ * @returns {Array<Object>} 年度轨迹
+ */
+function calculateYearDetails(data, retirementInfo) {
+    if (!data || typeof data !== 'object' || Array.isArray(data)
+        || !retirementInfo || typeof retirementInfo !== 'object' || Array.isArray(retirementInfo)) {
+        throw new TypeError('养老金计算参数无效');
     }
 
-    // A. 估算退休时的社会平均工资 (按复利增长)
-    // 公式: 当前社平 * (1 + 增长率)^剩余年限
+    const { retireAge, yearsToRetire, retireYear } = retirementInfo;
+    if (!Number.isInteger(data.currentAge) || data.currentAge < 18
+        || !Number.isInteger(retireAge) || retireAge < 40 || retireAge > 70
+        || data.currentAge >= retireAge
+        || !Number.isInteger(yearsToRetire) || yearsToRetire !== retireAge - data.currentAge
+        || !Number.isInteger(retireYear)) {
+        throw new RangeError('当前年龄、退休年龄、剩余年限或退休年份无效');
+    }
+    if (!Number.isFinite(data.paidYears) || data.paidYears < 0 || data.paidYears > 60
+        || !Number.isInteger(data.paidYears * 2)) {
+        throw new RangeError('已缴费年限必须在0至60年之间，并按0.5年填写');
+    }
+    if (!Number.isFinite(data.avgSalary) || data.avgSalary <= 0
+        || !Number.isFinite(data.accountBalance) || data.accountBalance < 0
+        || !Number.isFinite(data.salaryBase) || data.salaryBase <= 0
+        || !Number.isFinite(data.pastAvgIndex) || data.pastAvgIndex < 0) {
+        throw new RangeError('工资、账户余额或缴费指数无效');
+    }
+    if (!Number.isFinite(data.salaryGrowth) || data.salaryGrowth < 0 || data.salaryGrowth > 0.2
+        || !Number.isFinite(data.socAvgGrowth) || data.socAvgGrowth < 0 || data.socAvgGrowth > 0.2
+        || !Number.isFinite(data.interestRate) || data.interestRate < 0 || data.interestRate > 0.1) {
+        throw new RangeError('增长率或个人账户记账利率超出允许范围');
+    }
+    if (!['follow_salary', 'fixed'].includes(data.baseChangeMode)
+        || !['continuous', 'stop_early'].includes(data.paymentPlan)) {
+        throw new RangeError('缴费基数变化方式或缴费规划无效');
+    }
+    if (data.paymentPlan === 'stop_early' && (
+        !Number.isInteger(data.stopAge)
+        || data.stopAge < data.currentAge
+        || data.stopAge > retireAge
+    )) {
+        throw new RangeError('停止缴费年龄必须在当前年龄至退休年龄之间');
+    }
+    if (data.futureAvgIndex !== null && data.futureAvgIndex !== undefined && (
+        !Number.isFinite(data.futureAvgIndex) ||
+        data.futureAvgIndex < MIN_CONTRIBUTION_RATE ||
+        data.futureAvgIndex > MAX_CONTRIBUTION_RATE
+    )) {
+        throw new RangeError('未来平均缴费指数必须在0.6至3之间');
+    }
+
+    const currentYear = retireYear - yearsToRetire;
+    const minimumContributionYears = getMinimumContributionYears(retireYear);
     const futureAvgSalary = data.avgSalary * Math.pow(1 + data.socAvgGrowth, yearsToRetire);
-
-    // B. 计算累计缴费年限
-    const totalYears = data.paidYears + futurePaymentYears;
-
-    // C. 估算个人账户累计储存额
-    // 分为两部分：
-
-    // 1. 现有余额的复利增值 (一直滚存到退休)
-    const balanceFutureValue = data.accountBalance * Math.pow(1 + data.interestRate, yearsToRetire);
-
-    // 2. 未来缴费的本息和
-    // 说明：采用按年复利计算方式（符合社保实际记账方式）
-    // 假设每年的缴费在年末一次性计入账户，然后按年复利增长到退休
-    let futureContributionTotal = 0;
-    let currentBase = data.salaryBase;
-    const initialBase = data.salaryBase;  // 保存初始缴费基数
-
-    // 循环 "未来需要缴费的年份"
-    for (let i = 0; i < futurePaymentYears; i++) {
-        // 计算当年的社平工资
-        const currentYearAvgSalary = data.avgSalary * Math.pow(1 + data.socAvgGrowth, i);
-        // 最低缴费基数（社平工资的60%）
-        const minBase = currentYearAvgSalary * MIN_CONTRIBUTION_RATE;
-
-        // 根据缴费基数变化方式计算当年的缴费基数
-        if (data.baseChangeMode === 'fixed') {
-            // 保持不变模式：保持初始基数，但不能低于最低缴费基数
-            currentBase = Math.max(initialBase, minBase);
-        } else {
-            // 跟着工资增长模式：按工资增长率增长，但不能低于最低缴费基数
-            const baseAfterGrowth = currentBase * (1 + data.salaryGrowth);
-            currentBase = Math.max(baseAfterGrowth, minBase);
-        }
-
-        // 计算当年的总缴费额（12个月）
-        const monthlyContribution = currentBase * PERSONAL_CONTRIBUTION_RATE;
-        const yearlyContribution = monthlyContribution * 12;
-
-        // 按年复利计算：假设当年缴费在年末计入，到退休时的复利年数
-        // 第i年年末计入的费用，到第yearsToRetire年年初（退休时），经过 (yearsToRetire - i - 1) 年
-        const yearsToCompound = yearsToRetire - i - 1;
-
-        // 计算该年缴费到退休时的终值
-        // 当 yearsToCompound = 0 时（退休前一年），缴费不计利息，直接计入
-        const contributionFutureValue = yearlyContribution * Math.pow(1 + data.interestRate, yearsToCompound);
-        futureContributionTotal += contributionFutureValue;
-    }
-
-    const totalAccountBalance = balanceFutureValue + futureContributionTotal;
-
-    // D. 计算加权平均缴费指数
-    // 如果未来平均缴费指数未填写，需要根据缴费基数计算
-    let calculatedFutureAvgIndex = data.futureAvgIndex;
-    if (calculatedFutureAvgIndex === null || calculatedFutureAvgIndex === undefined) {
-        // 根据缴费基数变化方式计算平均缴费指数
-        // 需要重新计算未来各年的缴费指数并求平均
-        let totalIndex = 0;
-        let tempBase = data.salaryBase;
-        const tempInitialBase = data.salaryBase;
-
-        for (let i = 0; i < futurePaymentYears; i++) {
-            const currentYearAvgSalary = data.avgSalary * Math.pow(1 + data.socAvgGrowth, i);
-            const minBase = currentYearAvgSalary * MIN_CONTRIBUTION_RATE;
-
-            if (data.baseChangeMode === 'fixed') {
-                tempBase = Math.max(tempInitialBase, minBase);
-            } else {
-                const baseAfterGrowth = tempBase * (1 + data.salaryGrowth);
-                tempBase = Math.max(baseAfterGrowth, minBase);
-            }
-
-            // 缴费指数 = 缴费基数 / 社平工资
-            totalIndex += tempBase / currentYearAvgSalary;
-        }
-
-        calculatedFutureAvgIndex = futurePaymentYears > 0 ? totalIndex / futurePaymentYears : data.pastAvgIndex;
-    }
-
-    // 公式：(过去平均缴费指数 × 已缴费年限 + 未来平均缴费指数 × 未来缴费年限) / 总缴费年限
-    let weightedAvgIndex;
-    if (totalYears > 0) {
-        if (data.paidYears > 0 && futurePaymentYears > 0) {
-            // 两种情况都有，计算加权平均
-            weightedAvgIndex = (data.pastAvgIndex * data.paidYears + calculatedFutureAvgIndex * futurePaymentYears) / totalYears;
-        } else if (data.paidYears > 0) {
-            // 只有过去缴费，使用过去指数
-            weightedAvgIndex = data.pastAvgIndex;
-        } else {
-            // 只有未来缴费，使用未来指数
-            weightedAvgIndex = calculatedFutureAvgIndex;
-        }
-    } else {
-        // 总缴费年限为0，使用过去指数作为默认值
-        weightedAvgIndex = data.pastAvgIndex;
-    }
-
-    // E. 基础养老金计算
-    // 公式：退休时社平工资 × (1 + 平均缴费指数) / 2 × 累计缴费年限 × 1%
-    if (!isFinite(futureAvgSalary) || futureAvgSalary <= 0) {
-        throw new Error('退休时社会平均工资计算结果无效');
-    }
-    if (!isFinite(weightedAvgIndex) || weightedAvgIndex < 0) {
-        throw new Error('加权平均缴费指数计算结果无效');
-    }
-    const basicPension = futureAvgSalary * (1 + weightedAvgIndex) / 2 * totalYears * BASIC_PENSION_RATE;
-
-    // 检查基础养老金计算结果的有效性
-    if (!isFinite(basicPension) || isNaN(basicPension)) {
-        throw new Error('基础养老金计算结果无效');
-    }
-
-    // F. 个人账户养老金计算
-    // 公式：账户余额 / 计发月数
     const paymentMonths = getPaymentMonths(retireAge);
-    if (paymentMonths <= 0) {
-        throw new Error('计发月数无效，无法计算个人账户养老金');
-    }
-    const personalPension = totalAccountBalance / paymentMonths;
-
-    // 检查计算结果的有效性
-    if (!isFinite(personalPension) || isNaN(personalPension)) {
-        throw new Error('个人账户养老金计算结果无效');
-    }
-
-    // G. 计算年度明细数据
-    const yearDetails = calculateYearDetails(data, retirementInfo, futurePaymentYears, futureAvgSalary, weightedAvgIndex);
-
-    if (!yearDetails || yearDetails.length === 0) {
-        throw new Error('年度明细数据为空，无法计算最终结果');
-    }
-
-    // H. 使用表格最后一行的数据来确保主计算结果与表格一致
-    const lastYearDetail = yearDetails[yearDetails.length - 1];
-    const finalTotalPension = lastYearDetail.pensionIfStop;
-    const finalAccountBalance = lastYearDetail.accumulatedBalance;
-
-    // 重新计算基础养老金和个人账户养老金，使其与表格一致
-    const finalBasicPension = futureAvgSalary * (1 + weightedAvgIndex) / 2 * totalYears * BASIC_PENSION_RATE;
-    const finalPersonalPension = finalAccountBalance / paymentMonths;
-
-    return {
-        totalPension: finalTotalPension,
-        basicPension: finalBasicPension,
-        personalPension: finalPersonalPension,
-        totalAccountBalance: finalAccountBalance,
-        totalYears,
-        paymentMonths,
-        futureAvgSalary,
-        currentAvgSalary: data.avgSalary,
-        weightedAvgIndex,
-        balanceFutureValue,
-        futureContributionTotal,
-        yearDetails,
-        futureAvgIndexCalculated: data.futureAvgIndex === null || data.futureAvgIndex === undefined,  // 标记是否自动计算
-        baseChangeMode: data.baseChangeMode  // 传递缴费基数变化方式
-    };
-}
-
-/**
- * 计算年度明细数据
- * @param {Object} data - 输入数据
- * @param {Object} retirementInfo - 退休信息
- * @param {number} futurePaymentYears - 未来缴费年限
- * @param {number} futureAvgSalary - 未来平均工资
- * @param {number} weightedAvgIndex - 加权平均缴费指数
- * @returns {Array} 年度明细数组
- */
-function calculateYearDetails(data, retirementInfo, futurePaymentYears, futureAvgSalary, weightedAvgIndex) {
-    // 如果未来平均缴费指数未填写，需要先计算
-    let calculatedFutureAvgIndex = data.futureAvgIndex;
-    if (calculatedFutureAvgIndex === null || calculatedFutureAvgIndex === undefined) {
-        // 根据缴费基数变化方式计算平均缴费指数
-        let totalIndex = 0;
-        let tempBase = data.salaryBase;
-        const tempInitialBase = data.salaryBase;
-
-        for (let i = 0; i < futurePaymentYears; i++) {
-            const currentYearAvgSalary = data.avgSalary * Math.pow(1 + data.socAvgGrowth, i);
-            const minBase = currentYearAvgSalary * MIN_CONTRIBUTION_RATE;
-
-            if (data.baseChangeMode === 'fixed') {
-                tempBase = Math.max(tempInitialBase, minBase);
-            } else {
-                const baseAfterGrowth = tempBase * (1 + data.salaryGrowth);
-                tempBase = Math.max(baseAfterGrowth, minBase);
-            }
-
-            // 缴费指数 = 缴费基数 / 社平工资
-            totalIndex += tempBase / currentYearAvgSalary;
-        }
-
-        calculatedFutureAvgIndex = futurePaymentYears > 0 ? totalIndex / futurePaymentYears : data.pastAvgIndex;
-    }
-    const { yearsToRetire, retireAge } = retirementInfo;
-    const currentYear = new Date().getFullYear();
     const details = [];
 
-    let currentBase = data.salaryBase;
-    const initialBase = data.salaryBase;  // 保存初始缴费基数
-    let accumulatedBalance = data.accountBalance; // 从现有余额开始
-    let accumulatedYears = data.paidYears; // 从已缴费年限开始
+    let accumulatedBalance = data.accountBalance;
+    let accumulatedYears = data.paidYears;
+    let accumulatedIndex = data.pastAvgIndex * data.paidYears;
 
-    // 计算每年如果停止缴费的情况
-    for (let i = 0; i <= futurePaymentYears; i++) {
-        const year = currentYear + i;
+    for (let i = 0; i <= yearsToRetire; i++) {
         const age = data.currentAge + i;
-        const yearsToRetireFromHere = retireAge - age;
-
-        // 计算当年的社平工资
+        const yearsToRetireFromHere = yearsToRetire - i;
+        const isRetirementYear = i === yearsToRetire;
+        const isContributionYear = !isRetirementYear && (
+            data.paymentPlan !== 'stop_early' || age < data.stopAge
+        );
         const currentYearAvgSalary = data.avgSalary * Math.pow(1 + data.socAvgGrowth, i);
-        // 最低缴费基数（社平工资的60%）
         const minBase = currentYearAvgSalary * MIN_CONTRIBUTION_RATE;
+        const maxBase = currentYearAvgSalary * MAX_CONTRIBUTION_RATE;
+        const baseBeforeClamp = data.baseChangeMode === 'fixed'
+            ? data.salaryBase
+            : data.salaryBase * Math.pow(1 + data.salaryGrowth, i);
+        const clampedBase = Math.min(maxBase, Math.max(minBase, baseBeforeClamp));
+        const yearBase = isContributionYear ? clampedBase : null;
+        const yearContribution = isContributionYear
+            ? yearBase * PERSONAL_CONTRIBUTION_RATE * 12
+            : null;
+        const weightedAvgIndex = accumulatedYears > 0
+            ? accumulatedIndex / accumulatedYears
+            : 0;
+        const balanceAtRetirement = accumulatedBalance * Math.pow(
+            1 + data.interestRate,
+            yearsToRetireFromHere
+        );
+        const eligible = accumulatedYears >= minimumContributionYears;
+        const eligibilityGap = Math.max(0, minimumContributionYears - accumulatedYears);
+        const basicPensionIfStop = eligible
+            ? futureAvgSalary * (1 + weightedAvgIndex) / 2 * accumulatedYears * BASIC_PENSION_RATE
+            : null;
+        const personalPensionIfStop = eligible
+            ? balanceAtRetirement / paymentMonths
+            : null;
+        const pensionIfStop = eligible
+            ? basicPensionIfStop + personalPensionIfStop
+            : null;
 
-        // 根据缴费基数变化方式计算当年的缴费基数
-        let baseBeforeMinCheck; // 检查最低下限之前的基数
-        if (data.baseChangeMode === 'fixed') {
-            // 保持不变模式：保持初始基数，但不能低于最低缴费基数
-            baseBeforeMinCheck = initialBase;
-            currentBase = Math.max(initialBase, minBase);
-        } else {
-            // 跟着工资增长模式：按工资增长率增长，但不能低于最低缴费基数
-            if (i === 0) {
-                baseBeforeMinCheck = data.salaryBase;
-                currentBase = Math.max(data.salaryBase, minBase);
-            } else if (i <= futurePaymentYears) {
-                const baseAfterGrowth = currentBase * (1 + data.salaryGrowth);
-                baseBeforeMinCheck = baseAfterGrowth;
-                currentBase = Math.max(baseAfterGrowth, minBase);
-            } else {
-                // 已经停止缴费，不再计算
-                baseBeforeMinCheck = currentBase;
-                currentBase = currentBase; // 保持不变
-            }
-        }
-
-        // 当前年的缴费基数
-        const yearBase = currentBase;
-        // 判断是否因60%下限而提高（如果检查后的基数大于检查前的基数，说明被提高了）
-        const isRaisedByMinBase = currentBase > baseBeforeMinCheck * 1.001; // 考虑浮点数误差
-
-        // 如果这一年继续缴费
-        let yearContribution = 0;
-        let yearEndBalance = accumulatedBalance;
-
-        if (i < futurePaymentYears && yearsToRetireFromHere > 0) {
-            // 计算这一年的总缴费
-            const monthlyContribution = yearBase * PERSONAL_CONTRIBUTION_RATE;
-            yearContribution = monthlyContribution * 12;
-
-            // 按年复利更新累计余额
-            // 说明：年初余额先按年复利增长，然后加上当年缴费（假设年末计入）
-            yearEndBalance = accumulatedBalance * (1 + data.interestRate) + yearContribution;
-            accumulatedBalance = yearEndBalance;
-            accumulatedYears += 1;
-        } else if (yearsToRetireFromHere === 0) {
-            // 退休年：不再缴费，也不复利，直接使用上一年年末的余额
-            // 因为退休时（年初）就开始领取养老金，不会再经历一整年的复利
-            yearEndBalance = accumulatedBalance;
-        } else {
-            // 已停止缴费但未退休的年份，只计算现有余额的按年复利
-            yearEndBalance = accumulatedBalance * (1 + data.interestRate);
-        }
-
-        // 计算如果从这一年开始停止缴费，到退休时的账户余额
-        // 使用年初余额（即上一年的年末余额，如果i=0则是初始余额）
-        let balanceAtStartOfYear;
-        if (i === 0) {
-            balanceAtStartOfYear = data.accountBalance;
-        } else {
-            balanceAtStartOfYear = details[i - 1].accumulatedBalance;
-        }
-        const balanceAtRetirement = balanceAtStartOfYear * Math.pow(1 + data.interestRate, Math.max(0, yearsToRetireFromHere));
-
-        // 计算如果从这一年开始停止缴费的养老金
-        let pensionIfStop = 0;
-        // 如果停止缴费，使用的累计年限应该是到上一年的年限
-        // 特殊情况：如果是退休年（yearsToRetireFromHere == 0），使用完整的累计年限
-        const yearsIfStop = i === 0 ? data.paidYears :
-            (yearsToRetireFromHere === 0 ? accumulatedYears :
-                (i <= futurePaymentYears ? data.paidYears + i - 1 : accumulatedYears));
-
-        // 退休年（yearsToRetireFromHere == 0）也需要计算，显示持续缴费到退休的最终结果
-        if (yearsToRetireFromHere >= 0 && yearsIfStop > 0) {
-            // 计算加权平均缴费指数
-            let avgIndexToHere;
-            if (i === 0) {
-                // 如果第一年就停止，只用过去的指数
-                avgIndexToHere = data.pastAvgIndex;
-            } else if (i <= futurePaymentYears) {
-                // 重新计算到上一年的加权平均
-                // 计算到上一年的平均缴费指数
-                let calculatedFutureAvgIndexToHere = calculatedFutureAvgIndex;
-                if (i > 1) {
-                    let totalIndex = 0;
-                    let tempBase = data.salaryBase;
-                    const tempInitialBase = data.salaryBase;
-
-                    for (let j = 0; j < i - 1; j++) {
-                        const yearAvgSalary = data.avgSalary * Math.pow(1 + data.socAvgGrowth, j);
-                        const minBase = yearAvgSalary * MIN_CONTRIBUTION_RATE;
-
-                        if (data.baseChangeMode === 'fixed') {
-                            tempBase = Math.max(tempInitialBase, minBase);
-                        } else {
-                            const baseAfterGrowth = tempBase * (1 + data.salaryGrowth);
-                            tempBase = Math.max(baseAfterGrowth, minBase);
-                        }
-
-                        totalIndex += tempBase / yearAvgSalary;
-                    }
-
-                    calculatedFutureAvgIndexToHere = (i - 1) > 0 ? totalIndex / (i - 1) : data.pastAvgIndex;
-                }
-
-                if (data.paidYears > 0 && i > 1) {
-                    avgIndexToHere = (data.pastAvgIndex * data.paidYears + calculatedFutureAvgIndexToHere * (i - 1)) / (data.paidYears + i - 1);
-                } else if (data.paidYears > 0) {
-                    avgIndexToHere = data.pastAvgIndex;
-                } else {
-                    avgIndexToHere = calculatedFutureAvgIndexToHere;
-                }
-            } else {
-                avgIndexToHere = weightedAvgIndex;
-            }
-
-            // 退休时的社平工资（固定值，因为退休年份是固定的）
-            // 所有行都使用相同的退休时社平工资
-            const futureAvgSalaryAtStop = futureAvgSalary;
-
-            // 基础养老金
-            const basicPensionAtStop = futureAvgSalaryAtStop * (1 + avgIndexToHere) / 2 * yearsIfStop * BASIC_PENSION_RATE;
-
-            // 个人账户养老金
-            // 退休年时使用退休年年初的账户余额（即上一年年末余额，不再复利）
-            // 因为退休时就开始领取养老金，不会再整年复利
-            const paymentMonthsAtStop = getPaymentMonths(retireAge);
-            const balanceForPension = yearsToRetireFromHere === 0 ? accumulatedBalance : balanceAtRetirement;
-            const personalPensionAtStop = balanceForPension / paymentMonthsAtStop;
-
-            pensionIfStop = basicPensionAtStop + personalPensionAtStop;
-        }
+        const yearEndBalance = isRetirementYear
+            ? accumulatedBalance
+            : accumulatedBalance * (1 + data.interestRate) + (yearContribution || 0);
 
         details.push({
-            year,
+            year: currentYear + i,
             age,
+            isRetirementYear,
+            isContributionYear,
             yearBase,
             yearContribution,
             accumulatedBalance: yearEndBalance,
             accumulatedYears,
+            weightedAvgIndex,
             balanceAtRetirement,
+            basicPensionIfStop,
+            personalPensionIfStop,
             pensionIfStop,
-            yearsToRetire: yearsToRetireFromHere,
-            currentYearAvgSalary,  // 添加当年社平工资，用于显示
-            minBase,  // 添加最低缴费基数，用于显示
-            isRaisedByMinBase  // 标记是否因60%下限而提高
+            currentYearAvgSalary,
+            minBase,
+            maxBase,
+            isRaisedByMinBase: isContributionYear && baseBeforeClamp < minBase,
+            isLoweredByMaxBase: isContributionYear && baseBeforeClamp > maxBase,
+            minimumContributionYears,
+            eligible,
+            eligibilityGap
         });
+
+        if (isContributionYear) {
+            const contributionIndex = data.futureAvgIndex === null || data.futureAvgIndex === undefined
+                ? yearBase / currentYearAvgSalary
+                : data.futureAvgIndex;
+            accumulatedIndex += contributionIndex;
+            accumulatedYears += 1;
+        }
+        accumulatedBalance = yearEndBalance;
     }
 
     return details;
 }
 
-// 导出到全局作用域
-if (typeof window !== 'undefined') {
-    window.PensionCalculatorCore = {
-        calculatePension,
-        calculateYearDetails,
-        getPaymentMonths,
-        PERSONAL_CONTRIBUTION_RATE,
-        BASIC_PENSION_RATE,
-        MIN_CONTRIBUTION_RATE
+/**
+ * 从年度轨迹退休行派生养老金汇总，避免余额、年限和缴费指数出现第二套口径。
+ * 未达到退休年份最低缴费年限时仅返回账户余额，待遇金额统一为null。
+ * @param {Object} data 表单输入
+ * @param {Object} retirementInfo 退休年龄、剩余年限和退休年份
+ * @returns {Object} 养老金估算结果
+ */
+function calculatePension(data, retirementInfo) {
+    const yearDetails = calculateYearDetails(data, retirementInfo);
+    const retirementRow = yearDetails[yearDetails.length - 1];
+    const balanceFutureValue = data.accountBalance * Math.pow(
+        1 + data.interestRate,
+        retirementInfo.yearsToRetire
+    );
+
+    return {
+        totalPension: retirementRow.pensionIfStop,
+        basicPension: retirementRow.basicPensionIfStop,
+        personalPension: retirementRow.personalPensionIfStop,
+        totalAccountBalance: retirementRow.accumulatedBalance,
+        totalYears: retirementRow.accumulatedYears,
+        paymentMonths: getPaymentMonths(retirementInfo.retireAge),
+        futureAvgSalary: retirementRow.currentYearAvgSalary,
+        currentAvgSalary: data.avgSalary,
+        weightedAvgIndex: retirementRow.weightedAvgIndex,
+        balanceFutureValue,
+        futureContributionTotal: Math.max(0, retirementRow.accumulatedBalance - balanceFutureValue),
+        yearDetails,
+        futureAvgIndexCalculated: data.futureAvgIndex === null || data.futureAvgIndex === undefined,
+        baseChangeMode: data.baseChangeMode,
+        minimumContributionYears: retirementRow.minimumContributionYears,
+        eligible: retirementRow.eligible,
+        eligibilityGap: retirementRow.eligibilityGap
     };
+}
+
+/** 浏览器和Node测试共用同一导出对象，避免两套入口产生差异。 */
+const PensionCalculatorCore = {
+    calculatePension,
+    calculateYearDetails,
+    getPaymentMonths,
+    getMinimumContributionYears,
+    PERSONAL_CONTRIBUTION_RATE,
+    BASIC_PENSION_RATE,
+    MIN_CONTRIBUTION_RATE,
+    MAX_CONTRIBUTION_RATE
+};
+
+if (typeof window !== 'undefined') {
+    window.PensionCalculatorCore = PensionCalculatorCore;
+}
+
+if (typeof module !== 'undefined' && module.exports) {
+    module.exports = PensionCalculatorCore;
 }

@@ -1,759 +1,500 @@
-        /**
-         * 理财计算器
-         * 提供复利计算、贷款计算、定投收益、目标规划、信用卡免息期等五个计算工具
-         * @module FinanceCalculator
-         */
+/**
+ * 理财计算器
+ * 提供复利计算、贷款计算、定投收益、目标规划、信用卡免息期等五个计算工具
+ * @module FinanceCalculator
+ */
 
-        /**
-         * 切换计算器类型
-         * @param {string} type - 计算器类型
-         */
-        function switchCalculator(type) {
-            // 隐藏所有计算器
-            document.querySelectorAll('.calculator-section').forEach(section => {
-                section.classList.remove('active');
-            });
-            
-            // 显示选中的计算器
-            document.getElementById(type).classList.add('active');
-            
-            // 更新按钮状态
-            document.querySelectorAll('.type-button').forEach(button => {
-                button.classList.remove('active');
-                if (button.getAttribute('data-calc-type') === type) {
-                    button.classList.add('active');
-                }
-            });
+const STORAGE_KEY = window.StorageKeys.FINANCE_CALCULATOR_INPUTS;
+let investmentData = null;
+let targetData = null;
+
+/**
+ * 切换计算器类型
+ * @param {string} type - 计算器类型
+ */
+function switchCalculator(type) {
+    document.querySelectorAll('.calculator-section').forEach(section => {
+        section.classList.toggle('active', section.id === type);
+    });
+
+    document.querySelectorAll('.type-button').forEach(button => {
+        const active = button.dataset.calcType === type;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-selected', String(active));
+    });
+}
+
+/**
+ * 验证输入字段
+ * @param {string} inputId - 输入框ID
+ */
+function validateInput(inputId) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+
+    const inputGroup = input.closest('.input-group');
+    if (!inputGroup) return;
+
+    const invalid = input.value !== '' && !input.validity.valid;
+    inputGroup.classList.toggle('error', invalid);
+}
+
+// 复利计算
+function calculateCompound() {
+    document.getElementById('compoundResult').hidden = true;
+    const principal = getElementValue('compoundPrincipal', 'float', NaN);
+    const rate = getElementValue('compoundRate', 'float', NaN);
+    const years = getElementValue('compoundYears', 'float', NaN);
+
+    // 验证输入
+    if (!Number.isFinite(principal) || principal <= 0 || !Number.isInteger(years) || years <= 0 || years > 200 ||
+        !Number.isFinite(rate) || rate <= -100) {
+        showNotification('请输入有效的本金、1–200 年整数年限和大于 -100% 的收益率', 'error');
+        return;
+    }
+
+    // 计算最终金额，使用精确的指数计算
+    const annualRate = rate / 100;
+    const total = principal * Math.pow(1 + annualRate, years);
+    if (!Number.isFinite(total)) {
+        showNotification('当前参数产生的金额过大，请缩短年限或降低收益率', 'error');
+        return;
+    }
+    const interest = total - principal;
+
+    // 更新总体结果
+    document.getElementById('compoundResult').hidden = false;
+    document.getElementById('compoundPrincipalResult').textContent = formatMoney(principal) + '元';
+    document.getElementById('compoundInterestResult').textContent = formatMoney(interest) + '元';
+    document.getElementById('compoundTotalResult').textContent = formatMoney(total) + '元';
+
+    // 生成年度明细
+    const tbody = document.getElementById('yearlyTable').querySelector('tbody');
+    tbody.innerHTML = '';
+
+    let currentPrincipal = principal;
+    for (let year = 1; year <= years; year++) {
+        const yearStartAmount = currentPrincipal;
+        const yearlyInterest = yearStartAmount * annualRate;
+        currentPrincipal = yearStartAmount + yearlyInterest;
+        const cumulativeRate = (currentPrincipal / principal - 1) * 100;
+
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${year}</td>
+            <td>${formatMoney(yearStartAmount)}元</td>
+            <td>${formatMoney(yearlyInterest)}元</td>
+            <td>${formatMoney(currentPrincipal)}元</td>
+            <td>${cumulativeRate.toFixed(2)}%</td>
+        `;
+    }
+}
+
+// 贷款计算
+function calculateLoan() {
+    document.getElementById('loanResult').hidden = true;
+    const amount = getElementValue('loanAmount', 'float', NaN);
+    const rate = getElementValue('loanRate', 'float', NaN);
+    const years = getElementValue('loanYears', 'float', NaN);
+
+    if (!Number.isFinite(amount) || amount <= 0 || !Number.isFinite(rate) || rate < 0 || rate > 100) {
+        showNotification('请输入有效的贷款金额和利率', 'error');
+        return;
+    }
+
+    let totalMonths;
+    let monthlyRate;
+    let monthlyPayment;
+    try {
+        totalMonths = window.FinanceCalculations.loanYearsToMonths(years);
+        monthlyRate = window.FinanceCalculations.nominalMonthlyRate(rate);
+        monthlyPayment = window.FinanceCalculations.equalPayment(amount, rate, totalMonths);
+    } catch (error) {
+        showNotification(error.message, 'error');
+        return;
+    }
+    const totalPayment = monthlyPayment * totalMonths;
+    const totalInterest = totalPayment - amount;
+    if (!Number.isFinite(totalPayment) || !Number.isFinite(totalInterest)) {
+        showNotification('当前参数产生的还款金额过大，请降低贷款金额或利率', 'error');
+        return;
+    }
+
+    // 更新总体结果
+    document.getElementById('loanResult').hidden = false;
+    document.getElementById('monthlyPaymentResult').textContent = formatMoney(monthlyPayment) + '元';
+    document.getElementById('totalPaymentResult').textContent = formatMoney(totalPayment) + '元';
+    document.getElementById('totalInterestResult').textContent = formatMoney(totalInterest) + '元';
+
+    // 生成还款计划明细
+    const tbody = document.getElementById('loanTable').getElementsByTagName('tbody')[0];
+    tbody.innerHTML = '';
+
+    let remainingPrincipal = amount;
+    for (let month = 1; month <= totalMonths; month++) {
+        const monthlyInterest = remainingPrincipal * monthlyRate;
+        const monthlyPrincipal = monthlyPayment - monthlyInterest;
+        remainingPrincipal -= monthlyPrincipal;
+
+        if (month % 12 === 1 || month === totalMonths) {  // 只显示每年第一个月和最后一个月
+            const row = tbody.insertRow();
+            row.innerHTML = `
+                <td>第${month}期</td>
+                <td>${formatMoney(monthlyPayment)}元</td>
+                <td>${formatMoney(monthlyPrincipal)}元</td>
+                <td>${formatMoney(monthlyInterest)}元</td>
+                <td>${formatMoney(Math.max(0, remainingPrincipal))}元</td>
+            `;
+        }
+    }
+}
+
+/** 同步明细粒度按钮，只允许从源周期完整汇总到更粗粒度。 */
+function syncDetailButtons(viewGroup, sourcePeriodsPerYear, preferredView, totalPeriods) {
+    const buttons = Array.from(document.querySelectorAll(`.period-button[data-view-type="${viewGroup}"]`));
+    buttons.forEach(button => {
+        const viewType = button.getAttribute('data-period');
+        const available = window.FinanceCalculations.canAggregatePeriods(sourcePeriodsPerYear, viewType, totalPeriods);
+        button.disabled = !available;
+        button.setAttribute('aria-disabled', String(!available));
+        button.setAttribute('aria-pressed', 'false');
+        if (!available) button.classList.remove('active');
+    });
+
+    const preferredButton =
+        buttons.find(button => !button.disabled && button.getAttribute('data-period') === preferredView);
+    const selectedButton = preferredButton || buttons.find(button => !button.disabled);
+    buttons.forEach(button => {
+        const active = button === selectedButton;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+    });
+    return selectedButton ? selectedButton.getAttribute('data-period') : null;
+}
+
+// 定投收益计算
+function calculateInvestment() {
+    document.getElementById('investmentResult').hidden = true;
+    const amount = getElementValue('investmentAmount', 'float', NaN);
+    const period = document.getElementById('investmentPeriod').value;
+    const rate = getElementValue('investmentRate', 'float', NaN);
+    const years = getElementValue('investmentYears', 'float', NaN);
+    const periodsPerYear = window.FinanceCalculations.PERIODS_PER_YEAR[period];
+    const validation = window.FinanceCalculations.validateRecurringInvestment({
+        amount,
+        annualPercent: rate,
+        years,
+        periodsPerYear
+    });
+    if (!validation.valid) {
+        showNotification(validation.error, 'error');
+        return;
+    }
+
+    const {periodRate, totalPeriods} = validation;
+
+    // 生成所有投资期间的数据
+    const periodData = [];
+    let currentAmount = 0;
+    let totalInvestment = 0;
+
+    for (let p = 1; p <= totalPeriods; p++) {
+        const periodStartAmount = currentAmount;
+        totalInvestment += amount;
+
+        currentAmount = (currentAmount + amount) * (1 + periodRate);
+        const periodInterest = currentAmount - periodStartAmount - amount;
+        const totalReturn = ((currentAmount - totalInvestment) / totalInvestment * 100);
+        if (!Number.isFinite(currentAmount) || !Number.isFinite(totalReturn)) {
+            showNotification('当前参数产生的金额过大，请缩短年限或降低收益率', 'error');
+            return;
         }
 
-        function formatMoney(number) {
-            return new Intl.NumberFormat('zh-CN', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(number);
-        }
-        
-        // 使用公共工具库的通知函数
-        function showToast(message, type = 'info') {
-            if (window.CommonUtils && window.CommonUtils.showNotification) {
-                window.CommonUtils.showNotification(message, type, 3000);
-            } else {
-                // 降级处理
-                alert(message);
-            }
-        }
-
-        /**
-         * 获取输入框的值，正确处理0值和空值
-         * @param {string} id - 元素ID
-         * @param {string} type - 值类型：'int' 或 'float'
-         * @param {*} defaultValue - 默认值
-         * @returns {*} 解析后的值或默认值
-         */
-        function getElementValue(id, type = 'float', defaultValue = 0) {
-            if (window.CommonUtils && window.CommonUtils.getElementValue) {
-                return window.CommonUtils.getElementValue(id, type, defaultValue);
-            }
-            // 降级处理
-            const element = document.getElementById(id);
-            if (!element) return defaultValue;
-            const value = element.value.trim();
-            if (value === '') return defaultValue;
-            const parsedValue = type === 'int' ? parseInt(value) : parseFloat(value);
-            return isNaN(parsedValue) ? defaultValue : parsedValue;
-        }
-
-        /**
-         * 验证输入字段
-         * @param {string} inputId - 输入框ID
-         * @returns {boolean} 验证是否通过
-         */
-        function validateInput(inputId) {
-            const input = document.getElementById(inputId);
-            if (!input) return true;
-
-            const inputGroup = input.closest('.input-group');
-            if (!inputGroup) return true;
-
-            const value = parseFloat(input.value);
-
-            // 检查是否为有效数字且非负
-            if (input.value && (isNaN(value) || value < 0)) {
-                inputGroup.classList.add('error');
-                input.style.borderColor = '#f44336';
-                return false;
-            } else {
-                inputGroup.classList.remove('error');
-                input.style.borderColor = '';
-                return true;
-            }
-        }
-
-        // 复利计算
-        function calculateCompound() {
-            const principal = getElementValue('compoundPrincipal', 'float', 0);
-            const rate = getElementValue('compoundRate', 'float', 0);
-            const years = getElementValue('compoundYears', 'float', 0);
-            
-            // 验证输入
-            if (principal <= 0 || years <= 0) {
-                showToast('请输入有效的本金和投资年限', 'error');
-                return;
-            }
-            
-            // 计算最终金额，使用精确的指数计算
-            const annualRate = rate / 100;
-            const total = parseFloat((principal * Math.pow(1 + annualRate, years)).toFixed(2));
-            const interest = parseFloat((total - principal).toFixed(2));
-            
-            // 更新总体结果
-            document.getElementById('compoundResult').style.display = 'block';
-            document.getElementById('compoundPrincipalResult').textContent = formatMoney(principal) + '元';
-            document.getElementById('compoundInterestResult').textContent = formatMoney(interest) + '元';
-            document.getElementById('compoundTotalResult').textContent = formatMoney(total) + '元';
-            
-            // 生成年度明细
-            const tbody = document.getElementById('yearlyTable').querySelector('tbody');
-            tbody.innerHTML = '';
-            
-            let currentPrincipal = principal;
-            for (let year = 1; year <= years; year++) {
-                const yearStartAmount = currentPrincipal;
-                const yearlyInterest = parseFloat((yearStartAmount * annualRate).toFixed(2));
-                currentPrincipal = parseFloat((yearStartAmount + yearlyInterest).toFixed(2));
-                const cumulativeRate = parseFloat(((currentPrincipal / principal - 1) * 100).toFixed(2));
-                
-                const row = tbody.insertRow();
-                row.innerHTML = `
-                    <td>${year}</td>
-                    <td>${formatMoney(yearStartAmount)}元</td>
-                    <td>${formatMoney(yearlyInterest)}元</td>
-                    <td>${formatMoney(currentPrincipal)}元</td>
-                    <td>${cumulativeRate}%</td>
-                `;
-            }
-        }
-
-        // 贷款计算
-        function calculateLoan() {
-            const amount = getElementValue('loanAmount', 'float', 0);
-            const rate = getElementValue('loanRate', 'float', 0);
-            const years = getElementValue('loanYears', 'int', 0);
-
-            if (amount <= 0 || years <= 0 || rate < 0) {
-                showToast('请输入有效的贷款金额、年限和利率', 'error');
-                return;
-            }
-
-            const monthlyRate = rate === 0 ? 0 : Math.pow(1 + rate / 100, 1/12) - 1;
-            const totalMonths = years * 12;
-
-            let monthlyPayment = 0;
-            if (monthlyRate === 0) {
-                monthlyPayment = amount / totalMonths;
-            } else {
-                monthlyPayment = amount * monthlyRate * Math.pow(1 + monthlyRate, totalMonths)
-                    / (Math.pow(1 + monthlyRate, totalMonths) - 1);
-            }
-            const totalPayment = monthlyPayment * totalMonths;
-            const totalInterest = totalPayment - amount;
-
-            // 更新总体结果
-            document.getElementById('loanResult').style.display = 'block';
-            document.getElementById('monthlyPaymentResult').textContent = formatMoney(monthlyPayment) + '元';
-            document.getElementById('totalPaymentResult').textContent = formatMoney(totalPayment) + '元';
-            document.getElementById('totalInterestResult').textContent = formatMoney(totalInterest) + '元';
-
-            // 生成还款计划明细
-            const tbody = document.getElementById('loanTable').getElementsByTagName('tbody')[0];
-            tbody.innerHTML = '';
-            
-            let remainingPrincipal = amount;
-            for (let month = 1; month <= totalMonths; month++) {
-                const monthlyInterest = remainingPrincipal * monthlyRate;
-                const monthlyPrincipal = monthlyPayment - monthlyInterest;
-                remainingPrincipal -= monthlyPrincipal;
-
-                if (month % 12 === 1 || month === totalMonths) { // 只显示每年第一个月和最后一个月
-                    const row = tbody.insertRow();
-                    row.innerHTML = `
-                        <td>第${month}期</td>
-                        <td>${formatMoney(monthlyPayment)}元</td>
-                        <td>${formatMoney(monthlyPrincipal)}元</td>
-                        <td>${formatMoney(monthlyInterest)}元</td>
-                        <td>${formatMoney(Math.max(0, remainingPrincipal))}元</td>
-                    `;
-                }
-            }
-        }
-
-        // 定投收益计算
-        function calculateInvestment() {
-            const amount = getElementValue('investmentAmount', 'float', 0);
-            const period = document.getElementById('investmentPeriod').value;
-            const rate = getElementValue('investmentRate', 'float', 0);
-            const years = getElementValue('investmentYears', 'float', 0);
-
-            // 计算不同周期的参数
-            const periodsPerYear = {
-                'week': 52,
-                'month': 12,
-                'quarter': 4,
-                'year': 1
-            }[period];
-
-            const periodRate = rate / 100 / periodsPerYear;
-            const totalPeriods = years * periodsPerYear;
-            
-            // 生成所有投资期间的数据
-            let periodData = [];
-            let currentAmount = 0;
-            let totalInvestment = 0;
-            
-            for (let p = 1; p <= totalPeriods; p++) {
-                const periodStartAmount = currentAmount;
-                totalInvestment += amount;
-                
-                currentAmount = (currentAmount + amount) * (1 + periodRate);
-                const periodInterest = currentAmount - periodStartAmount - amount;
-                const totalReturn = ((currentAmount - totalInvestment) / totalInvestment * 100);
-                
-                periodData.push({
-                    period: p,
-                    startAmount: periodStartAmount,
-                    investment: amount,
-                    interest: periodInterest,
-                    endAmount: currentAmount,
-                    totalReturn: totalReturn
-                });
-            }
-
-            // 更新总体结果
-            document.getElementById('investmentResult').style.display = 'block';
-            document.getElementById('totalInvestmentResult').textContent = formatMoney(totalInvestment) + '元';
-            document.getElementById('investmentInterestResult').textContent = formatMoney(currentAmount - totalInvestment) + '元';
-            document.getElementById('investmentTotalResult').textContent = formatMoney(currentAmount) + '元';
-
-            // 保存数据用于切换视图
-            window.investmentData = {
-                periodData: periodData,
-                periodsPerYear: periodsPerYear,
-                period: period
-            };
-
-            // 默认显示年度视图
-            switchInvestmentView('year');
-        }
-
-        // 切换投资明细视图
-        function switchInvestmentView(viewType) {
-            if (!window.investmentData) return;
-
-            // 更新按钮状态
-            document.querySelectorAll('.period-button[data-view-type="investment"]').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.getAttribute('data-period') === viewType) {
-                    btn.classList.add('active');
-                }
-            });
-
-            const { periodData, periodsPerYear, period } = window.investmentData;
-            const tbody = document.getElementById('investmentTable').getElementsByTagName('tbody')[0];
-            tbody.innerHTML = '';
-
-            let displayData = [];
-            
-            if (viewType === 'year') {
-                // 按年汇总数据
-                for (let year = 0; year < periodData.length / periodsPerYear; year++) {
-                    const yearStart = year * periodsPerYear;
-                    const yearEnd = Math.min((year + 1) * periodsPerYear, periodData.length);
-                    const yearData = periodData.slice(yearStart, yearEnd);
-                    
-                    const startAmount = yearData[0].startAmount;
-                    const investment = yearData.reduce((sum, d) => sum + d.investment, 0);
-                    const interest = yearData.reduce((sum, d) => sum + d.interest, 0);
-                    const endAmount = yearData[yearData.length - 1].endAmount;
-                    const totalReturn = yearData[yearData.length - 1].totalReturn;
-
-                    displayData.push({
-                        label: `第${year + 1}年`,
-                        startAmount,
-                        investment,
-                        interest,
-                        endAmount,
-                        totalReturn
-                    });
-                }
-            } else if (viewType === 'quarter') {
-                // 按季度汇总数据
-                const periodsPerQuarter = periodsPerYear / 4;
-                for (let q = 0; q < periodData.length / periodsPerQuarter; q++) {
-                    const quarterStart = q * periodsPerQuarter;
-                    const quarterEnd = Math.min((q + 1) * periodsPerQuarter, periodData.length);
-                    const quarterData = periodData.slice(quarterStart, quarterEnd);
-                    
-                    const year = Math.floor(q / 4) + 1;
-                    const quarter = (q % 4) + 1;
-                    const startAmount = quarterData[0].startAmount;
-                    const investment = quarterData.reduce((sum, d) => sum + d.investment, 0);
-                    const interest = quarterData.reduce((sum, d) => sum + d.interest, 0);
-                    const endAmount = quarterData[quarterData.length - 1].endAmount;
-                    const totalReturn = quarterData[quarterData.length - 1].totalReturn;
-
-                    displayData.push({
-                        label: `第${year}年Q${quarter}`,
-                        startAmount,
-                        investment,
-                        interest,
-                        endAmount,
-                        totalReturn
-                    });
-                }
-            } else if (viewType === 'month') {
-                // 显示月度数据（仅当期数不太多时）
-                if (periodData.length <= 120) { // 最多显示10年的月度数据
-                    periodData.forEach((data, index) => {
-                        const year = Math.floor(index / 12) + 1;
-                        const month = (index % 12) + 1;
-                        displayData.push({
-                            label: `第${year}年${month}月`,
-                            startAmount: data.startAmount,
-                            investment: data.investment,
-                            interest: data.interest,
-                            endAmount: data.endAmount,
-                            totalReturn: data.totalReturn
-                        });
-                    });
-                } else {
-                    showToast('数据过多，请选择年度或季度视图', 'warning');
-                    return;
-                }
-            }
-
-            // 渲染数据
-            displayData.forEach(data => {
-                const row = tbody.insertRow();
-                row.innerHTML = `
-                    <td>${data.label}</td>
-                    <td>${formatMoney(data.startAmount)}元</td>
-                    <td>${formatMoney(data.investment)}元</td>
-                    <td>${formatMoney(data.interest)}元</td>
-                    <td>${formatMoney(data.endAmount)}元</td>
-                    <td>${data.totalReturn.toFixed(2)}%</td>
-                `;
-            });
-        }
-
-        // 修复目标规划计算功能
-        function calculateTarget() {
-            const target = getElementValue('targetAmount', 'float', 0);
-            const period = document.getElementById('targetPeriod').value;
-            const duration = getElementValue('targetDuration', 'float', 0);
-            const rate = getElementValue('targetRate', 'float', 0);
-            
-            // 验证输入
-            if (target <= 0 || duration <= 0) {
-                showToast('请输入有效的目标金额和时间', 'error');
-                return;
-            }
-
-            // 计算不同周期的参数
-            const periodsPerYear = {
-                'day': 365,
-                'week': 52,
-                'month': 12,
-                'quarter': 4,
-                'year': 1
-            }[period];
-
-            // 转换年化利率为相应周期的利率
-            const periodRate = Math.pow(1 + rate / 100, 1 / periodsPerYear) - 1;
-            const totalPeriods = Math.floor(duration);
-            
-            // 使用更准确的财务公式计算每期所需投入
-            // PMT = FV * r / ((1 + r)^n - 1)，其中FV是未来值，r是周期利率，n是周期数
-            let periodRequired = 0;
-            if (periodRate > 0) {
-                periodRequired = target * periodRate / (Math.pow(1 + periodRate, totalPeriods) - 1);
-            } else {
-                periodRequired = target / totalPeriods; // 如果利率为0，简单平均
-            }
-            
-            // 避免精度问题
-            periodRequired = parseFloat(periodRequired.toFixed(2));
-            const totalRequired = periodRequired * totalPeriods;
-            const totalInterest = target - totalRequired;
-
-            // 生成每期计划明细
-            let periodData = [];
-            let currentAmount = 0;
-            let totalInvestment = 0;
-            
-            for (let p = 1; p <= totalPeriods; p++) {
-                const periodStartAmount = currentAmount;
-                totalInvestment += periodRequired;
-                
-                const periodInterest = parseFloat((currentAmount * periodRate).toFixed(2));
-                currentAmount = parseFloat((currentAmount + periodRequired + periodInterest).toFixed(2));
-                
-                const progress = parseFloat((currentAmount / target * 100).toFixed(2));
-                const remainingToTarget = Math.max(0, parseFloat((target - currentAmount).toFixed(2)));
-                
-                periodData.push({
-                    period: p,
-                    startAmount: periodStartAmount,
-                    investment: periodRequired,
-                    interest: periodInterest,
-                    endAmount: currentAmount,
-                    progress: progress,
-                    remaining: remainingToTarget
-                });
-            }
-
-            // 更新总体结果
-            document.getElementById('targetResult').style.display = 'block';
-            document.getElementById('periodRequiredResult').textContent = `${formatMoney(periodRequired)}元/${period}`;
-            document.getElementById('totalRequiredResult').textContent = formatMoney(totalRequired) + '元';
-            document.getElementById('targetInterestResult').textContent = formatMoney(totalInterest) + '元';
-
-            // 保存数据用于切换视图
-            window.targetData = {
-                periodData: periodData,
-                periodsPerYear: periodsPerYear,
-                period: period,
-                target: target
-            };
-
-            // 默认显示年度视图
-            switchTargetView('year');
-        }
-
-        // 切换目标规划明细视图
-        function switchTargetView(viewType) {
-            if (!window.targetData) return;
-
-            // 更新按钮状态
-            document.querySelectorAll('.period-button[data-view-type="target"]').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.getAttribute('data-period') === viewType) {
-                    btn.classList.add('active');
-                }
-            });
-
-            const { periodData, periodsPerYear, period, target } = window.targetData;
-            const tbody = document.getElementById('targetTable').getElementsByTagName('tbody')[0];
-            tbody.innerHTML = '';
-
-            let displayData = [];
-            const periodsPerView = {
-                'year': periodsPerYear,
-                'quarter': periodsPerYear / 4,
-                'month': periodsPerYear / 12,
-                'week': periodsPerYear / 52
-            }[viewType];
-
-            // 根据视图类型聚合数据
-            if (periodData.length > periodsPerView) {
-                for (let i = 0; i < periodData.length / periodsPerView; i++) {
-                    const periodStart = i * periodsPerView;
-                    const periodEnd = Math.min((i + 1) * periodsPerView, periodData.length);
-                    const periodSlice = periodData.slice(periodStart, periodEnd);
-                    
-                    const startAmount = periodSlice[0].startAmount;
-                    const investment = periodSlice.reduce((sum, d) => sum + d.investment, 0);
-                    const interest = periodSlice.reduce((sum, d) => sum + d.interest, 0);
-                    const endAmount = periodSlice[periodSlice.length - 1].endAmount;
-                    const progress = (endAmount / target * 100);
-                    const remaining = Math.max(0, target - endAmount);
-
-                    let label = '';
-                    switch(viewType) {
-                        case 'year':
-                            label = `第${i + 1}年`;
-                            break;
-                        case 'quarter':
-                            label = `第${Math.floor(i/4) + 1}年Q${(i%4) + 1}`;
-                            break;
-                        case 'month':
-                            label = `第${Math.floor(i/12) + 1}年${(i%12) + 1}月`;
-                            break;
-                        case 'week':
-                            label = `第${Math.floor(i/52) + 1}年第${(i%52) + 1}周`;
-                            break;
-                    }
-
-                    displayData.push({
-                        label,
-                        startAmount,
-                        investment,
-                        interest,
-                        endAmount,
-                        progress,
-                        remaining
-                    });
-                }
-            } else {
-                // 如果周期数较少，直接显示原始数据
-                displayData = periodData.map((data, index) => ({
-                    label: `第${index + 1}${period}`,
-                    ...data
-                }));
-            }
-
-            // 渲染数据
-            displayData.forEach(data => {
-                const row = tbody.insertRow();
-                row.innerHTML = `
-                    <td>${data.label}</td>
-                    <td>${formatMoney(data.startAmount)}元</td>
-                    <td>${formatMoney(data.investment)}元</td>
-                    <td>${formatMoney(data.interest)}元</td>
-                    <td>${formatMoney(data.endAmount)}元</td>
-                    <td>${data.progress.toFixed(2)}%</td>
-                    <td>${formatMoney(data.remaining)}元</td>
-                `;
-            });
-        }
-
-        // 添加信用卡免息期计算
-        function calculateCreditCard() {
-            const amount = getElementValue('creditAmount', 'float', 0);
-            const periods = getElementValue('creditPeriods', 'int', 0);
-            const interestRate = getElementValue('creditRate', 'float', 0);
-            
-            // 验证输入
-            if (amount <= 0 || periods <= 0) {
-                showToast('请输入有效的消费金额和免息期数', 'error');
-                return;
-            }
-            
-            if (interestRate <= 0) {
-                showToast('请输入有效的年化收益率', 'error');
-                return;
-            }
-            
-            // 计算每期应还金额（等额分期）
-            const monthlyPayment = amount / periods;
-            
-            // 计算总收益
-            // 假设资金在免息期内持续产生收益
-            // 每期还款后，剩余本金减少，收益也相应减少
-            let totalInterest = 0;
-            let remainingPrincipal = amount;
-            const monthlyRate = interestRate / 100 / 12; // 月利率
-            const daysPerPeriod = 30; // 假设每期30天
-            
-            // 生成还款计划明细
-            const schedule = [];
-            let cumulativeInterest = 0;
-            
-            for (let i = 1; i <= periods; i++) {
-                const periodStartPrincipal = remainingPrincipal;
-                const periodPayment = monthlyPayment;
-                
-                // 计算当期收益（基于剩余本金和月利率）
-                // 假设资金在整个免息期内平均使用
-                const periodInterest = periodStartPrincipal * monthlyRate * (daysPerPeriod / 30);
-                cumulativeInterest += periodInterest;
-                
-                remainingPrincipal -= periodPayment;
-                
-                // 计算资金使用率（剩余本金/原始金额）
-                const usageRate = (periodStartPrincipal / amount * 100).toFixed(2);
-                
-                schedule.push({
-                    period: i,
-                    startPrincipal: periodStartPrincipal,
-                    payment: periodPayment,
-                    remainingPrincipal: Math.max(0, remainingPrincipal),
-                    periodInterest: periodInterest,
-                    cumulativeInterest: cumulativeInterest,
-                    usageRate: usageRate
-                });
-            }
-            
-            totalInterest = cumulativeInterest;
-            
-            // 计算有效年化收益率
-            // 总收益 / 原始金额 / (期数/12) * 100
-            const effectiveRate = (totalInterest / amount / (periods / 12) * 100).toFixed(2);
-            
-            // 更新总体结果
-            document.getElementById('creditResult').style.display = 'block';
-            document.getElementById('creditMonthlyPayment').textContent = formatMoney(monthlyPayment) + '元';
-            document.getElementById('creditTotalInterest').textContent = formatMoney(totalInterest) + '元';
-            document.getElementById('creditEffectiveRate').textContent = effectiveRate + '%';
-            
-            // 更新还款计划表格
-            const tbody = document.getElementById('creditTable').getElementsByTagName('tbody')[0];
-            tbody.innerHTML = '';
-            
-            schedule.forEach(item => {
-                const row = tbody.insertRow();
-                row.innerHTML = `
-                    <td>第${item.period}期</td>
-                    <td>${formatMoney(item.startPrincipal)}元</td>
-                    <td>${formatMoney(item.payment)}元</td>
-                    <td>${formatMoney(item.remainingPrincipal)}元</td>
-                    <td>${formatMoney(item.periodInterest)}元</td>
-                    <td>${formatMoney(item.cumulativeInterest)}元</td>
-                    <td>${item.usageRate}%</td>
-                `;
-            });
-        }
-
-        // 更新周期单位显示
-        function updatePeriodInput() {
-            const period = document.getElementById('targetPeriod').value;
-            const unitMap = {
-                'day': '天',
-                'week': '周',
-                'month': '月',
-                'quarter': '季度',
-                'year': '年'
-            };
-            document.getElementById('periodUnit').textContent = unitMap[period];
-        }
-
-        // 保存输入值到localStorage（使用统一的存储键名和函数）
-        function saveInputs() {
-            const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.FINANCE_CALCULATOR_INPUTS) || 'financeCalculator_inputs';
-            const inputs = document.querySelectorAll('input[type="number"]');
-            inputs.forEach(input => {
-                input.addEventListener('change', function() {
-                    const inputData = {};
-                    document.querySelectorAll('input[type="number"]').forEach(inp => {
-                        if (inp.value) {
-                            inputData[inp.id] = inp.value;
-                        }
-                    });
-                    if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
-                        window.CommonUtils.setLocalStorageItem(STORAGE_KEY, inputData);
-                    } else {
-                        localStorage.setItem(STORAGE_KEY, JSON.stringify(inputData));
-                    }
-                });
-            });
-        }
-
-        // 从localStorage加载输入值（使用统一的存储键名和函数）
-        function loadInputs() {
-            const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.FINANCE_CALCULATOR_INPUTS) || 'financeCalculator_inputs';
-            let savedData;
-            if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
-                savedData = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, {});
-            } else {
-                try {
-                    const saved = localStorage.getItem(STORAGE_KEY);
-                    savedData = saved ? JSON.parse(saved) : {};
-                } catch (e) {
-                    savedData = {};
-                }
-            }
-            const inputs = document.querySelectorAll('input[type="number"]');
-            inputs.forEach(input => {
-                if (savedData[input.id]) {
-                    input.value = savedData[input.id];
-                }
-            });
-        }
-
-        // 初始化事件监听器
-        document.addEventListener('DOMContentLoaded', function() {
-            // 计算器类型切换按钮
-            document.querySelectorAll('.type-button').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const type = this.getAttribute('data-calc-type');
-                    switchCalculator(type);
-                });
-            });
-
-            // 计算按钮
-            const calculateCompoundBtn = document.getElementById('calculate-compound-btn');
-            if (calculateCompoundBtn) {
-                calculateCompoundBtn.addEventListener('click', calculateCompound);
-            }
-
-            const calculateLoanBtn = document.getElementById('calculate-loan-btn');
-            if (calculateLoanBtn) {
-                calculateLoanBtn.addEventListener('click', calculateLoan);
-            }
-
-            const calculateInvestmentBtn = document.getElementById('calculate-investment-btn');
-            if (calculateInvestmentBtn) {
-                calculateInvestmentBtn.addEventListener('click', calculateInvestment);
-            }
-
-            const calculateTargetBtn = document.getElementById('calculate-target-btn');
-            if (calculateTargetBtn) {
-                calculateTargetBtn.addEventListener('click', calculateTarget);
-            }
-
-            const calculateCreditCardBtn = document.getElementById('calculate-credit-card-btn');
-            if (calculateCreditCardBtn) {
-                calculateCreditCardBtn.addEventListener('click', calculateCreditCard);
-            }
-
-            // 投资明细视图切换按钮
-            document.querySelectorAll('.period-button[data-view-type="investment"]').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const period = this.getAttribute('data-period');
-                    switchInvestmentView(period);
-                });
-            });
-
-            // 目标规划明细视图切换按钮
-            document.querySelectorAll('.period-button[data-view-type="target"]').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const period = this.getAttribute('data-period');
-                    switchTargetView(period);
-                });
-            });
-
-            // 目标规划周期选择器变化事件
-            const targetPeriodSelect = document.getElementById('targetPeriod');
-            if (targetPeriodSelect) {
-                targetPeriodSelect.addEventListener('change', updatePeriodInput);
-            }
-
-            // 页面加载时初始化
-            loadInputs();
-            saveInputs();
-
-            // 为所有数字输入框添加实时验证
-            document.querySelectorAll('input[type="number"]').forEach(input => {
-                input.addEventListener('input', function() {
-                    validateInput(this.id);
-                });
-            });
+        periodData.push({
+            startAmount: periodStartAmount,
+            investment: amount,
+            interest: periodInterest,
+            endAmount: currentAmount,
+            totalReturn
         });
+    }
 
-        // 添加表格横向滚动处理
-        function handleTableScroll() {
-            const tableWrappers = document.querySelectorAll('.table-wrapper');
-            tableWrappers.forEach(wrapper => {
-                const hint = wrapper.previousElementSibling;
-                if (wrapper.scrollWidth > wrapper.clientWidth) {
-                    hint.style.display = 'block';
-                } else {
-                    hint.style.display = 'none';
+    // 更新总体结果
+    document.getElementById('investmentResult').hidden = false;
+    document.getElementById('totalInvestmentResult').textContent = formatMoney(totalInvestment) + '元';
+    document.getElementById('investmentInterestResult').textContent =
+        formatMoney(currentAmount - totalInvestment) + '元';
+    document.getElementById('investmentTotalResult').textContent = formatMoney(currentAmount) + '元';
+
+    // 保存数据用于切换视图
+    investmentData = {periodData, periodsPerYear};
+
+    switchInvestmentView('year');
+}
+
+// 切换投资明细视图
+function switchInvestmentView(viewType) {
+    if (!investmentData) return;
+
+    const {periodData, periodsPerYear} = investmentData;
+    const selectedView = syncDetailButtons('investment', periodsPerYear, viewType, periodData.length);
+    if (!selectedView) return;
+
+    const tbody = document.getElementById('investmentTable').getElementsByTagName('tbody')[0];
+    tbody.innerHTML = '';
+    const groups = window.FinanceCalculations.groupPeriods(periodData, periodsPerYear, selectedView);
+    const viewsPerYear = window.FinanceCalculations.PERIODS_PER_YEAR[selectedView];
+    groups.forEach((rows, index) => {
+        let label = `第${index + 1}年`;
+        if (selectedView === 'quarter') {
+            label = `第${Math.floor(index / 4) + 1}年Q${(index % 4) + 1}`;
+        } else if (selectedView === 'month') {
+            label = `第${Math.floor(index / viewsPerYear) + 1}年${(index % viewsPerYear) + 1}月`;
+        } else if (selectedView === 'week') {
+            label = `第${Math.floor(index / viewsPerYear) + 1}年第${(index % viewsPerYear) + 1}周`;
+        }
+
+        const end = rows[rows.length - 1];
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${label}</td>
+            <td>${formatMoney(rows[0].startAmount)}元</td>
+            <td>${formatMoney(rows.reduce((sum, item) => sum + item.investment, 0))}元</td>
+            <td>${formatMoney(rows.reduce((sum, item) => sum + item.interest, 0))}元</td>
+            <td>${formatMoney(end.endAmount)}元</td>
+            <td>${end.totalReturn.toFixed(2)}%</td>
+        `;
+    });
+}
+
+// 目标规划计算
+function calculateTarget() {
+    document.getElementById('targetResult').hidden = true;
+    const target = getElementValue('targetAmount', 'float', NaN);
+    const period = document.getElementById('targetPeriod').value;
+    const duration = getElementValue('targetDuration', 'float', NaN);
+    const rate = getElementValue('targetRate', 'float', NaN);
+    const periodsPerYear = window.FinanceCalculations.PERIODS_PER_YEAR[period];
+    const plan = window.FinanceCalculations.calculateTargetPlan({
+        target,
+        annualPercent: rate,
+        duration,
+        periodsPerYear
+    });
+    if (!plan.valid) {
+        showNotification(plan.error, 'error');
+        return;
+    }
+
+    // 更新总体结果
+    document.getElementById('targetResult').hidden = false;
+    const periodUnit = {day: '天', week: '周', month: '月', quarter: '季度', year: '年'}[period];
+    document.getElementById('periodRequiredResult').textContent = `${formatMoney(plan.periodRequired)}元/${periodUnit}`;
+    document.getElementById('totalRequiredResult').textContent = formatMoney(plan.totalRequired) + '元';
+    document.getElementById('targetInterestResult').textContent = formatMoney(plan.totalInterest) + '元';
+
+    // 保存数据用于切换视图
+    targetData = {periodData: plan.periodData, periodsPerYear, target};
+
+    switchTargetView('year');
+}
+
+// 切换目标规划明细视图
+function switchTargetView(viewType) {
+    if (!targetData) return;
+
+    const {periodData, periodsPerYear, target} = targetData;
+    const selectedView = syncDetailButtons('target', periodsPerYear, viewType, periodData.length);
+    if (!selectedView) return;
+
+    const tbody = document.getElementById('targetTable').getElementsByTagName('tbody')[0];
+    tbody.innerHTML = '';
+    const groups = window.FinanceCalculations.groupPeriods(periodData, periodsPerYear, selectedView);
+    const viewsPerYear = window.FinanceCalculations.PERIODS_PER_YEAR[selectedView];
+    groups.forEach((rows, index) => {
+        let label = `第${index + 1}年`;
+        if (selectedView === 'quarter') {
+            label = `第${Math.floor(index / viewsPerYear) + 1}年Q${(index % viewsPerYear) + 1}`;
+        } else if (selectedView === 'month') {
+            label = `第${Math.floor(index / viewsPerYear) + 1}年${(index % viewsPerYear) + 1}月`;
+        } else if (selectedView === 'week') {
+            label = `第${Math.floor(index / viewsPerYear) + 1}年第${(index % viewsPerYear) + 1}周`;
+        } else if (selectedView === 'day') {
+            label = `第${index + 1}天`;
+        }
+
+        const endAmount = rows[rows.length - 1].endAmount;
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>${label}</td>
+            <td>${formatMoney(rows[0].startAmount)}元</td>
+            <td>${formatMoney(rows.reduce((sum, item) => sum + item.investment, 0))}元</td>
+            <td>${formatMoney(rows.reduce((sum, item) => sum + item.interest, 0))}元</td>
+            <td>${formatMoney(endAmount)}元</td>
+            <td>${(endAmount / target * 100).toFixed(2)}%</td>
+            <td>${formatMoney(Math.max(0, target - endAmount))}元</td>
+        `;
+    });
+}
+
+// 添加信用卡免息期计算
+function calculateCreditCard() {
+    document.getElementById('creditResult').hidden = true;
+    const amount = getElementValue('creditAmount', 'float', NaN);
+    const periods = getElementValue('creditPeriods', 'float', NaN);
+    const interestRate = getElementValue('creditRate', 'float', NaN);
+
+    // 验证输入
+    if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(periods) || periods <= 0 ||
+        periods > window.FinanceCalculations.MAX_INSTALLMENT_PERIODS) {
+        showNotification('请输入有效的消费金额和正整数免息期数', 'error');
+        return;
+    }
+
+    if (!Number.isFinite(interestRate) || interestRate < 0 || interestRate > 100) {
+        showNotification('年化收益率必须在 0% 到 100% 之间', 'error');
+        return;
+    }
+
+    // 计算每期应还金额（等额分期）
+    const monthlyPayment = amount / periods;
+
+    let remainingPrincipal = amount;
+    const monthlyRate = interestRate / 100 / 12;
+
+    // 生成还款计划明细
+    const schedule = [];
+    let cumulativeInterest = 0;
+
+    for (let i = 1; i <= periods; i++) {
+        const periodStartPrincipal = remainingPrincipal;
+        const periodInterest = periodStartPrincipal * monthlyRate;
+        cumulativeInterest += periodInterest;
+        remainingPrincipal -= monthlyPayment;
+
+        schedule.push({
+            startPrincipal: periodStartPrincipal,
+            remainingPrincipal: Math.max(0, remainingPrincipal),
+            periodInterest,
+            cumulativeInterest
+        });
+    }
+
+    if (!Number.isFinite(cumulativeInterest)) {
+        showNotification('当前参数产生的收益金额过大，请降低消费本金或收益率', 'error');
+        return;
+    }
+
+    // 计算有效年化收益率
+    // 总收益 / 原始金额 / (期数/12) * 100
+    const effectiveRate = (cumulativeInterest / amount / (periods / 12) * 100).toFixed(2);
+
+    // 更新总体结果
+    document.getElementById('creditResult').hidden = false;
+    document.getElementById('creditMonthlyPayment').textContent = formatMoney(monthlyPayment) + '元';
+    document.getElementById('creditTotalInterest').textContent = formatMoney(cumulativeInterest) + '元';
+    document.getElementById('creditEffectiveRate').textContent = effectiveRate + '%';
+
+    // 更新还款计划表格
+    const tbody = document.getElementById('creditTable').getElementsByTagName('tbody')[0];
+    tbody.innerHTML = '';
+
+    schedule.forEach((item, index) => {
+        const row = tbody.insertRow();
+        row.innerHTML = `
+            <td>第${index + 1}期</td>
+            <td>${formatMoney(item.startPrincipal)}元</td>
+            <td>${formatMoney(monthlyPayment)}元</td>
+            <td>${formatMoney(item.remainingPrincipal)}元</td>
+            <td>${formatMoney(item.periodInterest)}元</td>
+            <td>${formatMoney(item.cumulativeInterest)}元</td>
+            <td>${(item.startPrincipal / amount * 100).toFixed(2)}%</td>
+        `;
+    });
+}
+
+// 更新周期单位显示
+function updatePeriodInput() {
+    const period = document.getElementById('targetPeriod').value;
+    const unitMap = {day: '天', week: '周', month: '月', quarter: '季度', year: '年'};
+    document.getElementById('periodUnit').textContent = unitMap[period];
+}
+
+// 恢复输入并在变更时持久化。
+function initInputPersistence() {
+    const controls = document.querySelectorAll('input[type="number"], #investmentPeriod, #targetPeriod');
+    const saved = window.StorageService.getJson(STORAGE_KEY, {});
+    const savedData = saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+
+    controls.forEach(control => {
+        const value = savedData[control.id];
+        if (value === undefined || value === null || value === '') return;
+        if (control.tagName === 'SELECT' &&
+            !Array.from(control.options).some(option => option.value === String(value))) {
+            return;
+        }
+        control.value = String(value);
+    });
+
+    controls.forEach(control => {
+        control.addEventListener('change', function() {
+            const inputData = {};
+            controls.forEach(item => {
+                if (item.value) {
+                    inputData[item.id] = item.value;
                 }
             });
-        }
+            const result = window.StorageService.setJson(STORAGE_KEY, inputData);
+            if (!result.ok) {
+                showNotification('输入保存失败，刷新页面后可能无法恢复', 'error');
+            }
+        });
+    });
+    updatePeriodInput();
+}
 
-        // 节流函数（用于 resize 事件）
-        function throttle(func, limit = 100) {
-            let inThrottle;
-            return function(...args) {
-                if (!inThrottle) {
-                    func.apply(this, args);
-                    inThrottle = true;
-                    setTimeout(() => { inThrottle = false; }, limit);
-                }
-            };
-        }
+// 初始化事件监听器
+document.addEventListener('DOMContentLoaded', function() {
+    // 计算器类型切换按钮
+    document.querySelectorAll('.type-button').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const type = this.getAttribute('data-calc-type');
+            switchCalculator(type);
+        });
+    });
 
-        // 页面加载和窗口调整时检查表格是否需要滚动（resize 使用节流）
-        window.addEventListener('load', handleTableScroll);
-        window.addEventListener('resize', throttle(handleTableScroll, 100));
+    document.getElementById('calculate-compound-btn').addEventListener('click', calculateCompound);
+    document.getElementById('calculate-loan-btn').addEventListener('click', calculateLoan);
+    document.getElementById('calculate-investment-btn').addEventListener('click', calculateInvestment);
+    document.getElementById('calculate-target-btn').addEventListener('click', calculateTarget);
+    document.getElementById('calculate-credit-card-btn').addEventListener('click', calculateCreditCard);
+
+    // 投资明细视图切换按钮
+    document.querySelectorAll('.period-button[data-view-type="investment"]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const period = this.getAttribute('data-period');
+            switchInvestmentView(period);
+        });
+    });
+
+    // 目标规划明细视图切换按钮
+    document.querySelectorAll('.period-button[data-view-type="target"]').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const period = this.getAttribute('data-period');
+            switchTargetView(period);
+        });
+    });
+
+    // 目标规划周期选择器变化事件
+    document.getElementById('targetPeriod').addEventListener('change', updatePeriodInput);
+
+    // 页面加载时初始化
+    initInputPersistence();
+
+    // 为所有数字输入框添加实时验证
+    document.querySelectorAll('input[type="number"]').forEach(input => {
+        input.addEventListener('input', function() {
+            validateInput(this.id);
+        });
+    });
+});

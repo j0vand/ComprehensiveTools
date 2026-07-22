@@ -12,19 +12,10 @@
     
     --primary: var(--accent-neon);
     --primary-hover: #15803d;
-    --primary-dark: #0b8176;
-    --primary-color: var(--accent-neon);
-    --success-color: var(--accent-neon);
     --success: var(--accent-neon);
-    --danger-color: #e85d75;
-    --danger: #e85d75;
-    --warning-color: #f59e0b;
-    --warning: #f59e0b;
-    --bg: var(--bg-color);
     --light-bg: var(--bg-color);
     --text: var(--text-main);
     --text-muted: var(--text-sub);
-    --border: var(--border-color);
     --shadow-card: 0 10px 28px rgba(24, 78, 68, 0.08);
     --shadow-card-hover: 0 16px 38px rgba(24, 78, 68, 0.12);
     --radius: 16px;
@@ -72,17 +63,14 @@ body {
     z-index: 2000;
     background: #12332d;
     color: var(--training-text);
-    display: none; /* 默认隐藏，但允许JS覆盖 */
-    visibility: hidden; /* 完全隐藏，但允许JS覆盖 */
-}
-
-#mainView {
-    display: block; /* 默认显示 */
+    overflow-y: auto;
+    height: 100dvh !important;
 }
 
 .training-header {
     background: #174239;
     box-shadow: var(--shadow-card);
+    flex-shrink: 0;
 }
 
 #exerciseName {
@@ -95,6 +83,9 @@ body {
 .training-main {
     background: #12332d;
     color: var(--training-text);
+    min-height: 0;
+    overflow-y: auto;
+    justify-content: safe center;
 }
 
 #trainingView .text-muted {
@@ -160,7 +151,7 @@ body {
 #mainView header h1 {
     font-family: var(--font-heading);
     font-weight: 700;
-    letter-spacing: -0.02em;
+    letter-spacing: 0;
     color: var(--text-main);
     text-shadow: 0 0 10px rgba(255,255,255,0.1);
 }
@@ -217,10 +208,6 @@ body {
 
 /* 响应式优化 */
 @media (max-width: 576px) {
-    body {
-        padding-bottom: 75px;
-    }
-    
     .fixed-bottom-actions {
         padding: 10px 0;
     }
@@ -266,6 +253,9 @@ body {
 .exercise-description {
     background: #174239;
     min-height: 60px;
+    max-height: 25vh;
+    flex-shrink: 0;
+    overflow-y: auto;
     border-top: 1px solid rgba(184, 216, 207, 0.24);
 }
 
@@ -279,6 +269,7 @@ body {
 .training-controls {
     background: #174239;
     box-shadow: 0 -4px 20px rgba(0,0,0,0.28);
+    flex-shrink: 0;
 }
 
 .training-controls .btn-lg {
@@ -304,13 +295,6 @@ body {
     .progress-ring {
         width: 240px;
         height: 240px;
-    }
-    
-    .progress-ring-bg,
-    .progress-ring-circle {
-        cx: 120;
-        cy: 120;
-        r: 100;
     }
     
     .timer-number {
@@ -339,13 +323,6 @@ body {
     .progress-ring {
         width: 200px;
         height: 200px;
-    }
-    
-    .progress-ring-bg,
-    .progress-ring-circle {
-        cx: 100;
-        cy: 100;
-        r: 85;
     }
     
     .timer-number {
@@ -441,20 +418,6 @@ body {
     .modal .btn {
         min-height: 44px;
     }
-}
-
-/* 加载动画 */
-@keyframes pulse {
-    0%, 100% {
-        opacity: 1;
-    }
-    50% {
-        opacity: 0.5;
-    }
-}
-
-.pulse {
-    animation: pulse 2s ease-in-out infinite;
 }
 
 /* 减弱动效（可访问性） */

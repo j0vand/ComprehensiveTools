@@ -2,10 +2,12 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="format-detection" content="telephone=no">
     <meta name="theme-color" content="#1e88e5">
     <title>个人养老金计算器 - 科学规划退休生活</title>
+    <link rel="icon" href="../../static/logo.png" type="image/png">
+    <link rel="stylesheet" href="../../css/components.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -33,31 +35,40 @@
                                     <label class="radio-label">
                                         <input type="radio" name="gender" value="male" checked>
                                         <span class="radio-custom"></span>
-                                        <span>男 (65岁退休)</span>
+                                        <span>男（建议退休年龄63岁）</span>
                                     </label>
                                     <label class="radio-label">
                                         <input type="radio" name="gender" value="female_worker">
                                         <span class="radio-custom"></span>
-                                        <span>女职工 (60岁退休)</span>
+                                        <span>女职工（建议退休年龄58岁）</span>
                                     </label>
                                 </div>
+                                <small class="form-helper">性别只用于切换建议值，最终以您设置的退休年龄为准</small>
                             </div>
 
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="current-age">当前年龄</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="current-age" min="18" max="65" value="30">
+                                        <input type="number" id="current-age" min="18" max="62" step="1" value="30">
                                         <span class="unit">岁</span>
                                     </div>
                                 </div>
                                 <div class="form-group">
-                                    <label for="avg-salary">当地上年度月平均工资</label>
+                                    <label for="retire-age">退休年龄</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="avg-salary" min="0" value="8000">
-                                        <span class="unit">元</span>
+                                        <input type="number" id="retire-age" min="40" max="70" step="1" value="63">
+                                        <span class="unit">岁</span>
                                     </div>
                                 </div>
+                            </div>
+
+                            <div class="form-group">
+                                    <label for="avg-salary">当地上年度月平均工资</label>
+                                    <div class="input-wrapper">
+                                        <input type="number" id="avg-salary" min="0.01" step="0.01" value="8000">
+                                        <span class="unit">元</span>
+                                    </div>
                             </div>
                         </div>
                     </div>
@@ -71,14 +82,14 @@
                                 <div class="form-group">
                                     <label for="paid-years">已缴费年限</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="paid-years" min="0" max="40" value="5">
+                                        <input type="number" id="paid-years" min="0" max="60" step="0.5" value="5">
                                         <span class="unit">年</span>
                                     </div>
                                 </div>
                                 <div class="form-group">
                                     <label for="account-balance">个人账户当前余额</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="account-balance" min="0" value="20000">
+                                        <input type="number" id="account-balance" min="0" step="0.01" value="20000">
                                         <span class="unit">元</span>
                                     </div>
                                     <small class="form-helper">可查询社保账户获取准确数值</small>
@@ -88,7 +99,7 @@
                             <div class="form-group">
                                 <label for="salary-base">当前月缴费基数</label>
                                 <div class="input-wrapper">
-                                    <input type="number" id="salary-base" min="0" value="8000">
+                                    <input type="number" id="salary-base" min="0.01" step="0.01" value="8000">
                                     <span class="unit">元</span>
                                 </div>
                             </div>
@@ -97,16 +108,16 @@
                                 <div class="form-group">
                                     <label for="past-avg-index">过去平均缴费指数</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="past-avg-index" step="0.1" value="1.0">
+                                        <input type="number" id="past-avg-index" min="0" step="0.1" value="1.0">
                                     </div>
                                     <small class="form-helper">已缴费年限的平均缴费指数</small>
                                 </div>
                                 <div class="form-group">
                                     <label for="avg-index">未来平均缴费指数（选填）</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="avg-index" step="0.1" placeholder="留空则根据缴费基数计算">
+                                        <input type="number" id="avg-index" min="0.6" max="3" step="0.1" placeholder="留空则根据缴费基数计算">
                                     </div>
-                                    <small class="form-helper">留空则根据缴费基数变化方式自动计算</small>
+                                    <small class="form-helper">可填写0.6至3；留空则根据缴费基数变化方式自动计算</small>
                                 </div>
                             </div>
 
@@ -121,12 +132,12 @@
                                     <label class="radio-label">
                                         <input type="radio" name="base-change-mode" value="fixed">
                                         <span class="radio-custom"></span>
-                                        <span>固定基数（公司会调整到60%）</span>
+                                        <span>固定原始基数</span>
                                     </label>
                                 </div>
                                 <small class="form-helper">
-                                    <strong>跟着工资增长：</strong>缴费基数按工资增长率增长，但不能低于社平工资的60%。<br>
-                                    <strong>固定基数：</strong>缴费基数保持您填写的值不变，但当社平工资的60%超过当前基数时，公司会强制提高到社平工资的60%（满足最低缴费下限）。
+                                    <strong>跟着工资增长：</strong>首年使用当前基数，以后按工资增长率逐年增长。<br>
+                                    <strong>固定基数：</strong>原始基数保持填写值不变。两种方式都会限制在当年社平工资的60%至300%之间。
                                 </small>
                             </div>
 
@@ -157,10 +168,10 @@
                             <div class="form-group hidden" id="stop-age-group">
                                 <label for="stop-age">预计停止缴费年龄</label>
                                 <div class="input-wrapper">
-                                    <input type="number" id="stop-age" min="0" max="65" value="50">
+                                    <input type="number" id="stop-age" min="30" max="63" step="1" value="50">
                                     <span class="unit">岁</span>
                                 </div>
-                                <small class="form-helper">缴费满此年龄后停止，账户资金继续复利至退休</small>
+                                <small class="form-helper">缴费到该年龄前，填当前年龄表示现在停缴；账户资金继续复利至退休</small>
                             </div>
 
                             <!-- 高级参数设置（默认显示，不折叠） -->
@@ -197,8 +208,8 @@
                     </div>
 
                     <div class="button-group">
-                        <button id="calculate-btn" class="btn btn-primary">开始计算</button>
-                        <button id="reset-btn" class="btn btn-secondary">重置</button>
+                        <button id="calculate-btn" class="btn btn-primary" type="button">开始计算</button>
+                        <button id="reset-btn" class="btn btn-secondary" type="button">重置</button>
                     </div>
                 </section>
 
@@ -208,7 +219,7 @@
                         <div class="result-header">
                             <h3>预估退休待遇</h3>
                             <div class="retirement-info">
-                                <span>预计退休年龄: <strong id="res-retire-age">60</strong>岁</span>
+                                <span>设置退休年龄: <strong id="res-retire-age">63</strong>岁</span>
                                 <span>退休年份: <strong id="res-retire-year">2053</strong>年</span>
                             </div>
                         </div>
@@ -216,16 +227,18 @@
                         <div class="total-pension-card">
                             <div class="label">预估月领养老金</div>
                             <div class="value">
-                                <span class="currency">¥</span>
+                                <span class="currency pension-currency">¥</span>
                                 <span id="res-total-pension">0.00</span>
                             </div>
                             <div class="sub-text">
-                                相当于退休时社会平均工资的 <span id="res-replace-rate">0</span>%
+                                相当于退休时社会平均工资的 <span id="res-replace-rate">0</span><span class="pension-value-unit">%</span>
                             </div>
                             <div class="sub-text">
-                                按当前购买力约相当于 ¥ <span id="res-equivalent-now">0</span>/月
+                                按当前购买力约相当于 <span class="pension-currency">¥</span> <span id="res-equivalent-now">0</span><span class="pension-value-unit">/月</span>
                             </div>
                         </div>
+
+                        <div id="eligibility-message" class="eligibility-message hidden" role="status"></div>
 
                         <div class="pension-breakdown">
                             <div class="breakdown-item">
@@ -234,7 +247,7 @@
                                     <div class="item-label">基础养老金</div>
                                     <div class="item-desc">体现社会互济</div>
                                 </div>
-                                <div class="item-value">¥ <span id="res-basic-pension">0</span></div>
+                                <div class="item-value"><span class="pension-currency">¥</span> <span id="res-basic-pension">0</span></div>
                             </div>
                             <div class="breakdown-item">
                                 <div class="item-icon personal-icon">个</div>
@@ -242,7 +255,7 @@
                                     <div class="item-label">个人账户养老金</div>
                                     <div class="item-desc">累计余额 / <span id="res-months">139</span>个月</div>
                                 </div>
-                                <div class="item-value">¥ <span id="res-personal-pension">0</span></div>
+                                <div class="item-value"><span class="pension-currency">¥</span> <span id="res-personal-pension">0</span></div>
                             </div>
                         </div>
 
@@ -271,7 +284,8 @@
                                 <li>个人账户余额采用按年复利计算方式，符合社保实际记账方式</li>
                                 <li>假设每年的缴费在年末一次性计入账户，然后按年复利增长到退休</li>
                                 <li>工资和社平工资假设按固定比例增长，长期跨度下可能产生偏差</li>
-                                <li>退休年龄设置：男性65岁、女职工60岁（参考延迟退休政策方向）</li>
+                                <li>退休年龄以您在表单中的设置为准，性别选项仅用于提供建议值</li>
+                                <li>最低缴费年限按退休年份估算，最终领取资格以退休地届时政策和经办结果为准</li>
                             </ul>
                         </div>
                     </div>
@@ -282,6 +296,7 @@
     <script src="../../utils/storage-keys.js"></script>
     <script src="../../utils/common.js"></script>
     <script src="../../utils/storage-service.js"></script>
+    <script src="../../utils/dialog.js"></script>
     <script src="../../utils/form-import-export.js"></script>
     <script src="calculator-core.js"></script>
     <script src="calculator-storage.js"></script>

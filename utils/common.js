@@ -58,29 +58,6 @@ function formatMoney(num) {
 }
 
 /**
- * 格式化日期为本地字符串
- * @param {Date|string} date - 日期对象或日期字符串
- * @param {object} options - 格式化选项
- * @returns {string} 格式化后的日期字符串
- */
-function formatDate(date, options = {}) {
-    if (!date) return '';
-    
-    const dateObj = date instanceof Date ? date : new Date(date);
-    
-    if (isNaN(dateObj.getTime())) return '';
-    
-    const defaultOptions = {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
-    };
-    
-    const mergedOptions = { ...defaultOptions, ...options };
-    return new Intl.DateTimeFormat('zh-CN', mergedOptions).format(dateObj);
-}
-
-/**
  * 安全获取本地存储中的JSON数据
  * @param {string} key - 存储键名
  * @param {*} defaultValue - 默认值
@@ -128,115 +105,15 @@ function removeLocalStorageItem(key) {
     }
 }
 
-/**
- * 显示通知消息（简单的实现，可以后续扩展）
- * @param {string} message - 消息内容
- * @param {string} type - 消息类型：'success', 'error', 'warning', 'info'
- * @param {number} duration - 显示时长（毫秒），默认3000
- */
+/** 维持页面原有通知调用签名，实际展示统一交给对话框服务。 */
 function showNotification(message, type = 'info', duration = 3000) {
-    // 创建通知元素
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    notification.textContent = message;
-    
-    // 样式
-    Object.assign(notification.style, {
-        position: 'fixed',
-        top: '20px',
-        right: '20px',
-        padding: '12px 20px',
-        borderRadius: '4px',
-        backgroundColor: type === 'error' ? '#f44336' : type === 'success' ? '#4CAF50' : type === 'warning' ? '#ff9800' : '#2196F3',
-        color: 'white',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-        zIndex: '10000',
-        fontSize: '14px',
-        maxWidth: '300px',
-        wordWrap: 'break-word'
-    });
-    
-    document.body.appendChild(notification);
-    
-    // 自动移除
-    setTimeout(() => {
-        notification.style.opacity = '0';
-        notification.style.transition = 'opacity 0.3s';
-        setTimeout(() => {
-            if (notification.parentNode) {
-                notification.parentNode.removeChild(notification);
-            }
-        }, 300);
-    }, duration);
-}
-
-/**
- * 统一的错误处理函数
- * @param {Error|string} error - 错误对象或错误消息
- * @param {string} context - 错误上下文（用于日志）
- * @param {boolean} showToUser - 是否向用户显示错误
- */
-function handleError(error, context = '', showToUser = true) {
-    // 提取错误消息
-    const errorMessage = error instanceof Error ? error.message : String(error);
-
-    // 记录到控制台（用于调试）
-    console.error(`[${context}] 错误:`, error);
-
-    // 向用户显示友好的错误提示
-    if (showToUser) {
-        let userMessage = '操作失败，请稍后重试';
-
-        // 根据错误类型提供更友好的提示
-        if (errorMessage.includes('localStorage')) {
-            userMessage = '无法保存数据，请检查浏览器设置';
-        } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-            userMessage = '网络连接失败，请检查网络';
-        } else if (errorMessage.includes('parse') || errorMessage.includes('JSON')) {
-            userMessage = '数据格式错误，请重新输入';
-        } else if (errorMessage.includes('permission')) {
-            userMessage = '权限不足，请检查浏览器权限设置';
-        } else if (context) {
-            userMessage = `${context}失败: ${errorMessage}`;
-        }
-
-        showNotification(userMessage, 'error', 5000);
+    if (typeof window !== 'undefined'
+        && window.DialogService
+        && typeof window.DialogService.showToast === 'function') {
+        return window.DialogService.showToast(message, type, { duration });
     }
-
-    // 可选：发送错误日志到服务器（未实现）
-    // sendErrorLog(error, context);
-}
-
-/**
- * 安全执行函数，自动捕获并处理错误
- * @param {Function} fn - 要执行的函数
- * @param {string} context - 上下文描述
- * @param {*} defaultReturn - 发生错误时的默认返回值
- * @returns {*} 函数返回值或默认值
- */
-function safeExecute(fn, context = '', defaultReturn = null) {
-    try {
-        return fn();
-    } catch (error) {
-        handleError(error, context, true);
-        return defaultReturn;
-    }
-}
-
-/**
- * 安全执行异步函数
- * @param {Function} fn - 要执行的异步函数
- * @param {string} context - 上下文描述
- * @param {*} defaultReturn - 发生错误时的默认返回值
- * @returns {Promise<*>} Promise结果或默认值
- */
-async function safeExecuteAsync(fn, context = '', defaultReturn = null) {
-    try {
-        return await fn();
-    } catch (error) {
-        handleError(error, context, true);
-        return defaultReturn;
-    }
+    console.error(message);
+    return null;
 }
 
 /**
@@ -250,7 +127,7 @@ function enhanceNumberInputMode() {
     numberInputs.forEach(input => {
         if (input.getAttribute('inputmode')) return;
         const step = input.getAttribute('step');
-        const useDecimal = step && step !== '1' && step !== 'any';
+        const useDecimal = step === 'any' || (step && step !== '1');
         input.setAttribute('inputmode', useDecimal ? 'decimal' : 'numeric');
     });
 }
@@ -272,7 +149,7 @@ function enhanceLabelAssociations() {
         if (!control) return;
 
         if (!control.id) {
-            control.id = `auto-field-${index}-${Math.random().toString(36).slice(2, 8)}`;
+            control.id = `auto-field-${index}`;
         }
         label.setAttribute('for', control.id);
     });
@@ -318,14 +195,10 @@ if (typeof window !== 'undefined') {
         getRadioValue,
         setText,
         formatMoney,
-        formatDate,
         getLocalStorageItem,
         setLocalStorageItem,
         removeLocalStorageItem,
         showNotification,
-        handleError,
-        safeExecute,
-        safeExecuteAsync,
         enhanceNumberInputMode,
         enhanceLabelAssociations,
         injectGlobalFocusVisibleStyle

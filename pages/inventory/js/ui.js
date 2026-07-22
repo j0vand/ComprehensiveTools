@@ -344,7 +344,7 @@ class UIManager {
             if (filter === 'recent') {
                 const sevenDaysAgo = new Date();
                 sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-                this.filters.fromDate = sevenDaysAgo.toISOString().split('T')[0];
+                this.filters.fromDate = localCalendarDate(sevenDaysAgo);
                 this.filters.expiringSoon = false;
             } else if (filter === 'expiring') {
                 this.filters.expiringSoon = true;
@@ -383,7 +383,11 @@ class UIManager {
      */
     switchView(view, saveSettings = true) {
         if (view !== 'card' && view !== 'table') return;
-        
+
+        if (saveSettings && !InventoryData.updateSettings({ defaultView: view })) {
+            return;
+        }
+
         this.currentView = view;
         
         // 更新UI
@@ -402,11 +406,6 @@ class UIManager {
         
         if (this.elements.tableViewButton) {
             this.elements.tableViewButton.classList.toggle('active', view === 'table');
-        }
-        
-        // 保存设置
-        if (saveSettings) {
-            InventoryData.updateSettings({ defaultView: view });
         }
         
         // 重新渲染内容
@@ -451,13 +450,20 @@ class UIManager {
             
             const resultItem = document.createElement('div');
             resultItem.className = 'search-result-item';
-            resultItem.innerHTML = `
-                <div class="search-result-name">${Utils.escapeHtml(item.name)}</div>
-                <div class="search-result-details">
-                    <span>${Utils.escapeHtml(item.category) || '未分类'} · ${Utils.escapeHtml(item.spec) || ''}</span>
-                    <span class="status-badge status-${status}">${statusText} (${item.quantity})</span>
-                </div>
-            `;
+            const name = document.createElement('div');
+            name.className = 'search-result-name';
+            name.textContent = item.name;
+            const details = document.createElement('div');
+            details.className = 'search-result-details';
+            const description = document.createElement('span');
+            description.textContent = `${item.category || '未分类'} · ${item.spec || ''}`;
+            const statusBadge = document.createElement('span');
+            statusBadge.className = `status-badge status-${status}`;
+            statusBadge.textContent = `${statusText} (${item.quantity})`;
+            details.appendChild(description);
+            details.appendChild(statusBadge);
+            resultItem.appendChild(name);
+            resultItem.appendChild(details);
             
             // 点击搜索结果查看详情
             resultItem.addEventListener('click', () => {
@@ -475,9 +481,10 @@ class UIManager {
         if (results.length > 5) {
             const viewAllItem = document.createElement('div');
             viewAllItem.className = 'search-result-item';
-            viewAllItem.innerHTML = `
-                <div class="search-result-name text-center">查看全部 ${results.length} 个结果</div>
-            `;
+            const viewAllText = document.createElement('div');
+            viewAllText.className = 'search-result-name text-center';
+            viewAllText.textContent = `查看全部 ${results.length} 个结果`;
+            viewAllItem.appendChild(viewAllText);
             
             viewAllItem.addEventListener('click', () => {
                 this.elements.searchResults.style.display = 'none';
@@ -502,7 +509,7 @@ class UIManager {
         Utils.showNotification('正在刷新数据...', 'info');
         
         // 重新加载数据
-        InventoryData.loadAllData();
+        const loaded = InventoryData.loadAllData();
         
         // 重新渲染内容
         this.renderContent();
@@ -511,7 +518,10 @@ class UIManager {
         this.renderCategoryFilter();
         this.renderBrandFilter();
         
-        Utils.showNotification('数据已刷新', 'success');
+        if (loaded !== false) {
+            Utils.showNotification('数据已刷新', 'success');
+        }
+        return loaded !== false;
     }
     
     /**
@@ -552,7 +562,7 @@ class UIManager {
         const items = InventoryData.getAllItems();
         
         // 统计每个品牌的商品数量
-        const brandCounts = {};
+        const brandCounts = Object.create(null);
         items.forEach(item => {
             if (item.brand) {
                 brandCounts[item.brand] = (brandCounts[item.brand] || 0) + 1;
@@ -597,8 +607,12 @@ class UIManager {
             name: this.filters.name || undefined,
             storage: this.filters.storage || undefined,
             status: this.filters.status === 'all' ? undefined : this.filters.status,
+            minPrice: this.filters.minPrice,
+            maxPrice: this.filters.maxPrice,
             expiringSoon: this.filters.expiringSoon || undefined,
-            fromDate: this.filters.fromDate || undefined
+            expired: this.filters.expired || undefined,
+            fromDate: this.filters.fromDate || undefined,
+            toDate: this.filters.toDate || undefined
         };
         
         // 如果搜索框有内容，使用搜索；否则使用筛选
@@ -737,13 +751,14 @@ class UIManager {
         
         item.batches.forEach(batch => {
             if (batch.expiryDate) {
-                const expiryDate = new Date(batch.expiryDate);
+                const expiryDate = inventoryCalendarDateObject(batch.expiryDate);
+                if (!expiryDate) return;
                 const daysToExpiry = Utils.daysBetween(today, expiryDate);
                 
                 if (daysToExpiry >= 0 && daysToExpiry <= warningDays) {
                     expiring = true;
                     
-                    if (!nearestExpiryDate || expiryDate < new Date(nearestExpiryDate)) {
+                    if (!nearestExpiryDate || expiryDate < inventoryCalendarDateObject(nearestExpiryDate)) {
                         nearestExpiryDate = batch.expiryDate;
                     }
                 }
@@ -763,59 +778,33 @@ class UIManager {
         card.className = `inventory-card ${status} ${expiring ? 'expiring' : ''}`;
         card.dataset.id = item.id;
         
-        // 卡片内容
+        // 模板只包含固定结构，持久化字段在创建后通过 textContent 写入
         card.innerHTML = `
             <div class="card-header">
-                <h3 class="card-title">${Utils.escapeHtml(item.name)}</h3>
+                <h3 class="card-title"></h3>
                 <div class="card-status">
-                    <span class="status-badge status-${status}">${statusText}</span>
+                    <span class="status-badge"></span>
                 </div>
             </div>
-            
-            <div class="card-category">
-                <span class="icon">📂</span>${Utils.escapeHtml(item.category) || '未分类'}
-            </div>
-            
-            ${expiring ? `
-            <div class="card-expiry expiring">
-                <span class="icon">⚠️</span>将在 ${Utils.daysBetween(today, new Date(nearestExpiryDate))} 天后过期
-            </div>
-            ` : ''}
-            
-            <div class="card-specs">
-                ${item.spec ? `<div class="card-spec"><span class="icon">📏</span>${Utils.escapeHtml(item.spec)}</div>` : ''}
-                ${item.brand ? `<div class="card-spec"><span class="icon">🏷️</span>${Utils.escapeHtml(item.brand)}</div>` : ''}
-            </div>
-            
+            <div class="card-category"><span class="icon">📂</span><span class="card-category-text"></span></div>
+            <div class="card-specs"></div>
             <div class="card-info">
                 <div class="card-info-row">
                     <div class="card-info-label">数量:</div>
-                    <div class="card-info-value ${status === 'out-stock' ? 'error' : status === 'low-stock' ? 'warning' : ''}">${item.quantity}</div>
+                    <div class="card-info-value card-quantity"></div>
                 </div>
-                
                 <div class="card-quantity-bar">
-                    <div class="card-quantity-fill ${status}" style="width: ${percentFill}%"></div>
+                    <div class="card-quantity-fill"></div>
                 </div>
-                
                 <div class="card-info-row">
                     <div class="card-info-label">价格:</div>
-                    <div class="card-info-value highlight">${Utils.formatPrice(item.price)}</div>
+                    <div class="card-info-value highlight card-price-value"></div>
                 </div>
-                
                 <div class="card-info-row">
                     <div class="card-info-label">批次:</div>
-                    <div class="card-info-value">${item.batches.length}</div>
+                    <div class="card-info-value card-batch-count"></div>
                 </div>
-                
-                ${item.storage ? `
-                <div class="card-storage">
-                    <span class="icon">📍</span>${Utils.escapeHtml(item.storage)}
-                </div>
-                ` : ''}
-                
-                ${item.remark ? `<div class="card-note">${Utils.escapeHtml(item.remark)}</div>` : ''}
             </div>
-            
             <div class="card-actions">
                 <button class="card-action-button card-action-quick-decrease" data-action="quick-decrease" title="快速减少1">➖</button>
                 <button class="card-action-button card-action-add-to-list" data-action="add-to-list" title="添加到购物清单">🛒</button>
@@ -825,6 +814,56 @@ class UIManager {
                 <button class="card-action-button card-action-delete" data-action="delete" title="删除商品">🗑️</button>
             </div>
         `;
+
+        card.querySelector('.card-title').textContent = item.name;
+        const statusBadge = card.querySelector('.status-badge');
+        statusBadge.classList.add(`status-${status}`);
+        statusBadge.textContent = statusText;
+        card.querySelector('.card-category-text').textContent = item.category || '未分类';
+
+        if (expiring) {
+            const expiry = document.createElement('div');
+            expiry.className = 'card-expiry expiring';
+            expiry.textContent = `⚠️ 将在 ${Utils.daysBetween(today, inventoryCalendarDateObject(nearestExpiryDate))} 天后过期`;
+            card.querySelector('.card-specs').before(expiry);
+        }
+
+        const specs = card.querySelector('.card-specs');
+        [{ icon: '📏', value: item.spec }, { icon: '🏷️', value: item.brand }].forEach(entry => {
+            if (!entry.value) return;
+            const spec = document.createElement('div');
+            spec.className = 'card-spec';
+            const icon = document.createElement('span');
+            icon.className = 'icon';
+            icon.textContent = entry.icon;
+            spec.appendChild(icon);
+            spec.appendChild(document.createTextNode(entry.value));
+            specs.appendChild(spec);
+        });
+
+        const quantity = card.querySelector('.card-quantity');
+        if (status === 'out-stock') quantity.classList.add('error');
+        if (status === 'low-stock') quantity.classList.add('warning');
+        quantity.textContent = item.quantity;
+        const quantityFill = card.querySelector('.card-quantity-fill');
+        quantityFill.classList.add(status);
+        quantityFill.style.width = `${percentFill}%`;
+        card.querySelector('.card-price-value').textContent = Utils.formatPrice(item.price);
+        card.querySelector('.card-batch-count').textContent = item.batches.length;
+
+        const info = card.querySelector('.card-info');
+        if (item.storage) {
+            const storage = document.createElement('div');
+            storage.className = 'card-storage';
+            storage.textContent = `📍 ${item.storage}`;
+            info.appendChild(storage);
+        }
+        if (item.remark) {
+            const remark = document.createElement('div');
+            remark.className = 'card-note';
+            remark.textContent = item.remark;
+            info.appendChild(remark);
+        }
         
         // 添加事件处理
         const actionButtons = card.querySelectorAll('[data-action]');
@@ -836,26 +875,30 @@ class UIManager {
                 switch (action) {
                     case 'quick-decrease':
                         if (item.quantity > 0) {
-                            InventoryData.adjustQuantity(item.id, -1, null, '快速减少');
-                            this.renderContent();
-                            Utils.showNotification(`${item.name} 数量已减少1`, 'success');
+                            if (InventoryData.adjustQuantity(item.id, -1, null, '快速减少')) {
+                                this.renderContent();
+                                Utils.showNotification(`${item.name} 数量已减少1`, 'success');
+                            }
                         }
                         break;
                     case 'add-to-list':
                         const reason = item.quantity <= 0 ? '已用完' : '低库存';
-                        if (InventoryData.addToShoppingList(item.id, reason)) {
+                        const added = InventoryData.addToShoppingList(item.id, reason);
+                        if (added) {
                             Utils.showNotification(`${item.name} 已添加到购物清单`, 'success');
                             this.renderSummary();
-                        } else {
+                        } else if (added === null) {
                             Utils.showNotification(`${item.name} 已在购物清单中`, 'info');
                         }
                         break;
                     case 'mark-empty':
-                        if (confirm(`确定将 ${item.name} 标记为用完吗？`)) {
-                            InventoryData.adjustQuantity(item.id, -item.quantity, null, '标记为用完');
-                            this.renderContent();
-                            Utils.showNotification(`${item.name} 已标记为用完`, 'success');
-                        }
+                        window.DialogService.confirmAction(`确定将 ${item.name} 标记为用完吗？`).then(confirmed => {
+                            if (!confirmed) return;
+                            if (InventoryData.adjustQuantity(item.id, -item.quantity, null, '标记为用完')) {
+                                this.renderContent();
+                                Utils.showNotification(`${item.name} 已标记为用完`, 'success');
+                            }
+                        });
                         break;
                     case 'edit':
                         if (window.ModalsManager) window.ModalsManager.openEditItemModal(item.id);
@@ -918,7 +961,8 @@ class UIManager {
         
         item.batches.forEach(batch => {
             if (batch.expiryDate) {
-                const expiryDate = new Date(batch.expiryDate);
+                const expiryDate = inventoryCalendarDateObject(batch.expiryDate);
+                if (!expiryDate) return;
                 const daysToExpiry = Utils.daysBetween(today, expiryDate);
                 
                 if (daysToExpiry >= 0 && daysToExpiry <= warningDays) {
@@ -931,17 +975,16 @@ class UIManager {
         const row = document.createElement('tr');
         row.dataset.id = item.id;
         
-        // 表格行内容
+        // 行模板不包含持久化文本，所有字段通过 textContent 写入
         row.innerHTML = `
             <td>
-                <div class="table-item-name">${Utils.escapeHtml(item.name)}</div>
-                ${expiring ? '<div class="table-item-expiry text-warning"><span class="icon">⚠️</span>即将过期</div>' : ''}
+                <div class="table-item-name"></div>
             </td>
-            <td>${Utils.escapeHtml(item.category) || '未分类'}</td>
-            <td>${Utils.escapeHtml(item.spec) || '-'}</td>
-            <td class="${status === 'out-stock' ? 'text-error' : status === 'low-stock' ? 'text-warning' : ''}">${item.quantity}</td>
-            <td class="text-primary font-bold">${Utils.formatPrice(item.price)}</td>
-            <td><span class="status-badge status-${status}">${statusText}</span></td>
+            <td class="table-category"></td>
+            <td class="table-spec"></td>
+            <td class="table-quantity"></td>
+            <td class="text-primary font-bold table-price"></td>
+            <td><span class="status-badge"></span></td>
             <td>
                 <div class="action-column">
                     <button class="action-icon action-icon-edit" data-action="edit" title="编辑商品">✏️</button>
@@ -950,6 +993,24 @@ class UIManager {
                 </div>
             </td>
         `;
+
+        row.querySelector('.table-item-name').textContent = item.name;
+        if (expiring) {
+            const expiry = document.createElement('div');
+            expiry.className = 'table-item-expiry text-warning';
+            expiry.textContent = '⚠️ 即将过期';
+            row.cells[0].appendChild(expiry);
+        }
+        row.querySelector('.table-category').textContent = item.category || '未分类';
+        row.querySelector('.table-spec').textContent = item.spec || '-';
+        const quantity = row.querySelector('.table-quantity');
+        if (status === 'out-stock') quantity.classList.add('text-error');
+        if (status === 'low-stock') quantity.classList.add('text-warning');
+        quantity.textContent = item.quantity;
+        row.querySelector('.table-price').textContent = Utils.formatPrice(item.price);
+        const statusBadge = row.querySelector('.status-badge');
+        statusBadge.classList.add(`status-${status}`);
+        statusBadge.textContent = statusText;
         
         // 添加事件处理
         const actionButtons = row.querySelectorAll('[data-action]');

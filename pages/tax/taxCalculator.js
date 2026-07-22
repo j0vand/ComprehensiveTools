@@ -4,7 +4,6 @@
          * @namespace TaxCalculator
          * @property {Array} brackets - 综合所得税率表
          * @property {Array} bonusBrackets - 年终奖税率表
-         * @property {number} SOCIAL_RATE - 社保比例
          */
         const TaxCalculator = {
             // 2024年个人所得税税率表（综合所得 - 年度）
@@ -31,19 +30,93 @@
             ],
 
             // 五险一金比例配置（默认按成都：实际以当地政策为准）
-            // 医保：个人 2%（基数5000实缴100），单位 7.55% + 大额医疗补助 0.75%（基数5000单位共415）
+            // 医保：个人 2%，单位比例按页面输入的完整口径计算。
             MEDICAL_PERSONAL_RATE: 0.02,
-            MEDICAL_COMPANY_RATE: 0.0755,
-            MAJOR_MEDICAL_COMPANY_RATE: 0.0075, // 大额医疗费用补助，单位缴纳
-            // 养老保险：个人 8%，单位 16%
-            PENSION_PERSONAL_RATE: 0.08,
-            PENSION_COMPANY_RATE: 0.16,
-            // 失业保险：个人 0.4%，单位 0.6%
-            UNEMPLOYMENT_PERSONAL_RATE: 0.004,
-            UNEMPLOYMENT_COMPANY_RATE: 0.006,
-            // 其他社保合计（养老+失业，用于兼容）：个人 8.4%，单位 16.6%
+            MEDICAL_COMPANY_RATE: 0.083,
+            // 其他社保合计（养老+失业）：个人 8.4%
             OTHER_SOCIAL_PERSONAL_RATE: 0.084,
+            // 其他社保合计（养老+失业）：单位 16.6%
             OTHER_SOCIAL_COMPANY_RATE: 0.166,
+
+            /** 校验个税模型的金额、比例和月份边界，防止非法数值污染全年累计结果。 */
+            validateConfig: function(config) {
+                if (!config || typeof config !== 'object' || Array.isArray(config)) {
+                    return { valid: false, error: '计算参数无效' };
+                }
+                if (typeof config.isJobChange !== 'boolean') {
+                    return { valid: false, error: '换工作状态无效' };
+                }
+
+                const maxAmount = Number.MAX_SAFE_INTEGER / 24;
+                const amountFields = [
+                    ['baseSalary', '基础月薪', false],
+                    ['specialDeduction', '专项附加扣除', false],
+                    ['socialBase', '社保基数', false],
+                    ['fundBase', '公积金基数', true]
+                ];
+                if (config.isJobChange) {
+                    amountFields.push(
+                        ['newBaseSalary', '新月薪', true],
+                        ['newSocialBase', '新社保基数', true],
+                        ['newFundBase', '新公积金基数', true],
+                        ['newSpecialDeduction', '新专项扣除', true]
+                    );
+                }
+                for (const [field, label, optional] of amountFields) {
+                    const value = config[field];
+                    if (optional && (value === '' || value === null || value === undefined)) continue;
+                    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > maxAmount) {
+                        return { valid: false, error: label + '必须是有效的非负金额' };
+                    }
+                }
+
+                const rateFields = [
+                    ['fundRate', '公积金比例', false],
+                    ['medicalPersonalRate', '医保个人比例', true],
+                    ['medicalCompanyRate', '医保单位比例', true],
+                    ['otherSocialPersonalRate', '其他社保个人比例', true]
+                ];
+                if (config.isJobChange) {
+                    rateFields.push(
+                        ['newFundRate', '新公积金比例', true],
+                        ['newMedicalPersonalRate', '新医保个人比例', true],
+                        ['newMedicalCompanyRate', '新医保单位比例', true],
+                        ['newOtherSocialPersonalRate', '新其他社保个人比例', true]
+                    );
+                }
+                for (const [field, label, optional] of rateFields) {
+                    const value = config[field];
+                    if (optional && (value === '' || value === null || value === undefined)) continue;
+                    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100) {
+                        return { valid: false, error: label + '必须在 0% 到 100% 之间' };
+                    }
+                }
+
+                const bonusMonth = config.bonusTaxMonth === '' ? null : Number(config.bonusTaxMonth);
+                if (bonusMonth !== null && (!Number.isInteger(bonusMonth) || bonusMonth < 1 || bonusMonth > 12)) {
+                    return { valid: false, error: '年终奖计税月份无效' };
+                }
+                const jobChangeMonth = config.jobChangeMonth === '' ? null : Number(config.jobChangeMonth);
+                if (config.isJobChange
+                    && (jobChangeMonth === null || !Number.isInteger(jobChangeMonth)
+                        || jobChangeMonth < 2 || jobChangeMonth > 12)) {
+                    return { valid: false, error: '新入职月份必须在 2 月到 12 月之间' };
+                }
+                if (!config.bonuses || typeof config.bonuses !== 'object' || Array.isArray(config.bonuses)) {
+                    return { valid: false, error: '奖金数据无效' };
+                }
+                for (let month = 1; month <= 12; month += 1) {
+                    const bonus = config.bonuses[month] === '' || config.bonuses[month] == null
+                        ? 0
+                        : config.bonuses[month];
+                    if (typeof bonus !== 'number' || !Number.isFinite(bonus)
+                        || bonus < 0 || bonus > maxAmount) {
+                        return { valid: false, error: month + '月奖金必须是有效的非负金额' };
+                    }
+                }
+
+                return { valid: true };
+            },
 
             /**
              * 计算单月个税（基于累计预扣预缴法）
@@ -63,6 +136,12 @@
              * @returns {Array<Object>} 每月计税详情数组
              */
             calculate: function(config) {
+                const validation = this.validateConfig(config);
+                if (!validation.valid) {
+                    throw new RangeError(validation.error);
+                }
+                // 五险一金按分结算，后续计税和汇总共用同一金额口径。
+                const roundMoney = amount => Number(amount.toFixed(2));
                 const results = [];
                 let cumulativeIncome = 0; // 累计收入
                 let cumulativeDeduction = 0; // 累计减除费用
@@ -71,14 +150,18 @@
                 let cumulativeTaxPaid = 0; // 累计已缴纳税额
 
                 // 1. 五险一金参数 (初始为原公司)
-                let currentSocialBase = config.socialBase;
-                let currentFundBase = config.fundBase || config.baseSalary;
+                let currentSocialBase = roundMoney(config.socialBase);
+                let currentFundBase = config.fundBase != null && config.fundBase !== ''
+                    ? roundMoney(config.fundBase)
+                    : roundMoney(config.baseSalary);
                 let currentFundRate = config.fundRate;
                 let currentMedicalPersonalRate = (config.medicalPersonalRate != null && config.medicalPersonalRate !== '') ? (config.medicalPersonalRate / 100) : this.MEDICAL_PERSONAL_RATE;
                 let currentMedicalCompanyRate = (config.medicalCompanyRate != null && config.medicalCompanyRate !== '') ? (config.medicalCompanyRate / 100) : this.MEDICAL_COMPANY_RATE;
                 let currentOtherSocialPersonalRate = (config.otherSocialPersonalRate != null && config.otherSocialPersonalRate !== '') ? (config.otherSocialPersonalRate / 100) : this.OTHER_SOCIAL_PERSONAL_RATE;
-                let currentSpecialDeduction = config.specialDeduction;
-                let currentBaseSalary = config.baseSalary;
+                let currentSpecialDeduction = roundMoney(config.specialDeduction);
+                let currentBaseSalary = roundMoney(config.baseSalary);
+                const bonusTaxMonth = Number(config.bonusTaxMonth);
+                const jobChangeMonth = Number(config.jobChangeMonth);
 
                 // 2. 遍历12个月
                 let prevTaxableIncome = 0; // 上月累计应纳税所得额
@@ -86,7 +169,7 @@
                 for (let month = 1; month <= 12; month++) {
                     // 换工作逻辑：如果启用了换工作且当前月是换工作月份
                     // 则重置累计值，重新开始计算，并更新参数
-                    if (config.isJobChange && config.jobChangeMonth == month) {
+                    if (config.isJobChange && jobChangeMonth === month) {
                         cumulativeIncome = 0;
                         cumulativeDeduction = 0;
                         cumulativeSpecial = 0;
@@ -95,89 +178,76 @@
                         prevTaxableIncome = 0;
                         
                         // 更新为新公司参数 (如果未填写则沿用旧参数)
-                        if (config.newBaseSalary) currentBaseSalary = config.newBaseSalary;
-                        if (config.newSocialBase) currentSocialBase = config.newSocialBase;
-                        if (config.newFundBase) currentFundBase = config.newFundBase;
-                        if (config.newFundRate) currentFundRate = config.newFundRate;
-                        if (config.newSpecialDeduction) currentSpecialDeduction = config.newSpecialDeduction;
+                        if (config.newBaseSalary != null && config.newBaseSalary !== '') currentBaseSalary = roundMoney(config.newBaseSalary);
+                        if (config.newSocialBase != null && config.newSocialBase !== '') currentSocialBase = roundMoney(config.newSocialBase);
+                        if (config.newFundBase != null && config.newFundBase !== '') currentFundBase = roundMoney(config.newFundBase);
+                        if (config.newFundRate != null && config.newFundRate !== '') currentFundRate = config.newFundRate;
+                        if (config.newSpecialDeduction != null && config.newSpecialDeduction !== '') currentSpecialDeduction = roundMoney(config.newSpecialDeduction);
                         if (config.newMedicalPersonalRate != null && config.newMedicalPersonalRate !== '') currentMedicalPersonalRate = config.newMedicalPersonalRate / 100;
                         if (config.newMedicalCompanyRate != null && config.newMedicalCompanyRate !== '') currentMedicalCompanyRate = config.newMedicalCompanyRate / 100;
                         if (config.newOtherSocialPersonalRate != null && config.newOtherSocialPersonalRate !== '') currentOtherSocialPersonalRate = config.newOtherSocialPersonalRate / 100;
                     }
 
-                    // 医保基数与社保基数一致
-                    const medicalBase = currentSocialBase;
-                    const medicalPersonal = medicalBase * currentMedicalPersonalRate;
-                    const medicalCompany = medicalBase * currentMedicalCompanyRate + medicalBase * this.MAJOR_MEDICAL_COMPANY_RATE;
-                    const pensionPersonal = currentSocialBase * this.PENSION_PERSONAL_RATE;
-                    const pensionCompany = currentSocialBase * this.PENSION_COMPANY_RATE;
-                    const unemploymentPersonal = currentSocialBase * this.UNEMPLOYMENT_PERSONAL_RATE;
-                    const unemploymentCompany = currentSocialBase * this.UNEMPLOYMENT_COMPANY_RATE;
-                    const otherSocialPersonal = pensionPersonal + unemploymentPersonal;
-                    const otherSocialCompany = pensionCompany + unemploymentCompany;
-                    const fundPersonal = currentFundBase * (currentFundRate / 100);
+                    const medicalPersonal = roundMoney(currentSocialBase * currentMedicalPersonalRate);
+                    const medicalCompany = roundMoney(currentSocialBase * currentMedicalCompanyRate);
+                    const otherSocialPersonal = roundMoney(currentSocialBase * currentOtherSocialPersonalRate);
+                    const otherSocialCompany = roundMoney(currentSocialBase * this.OTHER_SOCIAL_COMPANY_RATE);
+                    const fundPersonal = roundMoney(currentFundBase * (currentFundRate / 100));
                     const fundCompany = fundPersonal; // 公积金单位与个人同比例
-                    const monthlyInsurance = medicalPersonal + pensionPersonal + unemploymentPersonal + fundPersonal;
+                    const monthlyInsurance = roundMoney(medicalPersonal + otherSocialPersonal + fundPersonal);
 
-                    const isBonusTaxMonth = config.bonusTaxMonth == month;
-                    
-                    let currentBonus = parseFloat(config.bonuses[month] || 0);
+                    const currentBonus = roundMoney(config.bonuses[month] || 0);
                     let bonusForComprehensive = currentBonus; // 并入综合所得
                     let bonusForSeparate = 0; // 单独计税
 
-                    if (isBonusTaxMonth && currentBonus > 0) {
+                    if (bonusTaxMonth === month && currentBonus > 0) {
                         bonusForSeparate = currentBonus;
                         bonusForComprehensive = 0;
                     }
 
-                    const monthIncome = currentBaseSalary + bonusForComprehensive;
+                    const monthIncome = roundMoney(currentBaseSalary + bonusForComprehensive);
                     
-                    cumulativeIncome += monthIncome;
+                    cumulativeIncome = roundMoney(cumulativeIncome + monthIncome);
                     cumulativeDeduction += 5000;
-                    cumulativeSpecial += monthlyInsurance;
-                    cumulativeAdditional += currentSpecialDeduction;
+                    cumulativeSpecial = roundMoney(cumulativeSpecial + monthlyInsurance);
+                    cumulativeAdditional = roundMoney(cumulativeAdditional + currentSpecialDeduction);
 
-                    const taxableIncome = Math.max(0, cumulativeIncome - cumulativeDeduction - cumulativeSpecial - cumulativeAdditional);
-
-                    // 计算跨档位详情
-                    const segmentDetails = this.getSegmentDetails(prevTaxableIncome, taxableIncome);
-                    
-                    // 更新上月累计值，供下月使用
-                    prevTaxableIncome = taxableIncome;
+                    const taxableIncome = roundMoney(Math.max(
+                        0,
+                        cumulativeIncome - cumulativeDeduction - cumulativeSpecial - cumulativeAdditional
+                    ));
 
                     const taxTotal = this.getTax(taxableIncome);
                     const currentTax = Math.max(0, taxTotal - cumulativeTaxPaid); 
                     
-                    // 修正浮点数精度问题
-                    const currentTaxFixed = Number(currentTax.toFixed(2));
-                    cumulativeTaxPaid += currentTaxFixed; // 使用修正后的当月税额累加
+                    const currentTaxFixed = roundMoney(currentTax);
+                    cumulativeTaxPaid = roundMoney(cumulativeTaxPaid + currentTaxFixed);
 
-                    const actualIncome = monthIncome - monthlyInsurance - currentTaxFixed;
+                    let segmentDetails = this.getSegmentDetails(prevTaxableIncome, taxableIncome);
+                    const segmentTax = segmentDetails.reduce((sum, segment) => sum + segment.tax, 0);
+                    // 所得额回落或前期分角舍入时，区间税额不等于实缴税额，不展示误导性的分档明细。
+                    if (Math.abs(segmentTax - currentTaxFixed) > 0.01) segmentDetails = [];
+                    prevTaxableIncome = taxableIncome;
+
+                    const actualIncome = roundMoney(monthIncome - monthlyInsurance - currentTaxFixed);
 
                     results.push({
                         month,
                         income: monthIncome,
                         insurance: monthlyInsurance,
-                        socialDetail: medicalPersonal + otherSocialPersonal, // 个人社保部分(用于兼容)
-                        fundDetail: fundPersonal,
                         medicalPersonal,
                         medicalCompany,
-                        pensionPersonal,
-                        pensionCompany,
-                        unemploymentPersonal,
-                        unemploymentCompany,
                         otherSocialPersonal,
                         otherSocialCompany,
                         fundPersonal,
                         fundCompany,
                         taxableIncome,
                         tax: currentTaxFixed,
-                        actual: Number(actualIncome.toFixed(2)),
+                        actual: actualIncome,
                         rate: this.getRate(taxableIncome),
-                        isBonusMonth: isBonusTaxMonth,
                         bonusSeparate: bonusForSeparate,
                         segments: segmentDetails,
-                        isJobChangeMonth: config.isJobChange && config.jobChangeMonth == month
+                        isJobChangeMonth: config.isJobChange && jobChangeMonth === month
                     });
                 }
                 return results;
@@ -202,7 +272,6 @@
                         const amount = overlapEnd - overlapStart;
                         segments.push({
                             rate: bracket.rate,
-                            amount: amount,
                             tax: amount * bracket.rate
                         });
                     }
@@ -214,80 +283,35 @@
                 return segments;
             },
 
-            // 计算年终奖的分段详情（用于显示各档位税额）
-            // 按照分段累进方式计算，展示各档位的税额分解
-            // 注意：虽然官方公式是总额×税率-速算扣除数，但这里按分段累进方式展示各档位税额
-            getBonusSegmentDetails: function(bonus) {
-                if (bonus <= 0) return [];
-                
-                const avg = bonus / 12; // 月均金额
-                const segments = [];
-                let currentLower = 0;
-                
-                // 按照月均金额的档位，将奖金总额分段计算
-                // 每个档位的年度上限 = 月均上限 × 12
-                for (const bracket of this.bonusBrackets) {
-                    // 当前档位的月均上限
-                    const monthlyUpper = bracket.limit;
-                    // 当前档位的年度上限（月均上限 × 12）
-                    const annualUpper = monthlyUpper * 12;
-                    
-                    // 计算当前档位应该计算的金额
-                    const segmentStart = Math.max(currentLower, 0);
-                    const segmentEnd = Math.min(annualUpper, bonus);
-                    
-                    if (segmentEnd > segmentStart) {
-                        const segmentAmount = segmentEnd - segmentStart;
-                        const segmentTax = segmentAmount * bracket.rate;
-                        
-                        segments.push({
-                            rate: bracket.rate,
-                            amount: segmentAmount,
-                            tax: segmentTax
-                        });
-                    }
-                    
-                    // 如果奖金总额已经在这个档位内，停止计算
-                    if (bonus <= annualUpper) break;
-                    
-                    currentLower = annualUpper;
-                }
-                
-                return segments;
-            },
-
             // 计算单独计税奖金的税额
             // 根据政策：将奖金除以12得到月均金额，查找对应税率和速算扣除数
             // 应纳税额 = 奖金总额 × 适用税率 - 速算扣除数
             calculateBonusTax: function(bonus) {
-                if (bonus <= 0) return { 
+                const numericBonus = Number(bonus);
+                if (!Number.isFinite(numericBonus) || numericBonus <= 0) return {
                     tax: 0, 
                     actual: 0, 
                     rate: 0, 
                     avgAmount: 0,
-                    bracket: null,
-                    segments: []
+                    bracket: null
                 };
                 
+                const amount = Number(numericBonus.toFixed(2));
                 // 将奖金除以12，得到月均金额
-                const avg = bonus / 12;
+                const avg = amount / 12;
                 
                 // 使用年终奖专用税率表（按月换算后的综合所得税率表）
                 const bracket = this.bonusBrackets.find(b => avg <= b.limit);
                 
                 // 计算公式：应纳税额 = 全年一次性奖金 × 适用税率 - 速算扣除数
-                const tax = bonus * bracket.rate - bracket.deduction;
-                
-                // 计算分段详情（用于显示各档位税额）
-                const segments = this.getBonusSegmentDetails(bonus);
+                const tax = Number(Math.max(0, amount * bracket.rate - bracket.deduction).toFixed(2));
                 
                 return {
-                    tax: Math.max(0, tax),
-                    actual: bonus - tax,
+                    tax,
+                    actual: Number((amount - tax).toFixed(2)),
                     rate: bracket.rate,
-                    avgAmount: avg, // 月均金额
-                    bracket: bracket, // 档位信息
-                    segments: segments // 分段详情
+                    avgAmount: avg,
+                    bracket
                 };
             },
 
@@ -304,6 +328,11 @@
             }
         };
 
+        /** 个税页面状态统一使用共享存储键，Node仅加载核心计算时使用同值兜底。 */
+        const TAX_STORAGE_KEY = typeof window !== 'undefined' && window.StorageKeys
+            ? window.StorageKeys.TAX_CALCULATOR_DATA
+            : 'tax_calculator_state';
+
         /**
          * 应用逻辑与UI控制
          */
@@ -314,9 +343,9 @@
                 socialBase: 5000,
                 fundBase: '',
                 fundRate: 5,
-                medicalPersonalRate: 2,
-                medicalCompanyRate: 7.55,
-                otherSocialPersonalRate: 8.4,
+                medicalPersonalRate: TaxCalculator.MEDICAL_PERSONAL_RATE * 100,
+                medicalCompanyRate: TaxCalculator.MEDICAL_COMPANY_RATE * 100,
+                otherSocialPersonalRate: TaxCalculator.OTHER_SOCIAL_PERSONAL_RATE * 100,
                 bonusTaxMonth: '',
                 bonuses: {},
                 jobChangeMonth: '',
@@ -332,7 +361,7 @@
             },
             
             isBonusVisible: false,
-            isJobChangeVisible: false, // 新增：控制换工作区域显示
+            isJobChangeVisible: false,
 
             init: function() {
                 this.loadState();
@@ -342,223 +371,110 @@
             },
 
             initEventListeners: function() {
-                // 帮助按钮
-                const helpBtn = document.getElementById('help-btn');
-                if (helpBtn) {
-                    helpBtn.addEventListener('click', () => this.showHelp());
-                }
-
-                // 关闭帮助按钮
-                const closeHelpBtn = document.getElementById('close-help-btn');
-                if (closeHelpBtn) {
-                    closeHelpBtn.addEventListener('click', () => this.hideHelp());
-                }
-
-                // 帮助弹窗背景点击关闭
                 const helpModal = document.getElementById('helpModal');
-                if (helpModal) {
-                    helpModal.addEventListener('click', (e) => {
-                        if (e.target === helpModal) {
-                            this.hideHelp();
-                        }
-                    });
-                }
-
-                // 切换奖金设置
-                const toggleBonusBtn = document.getElementById('toggleBonusBtn');
-                if (toggleBonusBtn) {
-                    toggleBonusBtn.addEventListener('click', () => this.toggleBonus());
-                }
-
-                // 切换换工作设置
-                const toggleJobChangeBtn = document.getElementById('toggleJobChangeBtn');
-                if (toggleJobChangeBtn) {
-                    toggleJobChangeBtn.addEventListener('click', () => this.toggleJobChange());
-                }
-
-                // 清空奖金按钮
-                const clearBonusesBtn = document.getElementById('clear-bonuses-btn');
-                if (clearBonusesBtn) {
-                    clearBonusesBtn.addEventListener('click', () => this.clearBonuses());
-                }
-
-                // 计算按钮
-                const calculateBtn = document.getElementById('calculate-tax-btn');
-                if (calculateBtn) {
-                    calculateBtn.addEventListener('click', () => this.calculate());
-                }
-
-                // 换工作月份选择器变化事件
-                const jobChangeMonthSelect = document.getElementById('jobChangeMonth');
-                if (jobChangeMonthSelect) {
-                    jobChangeMonthSelect.addEventListener('change', () => {
-                        this.toggleNewCompanyInputs();
-                        this.saveState();
-                    });
-                }
-
-                // 年终奖单独计税月份选择器变化事件
-                const bonusTaxMonthSelect = document.getElementById('bonusTaxMonth');
-                if (bonusTaxMonthSelect) {
-                    bonusTaxMonthSelect.addEventListener('change', () => this.saveState());
-                }
-
-                // 新公司相关输入框变化事件（添加验证）
-                const newCompanyInputs = ['newBaseSalary', 'newSocialBase', 'newFundBase', 'newFundRate', 'newSpecialDeduction', 'newMedicalPersonalRate', 'newMedicalCompanyRate', 'newOtherSocialPersonalRate'];
-                newCompanyInputs.forEach(id => {
-                    const input = document.getElementById(id);
-                    if (input) {
-                        input.addEventListener('input', () => {
-                            this.saveState();
-                            this.validateInput(id);
-                        });
-                    }
+                document.getElementById('help-btn').addEventListener('click', () => this.showHelp());
+                document.getElementById('close-help-btn').addEventListener('click', () => this.hideHelp());
+                helpModal.addEventListener('click', event => {
+                    if (event.target === helpModal) this.hideHelp();
+                });
+                document.addEventListener('keydown', event => {
+                    if (event.key === 'Escape' && helpModal.classList.contains('show')) this.hideHelp();
                 });
 
-                // 基础输入框变化事件（需要保存状态和验证）
-                const baseSalaryInput = document.getElementById('baseSalary');
-                if (baseSalaryInput) {
-                    baseSalaryInput.addEventListener('input', () => {
-                        this.saveState();
-                        this.validateInput('baseSalary');
-                    });
-                }
+                document.getElementById('toggleBonusBtn').addEventListener('click', () => this.toggleBonus());
+                document.getElementById('toggleJobChangeBtn').addEventListener('click', () => this.toggleJobChange());
+                document.getElementById('clear-bonuses-btn').addEventListener('click', () => this.clearBonuses());
+                document.getElementById('calculate-tax-btn').addEventListener('click', () => this.calculate());
+                document.getElementById('jobChangeMonth').addEventListener('change', () => this.toggleNewCompanyInputs());
+                document.getElementById('bonusTaxMonth').addEventListener('change', () => this.saveState());
 
-                const specialDeductionInput = document.getElementById('specialDeduction');
-                if (specialDeductionInput) {
-                    specialDeductionInput.addEventListener('input', () => {
+                [
+                    'baseSalary', 'specialDeduction', 'socialBase', 'fundBase', 'fundRate',
+                    'medicalPersonalRate', 'medicalCompanyRate', 'otherSocialPersonalRate',
+                    'newBaseSalary', 'newSocialBase', 'newFundBase', 'newFundRate',
+                    'newSpecialDeduction', 'newMedicalPersonalRate', 'newMedicalCompanyRate',
+                    'newOtherSocialPersonalRate'
+                ].forEach(id => {
+                    document.getElementById(id).addEventListener('input', () => {
                         this.saveState();
-                        this.validateInput('specialDeduction');
+                        this.validateInput(id);
                     });
-                }
-
-                // 其他基础输入框变化事件（添加验证）
-                const basicInputs = ['socialBase', 'fundBase', 'fundRate', 'medicalPersonalRate', 'medicalCompanyRate', 'otherSocialPersonalRate'];
-                basicInputs.forEach(id => {
-                    const input = document.getElementById(id);
-                    if (input) {
-                        input.addEventListener('input', () => {
-                            this.saveState();
-                            this.validateInput(id);
-                        });
-                    }
                 });
 
-                // 奖金输入框变化事件（动态生成，使用事件委托，添加验证）
-                const bonusInputsContainer = document.getElementById('bonusInputs');
-                if (bonusInputsContainer) {
-                    bonusInputsContainer.addEventListener('input', (e) => {
-                        if (e.target && e.target.id && e.target.id.startsWith('bonus_m')) {
-                            this.saveState();
-                            this.validateInput(e.target.id);
-                        }
-                    });
-                }
+                document.getElementById('bonusInputs').addEventListener('input', event => {
+                    if (!event.target.id.startsWith('bonus_m')) return;
+                    this.saveState();
+                    this.validateInput(event.target.id);
+                });
             },
 
             saveState: function() {
-                // 获取元素值的辅助函数（正确处理0值）
-                const getElementVal = (id, type = 'float', defaultValue = 0) => {
-                    if (window.CommonUtils && window.CommonUtils.getElementValue) {
-                        return window.CommonUtils.getElementValue(id, type, defaultValue);
-                    }
-                    // 降级处理
-                    const el = document.getElementById(id);
-                    if (!el) return defaultValue;
-
-                    const value = el.value.trim();
-                    if (value === '') return defaultValue;
-
-                    const parsedValue = type === 'int' ? parseInt(value) : parseFloat(value);
-                    return isNaN(parsedValue) ? defaultValue : parsedValue;
-                };
-
                 const getVal = (id) => {
-                    const el = document.getElementById(id);
-                    return el ? el.value : '';
+                    return document.getElementById(id).value;
+                };
+                const getOptionalNumber = (id) => {
+                    const value = getVal(id).trim();
+                    if (value === '') return '';
+                    return Number(value);
                 };
 
-                this.state.baseSalary = getElementVal('baseSalary', 'float', 0);
-                this.state.specialDeduction = getElementVal('specialDeduction', 'float', 0);
-                this.state.socialBase = getElementVal('socialBase', 'float', 0);
-                this.state.fundBase = getElementVal('fundBase', 'float', 0);
-                this.state.fundRate = getElementVal('fundRate', 'float', 0);
-                const mp = getVal('medicalPersonalRate');
-                this.state.medicalPersonalRate = mp === '' ? '' : (isNaN(parseFloat(mp)) ? 2 : parseFloat(mp));
-                const mc = getVal('medicalCompanyRate');
-                this.state.medicalCompanyRate = mc === '' ? '' : (isNaN(parseFloat(mc)) ? 7.55 : parseFloat(mc));
-                const os = getVal('otherSocialPersonalRate');
-                this.state.otherSocialPersonalRate = os === '' ? '' : (isNaN(parseFloat(os)) ? 8.4 : parseFloat(os));
+                this.state.baseSalary = getOptionalNumber('baseSalary');
+                this.state.specialDeduction = getOptionalNumber('specialDeduction');
+                this.state.socialBase = getOptionalNumber('socialBase');
+                this.state.fundBase = getOptionalNumber('fundBase');
+                this.state.fundRate = getOptionalNumber('fundRate');
+                this.state.medicalPersonalRate = getOptionalNumber('medicalPersonalRate');
+                this.state.medicalCompanyRate = getOptionalNumber('medicalCompanyRate');
+                this.state.otherSocialPersonalRate = getOptionalNumber('otherSocialPersonalRate');
                 this.state.bonusTaxMonth = getVal('bonusTaxMonth');
                 this.state.jobChangeMonth = getVal('jobChangeMonth');
 
                 // 保存新公司参数
-                this.state.newBaseSalary = getElementVal('newBaseSalary', 'float', 0);
-                this.state.newSocialBase = getElementVal('newSocialBase', 'float', 0);
-                this.state.newFundBase = getElementVal('newFundBase', 'float', 0);
-                this.state.newFundRate = getElementVal('newFundRate', 'float', 0);
-                this.state.newSpecialDeduction = getElementVal('newSpecialDeduction', 'float', 0);
-                const nmp = getVal('newMedicalPersonalRate');
-                this.state.newMedicalPersonalRate = nmp === '' ? '' : (isNaN(parseFloat(nmp)) ? '' : parseFloat(nmp));
-                const nmc = getVal('newMedicalCompanyRate');
-                this.state.newMedicalCompanyRate = nmc === '' ? '' : (isNaN(parseFloat(nmc)) ? '' : parseFloat(nmc));
-                const nos = getVal('newOtherSocialPersonalRate');
-                this.state.newOtherSocialPersonalRate = nos === '' ? '' : (isNaN(parseFloat(nos)) ? '' : parseFloat(nos));
+                this.state.newBaseSalary = getOptionalNumber('newBaseSalary');
+                this.state.newSocialBase = getOptionalNumber('newSocialBase');
+                this.state.newFundBase = getOptionalNumber('newFundBase');
+                this.state.newFundRate = getOptionalNumber('newFundRate');
+                this.state.newSpecialDeduction = getOptionalNumber('newSpecialDeduction');
+                this.state.newMedicalPersonalRate = getOptionalNumber('newMedicalPersonalRate');
+                this.state.newMedicalCompanyRate = getOptionalNumber('newMedicalCompanyRate');
+                this.state.newOtherSocialPersonalRate = getOptionalNumber('newOtherSocialPersonalRate');
 
-                for(let i=1; i<=12; i++) {
-                    this.state.bonuses[i] = getElementVal(`bonus_m${i}`, 'float', 0);
+                for (let i = 1; i <= 12; i += 1) {
+                    this.state.bonuses[i] = getOptionalNumber(`bonus_m${i}`);
                 }
 
-                // 使用统一的存储键名和函数
-                const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.TAX_CALCULATOR_DATA) || 'tax_calculator_state';
-                if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
-                    window.CommonUtils.setLocalStorageItem(STORAGE_KEY, this.state);
-                } else {
-                    localStorage.setItem(STORAGE_KEY, JSON.stringify(this.state));
-                }
+                window.CommonUtils.setLocalStorageItem(TAX_STORAGE_KEY, this.state);
             },
 
             loadState: function() {
-                // 使用统一的存储键名和函数
-                const STORAGE_KEY = (window.StorageKeys && window.StorageKeys.TAX_CALCULATOR_DATA) || 'tax_calculator_state';
-                let parsed = null;
+                const parsed = window.CommonUtils.getLocalStorageItem(TAX_STORAGE_KEY, null);
                 
-                if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
-                    // 公共工具库已经返回解析后的对象，直接使用
-                    parsed = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, null);
-                } else {
-                    // 降级处理：使用原生 localStorage
-                    const saved = localStorage.getItem(STORAGE_KEY);
-                    if (saved) {
-                        try {
-                            parsed = JSON.parse(saved);
-                        } catch (e) {
-                            console.error('Failed to parse saved state', e);
-                        }
-                    }
-                }
-                
-                if (parsed) {
+                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
                     this.state = { ...this.state, ...parsed };
+                    if (!this.state.bonuses || typeof this.state.bonuses !== 'object'
+                        || Array.isArray(this.state.bonuses)) {
+                        this.state.bonuses = {};
+                    }
                 }
             },
 
             restoreUI: function() {
                 const setVal = (id, val) => {
-                    const el = document.getElementById(id);
-                    if(el) el.value = val;
+                    document.getElementById(id).value = val == null || typeof val === 'object' ? '' : val;
                 };
 
-                setVal('baseSalary', this.state.baseSalary || '');
+                setVal('baseSalary', this.state.baseSalary);
                 setVal('specialDeduction', this.state.specialDeduction);
                 setVal('socialBase', this.state.socialBase);
                 setVal('fundBase', this.state.fundBase);
                 setVal('fundRate', this.state.fundRate);
-                setVal('medicalPersonalRate', this.state.medicalPersonalRate !== undefined && this.state.medicalPersonalRate !== '' ? this.state.medicalPersonalRate : '');
-                setVal('medicalCompanyRate', this.state.medicalCompanyRate !== undefined && this.state.medicalCompanyRate !== '' ? this.state.medicalCompanyRate : '');
-                setVal('otherSocialPersonalRate', this.state.otherSocialPersonalRate !== undefined && this.state.otherSocialPersonalRate !== '' ? this.state.otherSocialPersonalRate : '');
+                setVal('medicalPersonalRate', this.state.medicalPersonalRate);
+                setVal('medicalCompanyRate', this.state.medicalCompanyRate);
+                setVal('otherSocialPersonalRate', this.state.otherSocialPersonalRate);
                 setVal('bonusTaxMonth', this.state.bonusTaxMonth);
-                setVal('jobChangeMonth', this.state.jobChangeMonth); 
+                setVal('jobChangeMonth', this.state.jobChangeMonth);
+                this.state.bonusTaxMonth = document.getElementById('bonusTaxMonth').value;
+                this.state.jobChangeMonth = document.getElementById('jobChangeMonth').value;
                 
                 // 恢复新公司参数
                 setVal('newBaseSalary', this.state.newBaseSalary);
@@ -566,14 +482,13 @@
                 setVal('newFundBase', this.state.newFundBase);
                 setVal('newFundRate', this.state.newFundRate);
                 setVal('newSpecialDeduction', this.state.newSpecialDeduction);
-                setVal('newMedicalPersonalRate', this.state.newMedicalPersonalRate !== undefined && this.state.newMedicalPersonalRate !== '' ? this.state.newMedicalPersonalRate : '');
-                setVal('newMedicalCompanyRate', this.state.newMedicalCompanyRate !== undefined && this.state.newMedicalCompanyRate !== '' ? this.state.newMedicalCompanyRate : '');
-                setVal('newOtherSocialPersonalRate', this.state.newOtherSocialPersonalRate !== undefined && this.state.newOtherSocialPersonalRate !== '' ? this.state.newOtherSocialPersonalRate : '');
+                setVal('newMedicalPersonalRate', this.state.newMedicalPersonalRate);
+                setVal('newMedicalCompanyRate', this.state.newMedicalCompanyRate);
+                setVal('newOtherSocialPersonalRate', this.state.newOtherSocialPersonalRate);
                 
-                for(let i=1; i<=12; i++) {
-                    if(this.state.bonuses[i]) {
-                        setVal(`bonus_m${i}`, this.state.bonuses[i]);
-                    }
+                for (let i = 1; i <= 12; i += 1) {
+                    const bonus = this.state.bonuses[i];
+                    setVal(`bonus_m${i}`, typeof bonus === 'number' && Number.isFinite(bonus) && bonus !== 0 ? bonus : '');
                 }
 
                 const hasBonus = Object.values(this.state.bonuses).some(v => v > 0);
@@ -585,7 +500,7 @@
                 if (this.state.jobChangeMonth) {
                     this.isJobChangeVisible = true;
                     this.updateJobChangeUI();
-                    this.toggleNewCompanyInputs(); // 确保新公司输入框显示状态正确
+                    document.getElementById('newCompanyInputs').style.display = 'block';
                 }
             },
 
@@ -596,7 +511,7 @@
                     html += `
                         <div class="bonus-item">
                             <label>${i}月</label>
-                            <input type="number" id="bonus_m${i}" class="input-field" placeholder="0">
+                            <input type="number" id="bonus_m${i}" class="input-field" placeholder="0" min="0" step="0.01">
                         </div>
                     `;
                 }
@@ -618,15 +533,9 @@
                 const btnText = document.getElementById('bonusBtnText');
                 const arrow = document.getElementById('bonusArrow');
 
-                if (this.isBonusVisible) {
-                    section.classList.add('show');
-                    btnText.textContent = '收起奖金设置';
-                    arrow.style.transform = 'rotate(180deg)';
-                } else {
-                    section.classList.remove('show');
-                    btnText.textContent = '展开奖金设置';
-                    arrow.style.transform = 'rotate(0deg)';
-                }
+                section.classList.toggle('show', this.isBonusVisible);
+                btnText.textContent = this.isBonusVisible ? '收起奖金设置' : '展开奖金设置';
+                arrow.style.transform = this.isBonusVisible ? 'rotate(180deg)' : 'rotate(0deg)';
             },
 
             updateJobChangeUI: function() {
@@ -634,15 +543,9 @@
                 const btnText = document.getElementById('jobChangeBtnText');
                 const arrow = document.getElementById('jobChangeArrow');
 
-                if (this.isJobChangeVisible) {
-                    section.classList.add('show');
-                    btnText.textContent = '收起换工作设置';
-                    arrow.style.transform = 'rotate(180deg)';
-                } else {
-                    section.classList.remove('show');
-                    btnText.textContent = '年度中间换工作?';
-                    arrow.style.transform = 'rotate(0deg)';
-                }
+                section.classList.toggle('show', this.isJobChangeVisible);
+                btnText.textContent = this.isJobChangeVisible ? '收起换工作设置' : '年度中间换工作?';
+                arrow.style.transform = this.isJobChangeVisible ? 'rotate(180deg)' : 'rotate(0deg)';
             },
 
             toggleNewCompanyInputs: function() {
@@ -652,93 +555,81 @@
                 
                 if (month) {
                     inputs.style.display = 'block';
-                    // 自动滚动到底部
-                    setTimeout(() => {
-                       inputs.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }, 100);
+                    inputs.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                 } else {
                     inputs.style.display = 'none';
                 }
             },
 
             clearBonuses: function() {
-                for(let i=1; i<=12; i++) {
-                    const el = document.getElementById(`bonus_m${i}`);
-                    if(el) el.value = '';
-                    this.state.bonuses[i] = 0;
+                for (let i = 1; i <= 12; i += 1) {
+                    document.getElementById(`bonus_m${i}`).value = '';
                 }
-                const elMonth = document.getElementById('bonusTaxMonth');
-                if(elMonth) elMonth.value = '';
-                this.state.bonusTaxMonth = '';
+                document.getElementById('bonusTaxMonth').value = '';
                 this.saveState();
             },
 
             calculate: function() {
-                if (!this.state.baseSalary && this.state.baseSalary !== 0) {
-                    this.showToast('请输入基础月薪', 'error');
-                    document.getElementById('baseSalary').focus();
-                    return;
-                }
+                this.saveState();
+                document.getElementById('resultSection').classList.remove('show');
 
+                const optionalNumber = (value) => value === '' || value == null ? undefined : Number(value);
                 const config = {
-                    baseSalary: Number(this.state.baseSalary),
-                    specialDeduction: Number(this.state.specialDeduction),
-                    socialBase: Number(this.state.socialBase),
-                    fundBase: Number(this.state.fundBase) || Number(this.state.baseSalary),
-                    fundRate: Number(this.state.fundRate),
-                    medicalPersonalRate: (this.state.medicalPersonalRate !== '' && this.state.medicalPersonalRate != null) ? Number(this.state.medicalPersonalRate) : undefined,
-                    medicalCompanyRate: (this.state.medicalCompanyRate !== '' && this.state.medicalCompanyRate != null) ? Number(this.state.medicalCompanyRate) : undefined,
-                    otherSocialPersonalRate: (this.state.otherSocialPersonalRate !== '' && this.state.otherSocialPersonalRate != null) ? Number(this.state.otherSocialPersonalRate) : undefined,
+                    baseSalary: optionalNumber(this.state.baseSalary) ?? NaN,
+                    specialDeduction: optionalNumber(this.state.specialDeduction) ?? 0,
+                    socialBase: optionalNumber(this.state.socialBase) ?? NaN,
+                    fundBase: optionalNumber(this.state.fundBase),
+                    fundRate: optionalNumber(this.state.fundRate) ?? NaN,
+                    medicalPersonalRate: optionalNumber(this.state.medicalPersonalRate),
+                    medicalCompanyRate: optionalNumber(this.state.medicalCompanyRate),
+                    otherSocialPersonalRate: optionalNumber(this.state.otherSocialPersonalRate),
                     bonusTaxMonth: this.state.bonusTaxMonth,
                     bonuses: this.state.bonuses,
                     isJobChange: !!this.state.jobChangeMonth,
                     jobChangeMonth: this.state.jobChangeMonth,
                     // 新公司配置
-                    newBaseSalary: Number(this.state.newBaseSalary),
-                    newSocialBase: Number(this.state.newSocialBase),
-                    newFundBase: Number(this.state.newFundBase),
-                    newFundRate: Number(this.state.newFundRate),
-                    newSpecialDeduction: Number(this.state.newSpecialDeduction),
-                    newMedicalPersonalRate: (this.state.newMedicalPersonalRate !== '' && this.state.newMedicalPersonalRate != null) ? Number(this.state.newMedicalPersonalRate) : undefined,
-                    newMedicalCompanyRate: (this.state.newMedicalCompanyRate !== '' && this.state.newMedicalCompanyRate != null) ? Number(this.state.newMedicalCompanyRate) : undefined,
-                    newOtherSocialPersonalRate: (this.state.newOtherSocialPersonalRate !== '' && this.state.newOtherSocialPersonalRate != null) ? Number(this.state.newOtherSocialPersonalRate) : undefined
+                    newBaseSalary: optionalNumber(this.state.newBaseSalary),
+                    newSocialBase: optionalNumber(this.state.newSocialBase),
+                    newFundBase: optionalNumber(this.state.newFundBase),
+                    newFundRate: optionalNumber(this.state.newFundRate),
+                    newSpecialDeduction: optionalNumber(this.state.newSpecialDeduction),
+                    newMedicalPersonalRate: optionalNumber(this.state.newMedicalPersonalRate),
+                    newMedicalCompanyRate: optionalNumber(this.state.newMedicalCompanyRate),
+                    newOtherSocialPersonalRate: optionalNumber(this.state.newOtherSocialPersonalRate)
                 };
 
-                const monthlyResults = TaxCalculator.calculate(config);
+                let monthlyResults;
+                try {
+                    monthlyResults = TaxCalculator.calculate(config);
+                } catch (error) {
+                    window.CommonUtils.showNotification(error.message || '计算失败，请检查输入', 'error');
+                    return;
+                }
                 
                 let totalIncome = 0;
                 let totalTax = 0;
                 let totalActual = 0;
-                let totalInsurance = 0;
-                let totalSocial = 0;
-                let totalFund = 0;
                 let totalMedicalPersonal = 0, totalMedicalCompany = 0;
-                let totalPensionPersonal = 0, totalPensionCompany = 0;
                 let totalFundPersonal = 0, totalFundCompany = 0;
                 let totalOtherSocialPersonal = 0, totalOtherSocialCompany = 0;
 
                 let tableHtml = '';
 
                 monthlyResults.forEach(res => {
-                    totalIncome += Number(res.income.toFixed(2));
-                    totalTax += Number(res.tax.toFixed(2));
-                    totalActual += Number(res.actual.toFixed(2));
-                    totalInsurance += Number(res.insurance.toFixed(2));
-                    totalSocial += Number(res.socialDetail.toFixed(2));
-                    totalFund += Number(res.fundDetail.toFixed(2));
-                    totalMedicalPersonal += Number((res.medicalPersonal || 0).toFixed(2));
-                    totalMedicalCompany += Number((res.medicalCompany || 0).toFixed(2));
-                    totalPensionPersonal += Number((res.pensionPersonal || 0).toFixed(2));
-                    totalPensionCompany += Number((res.pensionCompany || 0).toFixed(2));
-                    totalFundPersonal += Number((res.fundPersonal != null ? res.fundPersonal : res.fundDetail || 0).toFixed(2));
-                    totalFundCompany += Number((res.fundCompany || 0).toFixed(2));
-                    totalOtherSocialPersonal += Number((res.otherSocialPersonal || 0).toFixed(2));
-                    totalOtherSocialCompany += Number((res.otherSocialCompany || 0).toFixed(2));
+                    totalIncome += res.income;
+                    totalTax += res.tax;
+                    totalActual += res.actual;
+                    totalMedicalPersonal += res.medicalPersonal;
+                    totalMedicalCompany += res.medicalCompany;
+                    totalFundPersonal += res.fundPersonal;
+                    totalFundCompany += res.fundCompany;
+                    totalOtherSocialPersonal += res.otherSocialPersonal;
+                    totalOtherSocialCompany += res.otherSocialCompany;
 
                     // 判断是否跨档位
-                    const isCrossBracket = res.segments && res.segments.length > 1;
+                    const isCrossBracket = res.segments.length > 1;
                     let rowClass = isCrossBracket ? 'cross-bracket-row' : '';
-                    if (res.isJobChangeMonth) rowClass += ' job-change-row'; // 标记换工作行
+                    if (res.isJobChangeMonth) rowClass += ' job-change-row';
                     
                     // 构建税率显示
                     let rateDisplay = '';
@@ -785,154 +676,75 @@
                         totalTax += bonusRes.tax;
                         totalActual += bonusRes.actual;
 
-                        // 构建年终奖档位详情显示（格式与月度跨档位显示保持一致）
-                        let bonusTaxDetailDisplay = '';
-                        let bonusRateDisplay = '';
-                        let bonusRowClass = 'bonus-row';
-                        let isBonusCrossBracket = false;
-                        
-                        if (bonusRes.bracket && bonusRes.segments && bonusRes.segments.length > 0) {
-                            const bracketInfo = bonusRes.bracket;
-                            const segments = bonusRes.segments;
-                            
-                            // 判断是否跨档位（有多个分段）
-                            isBonusCrossBracket = segments.length > 1;
-                            
-                            // 构建详细的计算过程说明
-                            const ratePercent = (bonusRes.rate * 100).toFixed(0);
-                            const bracketIndex = TaxCalculator.bonusBrackets.findIndex(b => b === bracketInfo);
-                            const prevLimit = bracketIndex > 0 
-                                ? TaxCalculator.bonusBrackets[bracketIndex - 1].limit 
-                                : 0;
-                            
-                            // 构建档位范围显示
-                            let bracketRange = '';
-                            if (prevLimit > 0) {
-                                bracketRange = `¥${this.formatMoney(prevLimit)}-`;
-                            }
-                            if (bracketInfo.limit === Infinity) {
-                                bracketRange += '∞';
-                            } else {
-                                bracketRange += `¥${this.formatMoney(bracketInfo.limit)}`;
-                            }
-                            
-                            // 计算过程说明
-                            let calculationSteps = `
-                                <div class="tax-segment" style="color:var(--primary-dark);font-weight:600;">步骤1: 计算月均金额</div>
+                        const bracketInfo = bonusRes.bracket;
+                        const ratePercent = (bonusRes.rate * 100).toFixed(0);
+                        const bracketIndex = TaxCalculator.bonusBrackets.indexOf(bracketInfo);
+                        const prevLimit = bracketIndex > 0
+                            ? TaxCalculator.bonusBrackets[bracketIndex - 1].limit
+                            : 0;
+                        const bracketUpper = bracketInfo.limit === Infinity
+                            ? '∞'
+                            : `¥${this.formatMoney(bracketInfo.limit)}`;
+                        const bracketRange = `${prevLimit > 0 ? `¥${this.formatMoney(prevLimit)}-` : ''}${bracketUpper}`;
+                        const bonusTaxDetailDisplay = `
+                            <div>${this.formatMoney(bonusRes.tax)}</div>
+                            <div class="tax-details">
                                 <div class="tax-segment">月均 = ¥${this.formatMoney(res.bonusSeparate)} ÷ 12 = ¥${this.formatMoney(bonusRes.avgAmount)}</div>
-                                <div class="tax-segment" style="color:var(--primary-dark);font-weight:600;margin-top:6px;">步骤2: 查找税率和速算扣除数</div>
-                                <div class="tax-segment">月均¥${this.formatMoney(bonusRes.avgAmount)}落在${bracketRange}档位</div>
-                                <div class="tax-segment">适用税率: ${ratePercent}%，速算扣除数: ¥${this.formatMoney(bracketInfo.deduction)}</div>
-                                <div class="tax-segment" style="color:var(--primary-dark);font-weight:600;margin-top:6px;">步骤3: 计算各档位税额</div>
-                            `;
-                            
-                            if (isBonusCrossBracket) {
-                                // 跨档位显示：显示各个档位的税额
-                                bonusRowClass += ' cross-bracket-row';
-                                const rates = segments.map(s => (s.rate * 100).toFixed(0) + '%');
-                                bonusRateDisplay = `<span class="rate-badge">${rates.join(' ➔ ')}</span>`;
-                                
-                                const details = segments.map(s => 
-                                    `<div class="tax-segment">${(s.rate*100).toFixed(0)}%档(¥${this.formatMoney(s.amount)}): ¥${this.formatMoney(s.tax)}</div>`
-                                ).join('');
-                                
-                                // 计算总额验证
-                                const totalSegmentTax = segments.reduce((sum, s) => sum + s.tax, 0);
-                                const verification = Math.abs(totalSegmentTax - bonusRes.tax) < 0.01 
-                                    ? '' 
-                                    : `<div class="tax-segment" style="color:var(--text-sub);font-size:10px;">* 分段合计: ¥${this.formatMoney(totalSegmentTax)}，速算公式: ¥${this.formatMoney(bonusRes.tax)}</div>`;
-                                
-                                bonusTaxDetailDisplay = `
-                                    <div>${this.formatMoney(bonusRes.tax)}</div>
-                                    <div class="tax-details">
-                                        ${calculationSteps}
-                                        ${details}
-                                        <div class="tax-segment" style="color:var(--primary-dark);font-weight:600;margin-top:6px;">合计税额: ¥${this.formatMoney(bonusRes.tax)}</div>
-                                        ${verification}
-                                    </div>
-                                `;
-                            } else {
-                                // 单档位显示
-                                bonusRateDisplay = `<span class="rate-badge">${ratePercent}%</span>`;
-                                
-                                bonusTaxDetailDisplay = `
-                                    <div>${this.formatMoney(bonusRes.tax)}</div>
-                                    <div class="tax-details">
-                                        ${calculationSteps}
-                                        <div class="tax-segment">${ratePercent}%档: ¥${this.formatMoney(bonusRes.tax)}</div>
-                                        <div class="tax-segment" style="color:var(--text-sub);font-size:10px;">计算: ¥${this.formatMoney(res.bonusSeparate)} × ${ratePercent}% - ¥${this.formatMoney(bracketInfo.deduction)} = ¥${this.formatMoney(bonusRes.tax)}</div>
-                                    </div>
-                                `;
-                            }
-                        } else {
-                            bonusRateDisplay = (bonusRes.rate * 100).toFixed(0) + '%';
-                            bonusTaxDetailDisplay = this.formatMoney(bonusRes.tax);
-                        }
+                                <div class="tax-segment">月均 ¥${this.formatMoney(bonusRes.avgAmount)} 落在 ${bracketRange} 档，适用税率 ${ratePercent}%</div>
+                                <div class="tax-segment" style="color:var(--text-sub);font-size:10px;">官方公式：¥${this.formatMoney(res.bonusSeparate)} × ${ratePercent}% - ¥${this.formatMoney(bracketInfo.deduction)} = ¥${this.formatMoney(bonusRes.tax)}</div>
+                            </div>
+                        `;
 
                         tableHtml += `
-                            <tr class="${bonusRowClass}">
+                            <tr class="bonus-row">
                                 <td>年终奖</td>
                                 <td style="font-weight:600">${this.formatMoney(bonusRes.actual)}</td>
                                 <td>${bonusTaxDetailDisplay}</td>
                                 <td>${this.formatMoney(res.bonusSeparate)}</td>
-                                <td>${bonusRateDisplay}</td>
+                                <td><span class="rate-badge">${ratePercent}%</span></td>
                             </tr>
                         `;
                     }
                 });
 
+                const personalTotalYear = totalMedicalPersonal + totalOtherSocialPersonal + totalFundPersonal;
+                const companyTotalYear = totalMedicalCompany + totalOtherSocialCompany + totalFundCompany;
                 document.getElementById('summaryTotalIncome').textContent = this.formatMoney(totalIncome);
                 document.getElementById('summaryTotalTax').textContent = this.formatMoney(totalTax);
                 document.getElementById('summaryActualIncome').textContent = this.formatMoney(totalActual);
                 
                 // 更新五险一金汇总详情
                 document.getElementById('summaryInsurance').innerHTML = `
-                    <div>${this.formatMoney(totalInsurance)}</div>
+                    <div>${this.formatMoney(personalTotalYear)}</div>
                     <div style="font-size:11px;color:var(--text-sub);margin-top:2px;">
                         (个人扣除合计，含医保/社保/公积金)
                     </div>
                 `;
 
                 // 社保公积金明细表：无换工作 2 行（每月、全年合计），有换工作 3 行（原公司单月、新公司单月、全年合计）
-                const jobChangeMonthNum = config.isJobChange && config.jobChangeMonth ? parseInt(config.jobChangeMonth, 10) : 0;
-                const firstMonth = monthlyResults[0];
-                const afterJobChangeMonth = jobChangeMonthNum > 0 ? monthlyResults.find(r => r.month === jobChangeMonthNum) : null;
+                const jobChangeMonthNum = Number(config.jobChangeMonth);
                 const detailCells = (r) => {
-                    const personalTotal = (r.medicalPersonal || 0) + (r.otherSocialPersonal || 0) + (r.fundPersonal != null ? r.fundPersonal : r.fundDetail || 0);
-                    const companyTotal = (r.medicalCompany || 0) + (r.otherSocialCompany || 0) + (r.fundCompany || 0);
-                    return `<td>${this.formatMoney(r.medicalPersonal || 0)}</td><td>${this.formatMoney(r.medicalCompany || 0)}</td><td>${this.formatMoney(r.pensionPersonal || 0)}</td><td>${this.formatMoney(r.pensionCompany || 0)}</td><td>${this.formatMoney(r.fundPersonal != null ? r.fundPersonal : r.fundDetail || 0)}</td><td>${this.formatMoney(r.fundCompany || 0)}</td><td>${this.formatMoney(personalTotal)}</td><td>${this.formatMoney(companyTotal)}</td>`;
+                    const personalTotal = r.medicalPersonal + r.otherSocialPersonal + r.fundPersonal;
+                    const companyTotal = r.medicalCompany + r.otherSocialCompany + r.fundCompany;
+                    return `<td>${this.formatMoney(r.medicalPersonal)}</td><td>${this.formatMoney(r.medicalCompany)}</td><td>${this.formatMoney(r.otherSocialPersonal)}</td><td>${this.formatMoney(r.otherSocialCompany)}</td><td>${this.formatMoney(r.fundPersonal)}</td><td>${this.formatMoney(r.fundCompany)}</td><td>${this.formatMoney(personalTotal)}</td><td>${this.formatMoney(companyTotal)}</td>`;
                 };
                 let detailRows = '';
-                if (!config.isJobChange || !jobChangeMonthNum) {
-                    detailRows += `<tr><td>每月</td>${detailCells(firstMonth)}</tr>`;
+                if (!config.isJobChange) {
+                    detailRows += `<tr><td>每月</td>${detailCells(monthlyResults[0])}</tr>`;
                 } else {
-                    if (jobChangeMonthNum > 1) {
-                        const beforeJob = monthlyResults.find(r => r.month === jobChangeMonthNum - 1);
-                        if (beforeJob) detailRows += `<tr><td>原公司（单月）</td>${detailCells(beforeJob)}</tr>`;
-                    }
-                    if (afterJobChangeMonth) {
-                        detailRows += `<tr><td>新公司（单月）</td>${detailCells(afterJobChangeMonth)}</tr>`;
-                    }
+                    detailRows += `<tr><td>原公司（单月）</td>${detailCells(monthlyResults[jobChangeMonthNum - 2])}</tr>`;
+                    detailRows += `<tr><td>新公司（单月）</td>${detailCells(monthlyResults[jobChangeMonthNum - 1])}</tr>`;
                 }
-                const personalTotalYear = totalMedicalPersonal + totalOtherSocialPersonal + totalFundPersonal;
-                const companyTotalYear = totalMedicalCompany + totalOtherSocialCompany + totalFundCompany;
-                detailRows += `<tr style="font-weight:600;background:#f1f5f9;"><td>全年合计</td><td>${this.formatMoney(totalMedicalPersonal)}</td><td>${this.formatMoney(totalMedicalCompany)}</td><td>${this.formatMoney(totalPensionPersonal)}</td><td>${this.formatMoney(totalPensionCompany)}</td><td>${this.formatMoney(totalFundPersonal)}</td><td>${this.formatMoney(totalFundCompany)}</td><td>${this.formatMoney(personalTotalYear)}</td><td>${this.formatMoney(companyTotalYear)}</td></tr>`;
-                const detailSection = document.getElementById('insuranceDetailSection');
-                const detailBody = document.getElementById('insuranceDetailBody');
-                if (detailSection && detailBody) {
-                    detailBody.innerHTML = detailRows;
-                    detailSection.style.display = 'block';
-                }
+                detailRows += `<tr style="font-weight:600;background:#f1f5f9;"><td>全年合计</td><td>${this.formatMoney(totalMedicalPersonal)}</td><td>${this.formatMoney(totalMedicalCompany)}</td><td>${this.formatMoney(totalOtherSocialPersonal)}</td><td>${this.formatMoney(totalOtherSocialCompany)}</td><td>${this.formatMoney(totalFundPersonal)}</td><td>${this.formatMoney(totalFundCompany)}</td><td>${this.formatMoney(personalTotalYear)}</td><td>${this.formatMoney(companyTotalYear)}</td></tr>`;
+                document.getElementById('insuranceDetailBody').innerHTML = detailRows;
+                document.getElementById('insuranceDetailSection').style.display = 'block';
 
                 document.getElementById('resultBody').innerHTML = tableHtml;
                 
                 const resultSection = document.getElementById('resultSection');
                 resultSection.classList.add('show');
                 
-                // 平滑滚动到结果区域
-                setTimeout(() => {
-                    resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                }, 100);
+                resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
             },
 
             formatMoney: function(num) {
@@ -946,52 +758,36 @@
 
             showHelp: function() {
                 document.getElementById('helpModal').classList.add('show');
+                document.getElementById('help-btn').setAttribute('aria-expanded', 'true');
+                document.getElementById('close-help-btn').focus();
             },
             
             hideHelp: function() {
                 document.getElementById('helpModal').classList.remove('show');
-            },
-            
-            showToast: function(message, type = 'info') {
-                // 移除已存在的toast
-                const existingToast = document.querySelector('.toast');
-                if (existingToast) {
-                    existingToast.remove();
-                }
-                
-                // 创建新的toast
-                const toast = document.createElement('div');
-                toast.className = `toast ${type}`;
-                toast.textContent = message;
-                document.body.appendChild(toast);
-                
-                // 3秒后自动移除
-                setTimeout(() => {
-                    toast.style.opacity = '0';
-                    toast.style.transform = 'translateX(-50%) translateY(20px)';
-                    setTimeout(() => {
-                        if (toast.parentNode) {
-                            toast.parentNode.removeChild(toast);
-                        }
-                    }, 300);
-                }, 3000);
+                document.getElementById('help-btn').setAttribute('aria-expanded', 'false');
+                document.getElementById('help-btn').focus();
             },
             
             validateInput: function(inputId) {
                 const input = document.getElementById(inputId);
                 const inputGroup = input.closest('.input-group');
-                const value = parseFloat(input.value);
-                
-                if (input.value && (isNaN(value) || value < 0)) {
-                    inputGroup.classList.add('error');
-                    return false;
-                } else {
-                    inputGroup.classList.remove('error');
-                    return true;
-                }
+                const value = Number(input.value);
+                const min = input.min === '' ? -Infinity : Number(input.min);
+                const max = input.max === '' ? Infinity : Number(input.max);
+                const invalid = input.value !== '' && (
+                    !Number.isFinite(value) || value < min || value > max
+                );
+
+                if (inputGroup) inputGroup.classList.toggle('error', invalid);
             }
         };
 
-        document.addEventListener('DOMContentLoaded', () => {
-            app.init();
-        });
+        if (typeof document !== 'undefined') {
+            document.addEventListener('DOMContentLoaded', () => {
+                app.init();
+            });
+        }
+
+        if (typeof module === 'object' && module.exports) {
+            module.exports = TaxCalculator;
+        }

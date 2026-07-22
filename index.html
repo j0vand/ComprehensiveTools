@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>综合工具箱</title>
+    <link rel="icon" href="static/logo.png" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=DM+Sans:ital,wght@0,400;0,500;0,600&display=swap" rel="stylesheet">
@@ -28,31 +29,9 @@
             color: var(--text-main);
             padding: var(--space-md);
             min-height: 100vh;
-            position: relative;
-            z-index: 0;
             overflow-x: hidden;
         }
         
-        /* 添加背景极光装饰元素 */
-        body::before, body::after {
-            content: '';
-            position: absolute;
-            border-radius: 50%;
-            filter: blur(80px);
-            z-index: -1;
-            opacity: 0.4;
-        }
-        body::before {
-            top: -10%; left: -10%;
-            width: 50vw; height: 50vw;
-            background: rgba(15, 159, 143, 0.18);
-        }
-        body::after {
-            bottom: -10%; right: -10%;
-            width: 40vw; height: 40vw;
-            background: rgba(245, 158, 11, 0.16);
-        }
-
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -68,7 +47,7 @@
         .header h1 {
             font-size: 2.5rem;
             color: var(--text-main);
-            letter-spacing: -0.03em;
+            letter-spacing: 0;
             margin-bottom: 8px;
         }
 
@@ -80,7 +59,7 @@
 
         .tools-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: var(--gap-grid);
             padding: var(--space-md) 0;
         }
@@ -206,6 +185,12 @@
             }
         }
 
+        @media (max-width: 960px) {
+            .tools-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+            }
+        }
+
         @media (max-width: 768px) {
             body {
                 padding: 16px;
@@ -221,9 +206,14 @@
             }
 
             .tools-grid {
-                grid-template-columns: 1fr;
                 gap: 16px;
                 padding: 16px 0;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .tools-grid {
+                grid-template-columns: 1fr;
             }
         }
     </style>
@@ -237,55 +227,55 @@
 
         <div class="tools-grid">
             <a href="pages/rehab-trainer/rehabTrainer.html" class="tool-card">
-                <div class="tool-icon">🏃</div>
+                <div class="tool-icon" aria-hidden="true">🏃</div>
                 <h2 class="tool-title">腰突康复训练</h2>
                 <p class="tool-description">专业的腰椎间盘突出康复训练计时器，支持自定义训练计划和语音提示</p>
             </a>
 
             <a href="pages/tax/taxCalculator.html" class="tool-card">
-                <div class="tool-icon">💰</div>
+                <div class="tool-icon" aria-hidden="true">💰</div>
                 <h2 class="tool-title">个税计算器</h2>
                 <p class="tool-description">快速计算个人所得税，支持年终奖、专项附加扣除等复杂场景</p>
             </a>
 
             <a href="pages/mortgage/mortgageCalculator.html" class="tool-card">
-                <div class="tool-icon">🏠</div>
+                <div class="tool-icon" aria-hidden="true">🏠</div>
                 <h2 class="tool-title">房贷计算器</h2>
                 <p class="tool-description">商业贷款、公积金贷款和组合贷款计算，支持等额本息和等额本金</p>
             </a>
 
             <a href="pages/finance/financeCalculator.html" class="tool-card">
-                <div class="tool-icon">📊</div>
+                <div class="tool-icon" aria-hidden="true">📊</div>
                 <h2 class="tool-title">理财计算器</h2>
                 <p class="tool-description">支持复利、贷款、定投收益和目标规划等多种计算</p>
             </a>
 
             <a href="pages/inventory/inventoryManager.html" class="tool-card">
-                <div class="tool-icon">📦</div>
+                <div class="tool-icon" aria-hidden="true">📦</div>
                 <h2 class="tool-title">库存管理</h2>
                 <p class="tool-description">记录和管理您的物品库存，支持智能搜索和自动分类</p>
             </a>
 
             <a href="pages/meal/mealViewer.html" class="tool-card">
-                <div class="tool-icon">🍱</div>
+                <div class="tool-icon" aria-hidden="true">🍱</div>
                 <h2 class="tool-title">今日点餐</h2>
                 <p class="tool-description">查看和管理今日餐点，支持午餐和晚餐记录</p>
             </a>
 
             <a href="pages/pension-calculator/pensionCalculator.html" class="tool-card">
-                <div class="tool-icon">👵</div>
+                <div class="tool-icon" aria-hidden="true">👵</div>
                 <h2 class="tool-title">养老金计算器</h2>
                 <p class="tool-description">基于中国养老保险制度，估算退休后可领取的养老金金额</p>
             </a>
 
             <a href="pages/retirement-calculator/retirementCalculator.html" class="tool-card">
-                <div class="tool-icon">🏖️</div>
+                <div class="tool-icon" aria-hidden="true">🏖️</div>
                 <h2 class="tool-title">FIRE 退休规划</h2>
                 <p class="tool-description">计算通胀与投资收益，测算提早退休需要多少钱以及最早退休年龄</p>
             </a>
 
             <a href="pages/travel-checklist/travelChecklist.html" class="tool-card">
-                <div class="tool-icon">🧳</div>
+                <div class="tool-icon" aria-hidden="true">🧳</div>
                 <h2 class="tool-title">出行清单</h2>
                 <p class="tool-description">出行前逐项确认必备物品与必做事项，支持多份清单、导出导入与重置勾选</p>
             </a>
