@@ -172,6 +172,73 @@ test('retirement page renders unavailable state instead of a fallback retirement
     );
 });
 
+test('FIRE trend reports yearly investment gain on dynamic principal before savings', () => {
+    const result = FireProjection.calculateFireTrend({
+        currentAge: 30,
+        lifeExpectancy: 33,
+        currentAssets: 1000,
+        annualSavings: 100,
+        monthlyExpense: 0,
+        medicalMonthlyExpense: 0,
+        medicalReserve: 0,
+        expectedPension: 0,
+        pensionAge: 65,
+        inflationRate: 0,
+        pensionGrowthRate: 0,
+        investmentReturn: 0.1
+    });
+
+    // 30 岁：本金 1000，当年理财收益 100；年末 1000*1.1+100=1200
+    // 31 岁：本金 1200，当年理财收益 120；年末 1200*1.1+100=1420
+    // 32 岁：本金 1420，当年理财收益 142
+    assert.deepEqual(
+        result.trendData.map((item) => ({
+            age: item.age,
+            assets: item.assets,
+            yearlyInvestmentGain: item.yearlyInvestmentGain
+        })),
+        [
+            { age: 30, assets: 1000, yearlyInvestmentGain: 100 },
+            { age: 31, assets: 1200, yearlyInvestmentGain: 120 },
+            { age: 32, assets: 1420, yearlyInvestmentGain: 142 }
+        ]
+    );
+});
+
+test('retirement year investment gain uses remaining assets after spending', () => {
+    // 年初 1000，年净支出 200，退休首年医疗备用金 100 → 剩余 700，收益 70
+    assert.equal(FireProjection.calculateRetirementYearInvestmentGain({
+        startingAssets: 1000,
+        age: 40,
+        retireAge: 40,
+        currentAge: 40,
+        monthlyExpense: 200 / 12,
+        medicalMonthlyExpense: 0,
+        medicalReserve: 100,
+        expectedPension: 0,
+        pensionAge: 65,
+        inflationRate: 0,
+        pensionGrowthRate: 0,
+        investmentReturn: 0.1
+    }), 70);
+
+    // 非退休首年不再扣医疗备用金：1000 - 200 = 800，收益 80
+    assert.equal(FireProjection.calculateRetirementYearInvestmentGain({
+        startingAssets: 1000,
+        age: 41,
+        retireAge: 40,
+        currentAge: 40,
+        monthlyExpense: 200 / 12,
+        medicalMonthlyExpense: 0,
+        medicalReserve: 100,
+        expectedPension: 0,
+        pensionAge: 65,
+        inflationRate: 0,
+        pensionGrowthRate: 0,
+        investmentReturn: 0.1
+    }), 80);
+});
+
 test('FIRE trend never treats life expectancy as a retirement candidate', () => {
     const result = FireProjection.calculateFireTrend({
         currentAge: 84,
@@ -260,6 +327,26 @@ test('yearly cashflow grows with inflation', () => {
     }, 42);
 
     assert.equal(Math.round(cashflow.yearlyGrossSpending * 10) / 10, 1597.2);
+});
+
+test('pension compounds yearly from the start-claim amount by pensionGrowthRate', () => {
+    const base = {
+        currentAge: 60,
+        monthlyExpense: 0,
+        medicalMonthlyExpense: 0,
+        expectedPension: 1000,
+        pensionAge: 63,
+        inflationRate: 0,
+        pensionGrowthRate: 0.03
+    };
+
+    // 起领年仍为 1000；次年为 1030；再次年为 1000*1.03^2
+    assert.equal(FireProjection.calculateYearlyCashflow(base, 63).monthlyPension, 1000);
+    assert.equal(FireProjection.calculateYearlyCashflow(base, 64).monthlyPension, 1030);
+    assert.equal(
+        Math.round(FireProjection.calculateYearlyCashflow(base, 65).monthlyPension * 100) / 100,
+        1060.9
+    );
 });
 
 test('safety metrics grade margin ratio', () => {

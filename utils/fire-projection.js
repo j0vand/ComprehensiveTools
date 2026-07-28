@@ -101,6 +101,22 @@
         return actualRetireAge;
     }
 
+    /** 退休某年：先扣净支出（退休首年另扣医疗备用金），剩余资产再计理财收益。 */
+    function calculateRetirementYearInvestmentGain(params) {
+        const startingAssets = Math.max(0, Number(params.startingAssets) || 0);
+        const rate = Number(params.investmentReturn) || 0;
+        const cashflow = calculateYearlyCashflow(params, params.age);
+        const medicalReserve = params.age === params.retireAge
+            ? applyInflation(
+                Math.max(0, Number(params.medicalReserve) || 0),
+                params.retireAge - params.currentAge,
+                params.inflationRate
+            )
+            : 0;
+        const remaining = Math.max(0, startingAssets - cashflow.yearlyNetOutflow - medicalReserve);
+        return remaining * rate;
+    }
+
     /** 生成严格早于预期寿命的 FIRE 候选轨迹，寿命年龄本身不参与判定。 */
     function calculateFireTrend(params) {
         const trendData = [];
@@ -114,10 +130,13 @@
                 retireAge
             });
             const isFire = assetsAtRetire >= requiredCapital;
+            // 累积期：以该年龄初动态本金计当年理财收益，之后再计入年储蓄
+            const yearlyInvestmentGain = assetsAtRetire * params.investmentReturn;
             trendData.push({
                 age: retireAge,
                 assets: assetsAtRetire,
                 required: requiredCapital,
+                yearlyInvestmentGain,
                 isFire
             });
 
@@ -305,6 +324,7 @@
         validateInputs,
         calculateTargetAnnualSavings,
         calculateRequiredSpendingCapitalAtAge,
-        calculateYearlyCashflow
+        calculateYearlyCashflow,
+        calculateRetirementYearInvestmentGain
     };
 });

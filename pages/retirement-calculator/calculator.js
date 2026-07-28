@@ -267,6 +267,7 @@ function renderResults(ctx) {
         tr.innerHTML =
             '<td>' + data.age + ' 岁</td>' +
             '<td>¥ ' + Math.round(data.assets).toLocaleString() + '</td>' +
+            '<td>¥ ' + Math.round(data.yearlyInvestmentGain).toLocaleString() + '</td>' +
             '<td>¥ ' + Math.round(data.required).toLocaleString() + '</td>' +
             '<td>' + tags.join(' / ') + '</td>';
         tbody.appendChild(tr);
@@ -276,7 +277,7 @@ function renderResults(ctx) {
     renderCashflowChart(trendData, firstFireAge, ctx);
     renderScenarioTable(trendData, firstFireAge, ctx);
 
-    renderPostRetirementMonthlyTable(ctx);
+    renderPostRetirementMonthlyTable(trendData, firstFireAge, ctx);
 
     if (actualRetireAge === null) {
         actualRetireAgeEl.textContent = '—';
@@ -343,7 +344,7 @@ function renderResults(ctx) {
     resultSection.focus({ preventScroll: true });
 }
 
-function renderPostRetirementMonthlyTable(ctx) {
+function renderPostRetirementMonthlyTable(trendData, firstFireAge, ctx) {
     const { actualRetireAge, lifeExpectancy, currentAge, inflationRate } = ctx;
 
     const postRetirementTitle = document.getElementById('post-retirement-title');
@@ -351,19 +352,29 @@ function renderPostRetirementMonthlyTable(ctx) {
     postRetirementBody.innerHTML = '';
 
     if (actualRetireAge === null) {
-        postRetirementTitle.textContent = '退休后月度开销明细（暂无可用退休场景）';
+        postRetirementTitle.textContent = '退休后年度开销与收益明细（暂无可用退休场景）';
         const row = document.createElement('tr');
-        row.innerHTML = '<td colspan="6" class="empty-table-cell">当前条件未达到 FIRE，暂无可用退休场景</td>';
+        row.innerHTML = '<td colspan="8" class="empty-table-cell">当前条件未达到 FIRE，暂无可用退休场景</td>';
         postRetirementBody.appendChild(row);
         return;
     }
 
-    postRetirementTitle.textContent = '退休后月度开销明细（按实际退休年龄 ' + actualRetireAge + ' 岁测算）';
+    postRetirementTitle.textContent = '退休后年度开销与收益明细（按实际退休年龄 ' + actualRetireAge + ' 岁测算）';
+
+    const assetSeries = buildAssetSeries(trendData, firstFireAge, ctx, ctx.extraSavingYearsAfterFire);
 
     for (let age = actualRetireAge; age < lifeExpectancy; age += 1) {
         const yearsFromNow = age - currentAge;
         const cashflow = window.FireProjection.calculateYearlyCashflow(ctx, age);
         const monthlyNetReal = cashflow.monthlyNetOutflow / Math.pow(1 + inflationRate, yearsFromNow);
+        const ageIndex = trendData.findIndex((item) => item.age === age);
+        const startingAssets = ageIndex >= 0 ? assetSeries[ageIndex] : 0;
+        const yearlyInvestmentGain = window.FireProjection.calculateRetirementYearInvestmentGain({
+            ...ctx,
+            startingAssets,
+            age,
+            retireAge: actualRetireAge
+        });
 
         const row = document.createElement('tr');
         row.innerHTML =
@@ -372,6 +383,8 @@ function renderPostRetirementMonthlyTable(ctx) {
             '<td>¥ ' + Math.round(cashflow.monthlyMedicalExpense).toLocaleString() + '</td>' +
             '<td>¥ ' + Math.round(cashflow.monthlyPension).toLocaleString() + '</td>' +
             '<td>¥ ' + Math.round(cashflow.monthlyNetOutflow).toLocaleString() + '</td>' +
+            '<td>¥ ' + Math.round(cashflow.yearlyGrossSpending).toLocaleString() + '</td>' +
+            '<td>¥ ' + Math.round(yearlyInvestmentGain).toLocaleString() + '</td>' +
             '<td>¥ ' + Math.round(monthlyNetReal).toLocaleString() + '</td>';
         postRetirementBody.appendChild(row);
     }

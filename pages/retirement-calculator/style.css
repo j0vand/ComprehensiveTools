@@ -227,6 +227,19 @@ header {
     color: var(--text-sub);
 }
 
+/* 经济假设里单独一项时，与通胀/收益率同为半宽，避免占满整行 */
+.form-row .form-group-half {
+    flex: 0 1 calc(50% - 10px);
+    max-width: calc(50% - 10px);
+}
+
+@media (max-width: 600px) {
+    .form-row .form-group-half {
+        flex: 1 1 auto;
+        max-width: none;
+    }
+}
+
 .advanced-settings {
     border-top: 1px solid #e8edf3;
     margin-top: 0;

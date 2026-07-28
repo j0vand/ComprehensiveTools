@@ -185,16 +185,16 @@
                                 </div>
                             </div>
                             <div class="form-row">
-                                <div class="form-group">
+                                <div class="form-group form-group-half">
                                     <label for="pension-growth-rate">退休金年增长比例</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="pension-growth-rate" min="0" max="10" value="0" step="0.1" required>
+                                        <input type="number" id="pension-growth-rate" min="0" max="10" value="3.0" step="0.1" required>
                                         <span class="unit">%</span>
                                     </div>
-                                    <small class="form-helper">可设为 0%，表示退休金不增长</small>
+                                    <small class="form-helper">起领后按该比例逐年复利上涨；可设为 0% 表示不增长</small>
                                 </div>
                             </div>
-                            <small class="form-helper advanced-note">注：投资收益率代表长期平均年化收益。生活费、月医疗支出、医疗备用金都按通货膨胀率增长；退休金按“退休金年增长比例”增长。医疗备用金作为退休时的一次性预留计入所需资金。</small>
+                            <small class="form-helper advanced-note">注：投资收益率代表长期平均年化收益。生活费、月医疗支出、医疗备用金都按通货膨胀率增长；退休金自起领年起按“退休金年增长比例”逐年复利上涨。医疗备用金作为退休时的一次性预留计入所需资金。</small>
                         </div>
                     </div>
 
@@ -341,6 +341,7 @@
                                         <tr>
                                             <th>假定退休年龄</th>
                                             <th>届时资产余额</th>
+                                            <th>当年理财收益 <span class="tip-icon" tabindex="0" aria-label="说明：以该年龄初资产余额为动态本金，乘以投资年化收益率" title="以该年龄初的资产余额为动态本金 × 投资年化收益率。累积期先计收益，再计入当年储蓄。">?</span></th>
                                             <th>退休所需资金 <span class="tip-icon" tabindex="0" aria-label="说明：包含退休后每年净支出的折现值，以及退休当年按通胀调整后的医疗备用金" title="该值包含退休后每年净支出的折现值，以及退休当年按通胀调整后的医疗备用金。">?</span></th>
                                             <th>状态</th>
                                         </tr>
@@ -351,7 +352,8 @@
                                 </table>
                             </div>
                             <ul class="table-note note-list">
-                                <li><strong>届时资产余额</strong> = 当前资产 + 年储蓄，按投资收益率复利增长。</li>
+                                <li><strong>届时资产余额</strong> = 上年余额按投资收益率复利增长后，再加年储蓄（动态本金，非固定初始本金）。</li>
+                                <li><strong>当年理财收益</strong> = 该年龄初资产余额 × 投资年化收益率。</li>
                                 <li><strong>退休所需资金</strong> = 退休后年度净支出的折现值 + 退休时医疗备用金。</li>
                                 <li>当【资产余额】≥【退休所需资金】时，即可实现 FIRE。</li>
                                 <li>退休后按年初扣除当年净支出，剩余资产再获得当年投资收益。</li>
@@ -360,7 +362,7 @@
                         </div>
 
                         <div class="year-details-table result-block">
-                            <h4 id="post-retirement-title">退休后月度开销明细</h4>
+                            <h4 id="post-retirement-title">退休后年度开销与收益明细</h4>
                             <div class="table-wrapper">
                                 <table id="post-retirement-table">
                                     <thead>
@@ -370,6 +372,8 @@
                                             <th>当年月医疗支出</th>
                                             <th>当年月退休金</th>
                                             <th>每月净支出</th>
+                                            <th>年度总消费</th>
+                                            <th>年度理财收益</th>
                                             <th>每月净支出（当前购买力）</th>
                                         </tr>
                                     </thead>
@@ -381,7 +385,9 @@
                             <ul class="table-note note-list">
                                 <li>表中金额均为对应年龄当年的名义金额（已计入通胀）。</li>
                                 <li><strong>每月净支出</strong> = 月生活费 + 月医疗支出 - 月退休金（最低按 0 计）。</li>
-                                <li>用于解释退休后不同年龄阶段的真实月度现金流压力。</li>
+                                <li><strong>年度总消费</strong> =（月生活费 + 月医疗支出）× 12，不含医疗备用金一次性划出。</li>
+                                <li><strong>年度理财收益</strong> = 年初资产扣除当年净支出（退休首年另扣医疗备用金）后的剩余 × 投资收益率。</li>
+                                <li>用于解释退休后不同年龄阶段的真实现金流与资产增值。</li>
                             </ul>
                         </div>
                     </div>
