@@ -208,15 +208,38 @@
             return null;
         }
 
+        /** 优先走 StorageService，测试与旧页面可回退 CommonUtils。 */
+        function readStoredArrangements() {
+            if (window.StorageService && typeof window.StorageService.getJson === 'function') {
+                return window.StorageService.getJson(MEAL_STORAGE_KEY, []);
+            }
+            return window.CommonUtils.getLocalStorageItem(MEAL_STORAGE_KEY, []);
+        }
+
+        function writeStoredArrangements(arrangements) {
+            if (window.StorageService && typeof window.StorageService.setJson === 'function') {
+                return window.StorageService.setJson(MEAL_STORAGE_KEY, arrangements).ok;
+            }
+            return window.CommonUtils.setLocalStorageItem(MEAL_STORAGE_KEY, arrangements);
+        }
+
+        function removeStoredArrangements() {
+            if (window.StorageService && typeof window.StorageService.remove === 'function') {
+                return window.StorageService.remove(MEAL_STORAGE_KEY).ok;
+            }
+            return window.CommonUtils.removeLocalStorageItem(MEAL_STORAGE_KEY);
+        }
+
         // 存储数据损坏时只忽略无效记录，避免影响整个页面启动。
         function readArrangements() {
-            const stored = window.CommonUtils.getLocalStorageItem(MEAL_STORAGE_KEY, []);
+            const stored = readStoredArrangements();
             if (!Array.isArray(stored)) return [];
 
             return stored.filter(arrangement =>
                 arrangement &&
                 typeof arrangement === 'object' &&
                 typeof arrangement.date === 'string' &&
+                parseDateString(arrangement.date) &&
                 ['午餐', '晚餐'].includes(arrangement.mealTime) &&
                 (typeof arrangement.number === 'string' || typeof arrangement.number === 'number') &&
                 typeof arrangement.content === 'string' &&
@@ -388,7 +411,7 @@
 
                 const finalArrangements = [...uniqueArrangements.values()];
 
-                if (!window.CommonUtils.setLocalStorageItem(MEAL_STORAGE_KEY, finalArrangements)) {
+                if (!writeStoredArrangements(finalArrangements)) {
                     showToast('保存失败，浏览器存储空间不足或不可用', 'error');
                     return;
                 }
@@ -439,7 +462,9 @@
                 const arrangements = readArrangements();
                 const filteredArrangements = removeExpiredArrangements(arrangements);
                 if (filteredArrangements.length !== arrangements.length) {
-                    window.CommonUtils.setLocalStorageItem(MEAL_STORAGE_KEY, filteredArrangements);
+                    if (!writeStoredArrangements(filteredArrangements)) {
+                        showToast('清理过期安排时保存失败，刷新后可能仍会显示旧数据', 'warning');
+                    }
                 }
 
                 // 过滤掉今天的安排，因为它们已经在"今日餐点"部分显示了
@@ -451,13 +476,14 @@
                 );
                 const upcomingArrangements = filteredArrangements.filter(arrangement => {
                     const dateObj = parseDateString(arrangement.date);
-                    return dateObj.getTime() !== today.getTime();
+                    return dateObj && dateObj.getTime() !== today.getTime();
                 });
 
-                // 按日期和时间排序
+                // 按日期和时间排序；无效日期已在 read 阶段剔除，这里再兜底。
                 upcomingArrangements.sort((a, b) => {
                     const dateA = parseDateString(a.date);
                     const dateB = parseDateString(b.date);
+                    if (!dateA || !dateB) return 0;
                     if (dateA.getTime() !== dateB.getTime()) return dateA - dateB;
                     if (a.mealTime === b.mealTime) return 0;
                     return a.mealTime === '午餐' ? -1 : 1;
@@ -561,7 +587,10 @@
                     todayInfo.date.getDate()
                 );
                 const todayMeals = removeExpiredArrangements(readArrangements())
-                    .filter(arrangement => parseDateString(arrangement.date).getTime() === today.getTime())
+                    .filter(arrangement => {
+                        const dateObj = parseDateString(arrangement.date);
+                        return dateObj && dateObj.getTime() === today.getTime();
+                    })
                     .sort((a, b) => {
                         if (a.mealTime === b.mealTime) return 0;
                         return a.mealTime === '午餐' ? -1 : 1;
@@ -671,7 +700,7 @@
         function clearData() {
             window.DialogService.confirmAction('确定要清除所有安排吗？此操作不可恢复！').then(function(confirmed) {
                 if (!confirmed) return;
-                if (!window.CommonUtils.removeLocalStorageItem(MEAL_STORAGE_KEY)) {
+                if (!removeStoredArrangements()) {
                     showToast('清除失败，浏览器存储不可用', 'error');
                     return;
                 }

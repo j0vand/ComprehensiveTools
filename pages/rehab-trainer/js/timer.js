@@ -291,7 +291,7 @@ class TrainingTimer {
     }
 
     /**
-     * 暂停
+     * 暂停：停止 interval，避免长暂停仍每 100ms 唤醒。
      */
     pause() {
         if (this.state !== this.STATE.PREPARING
@@ -304,12 +304,13 @@ class TrainingTimer {
         this.previousState = this.state; // 保存暂停前的状态
         this.pausedTime = Date.now();
         this.state = this.STATE.PAUSED;
+        this.stopTimer();
         this.trigger('pause');
         return true;
     }
 
     /**
-     * 继续
+     * 继续：校正暂停时长后重新启动 interval。
      */
     resume() {
         if (this.state !== this.STATE.PAUSED) {
@@ -322,6 +323,15 @@ class TrainingTimer {
         if (this.previousState) {
             this.state = this.previousState;
             this.previousState = null;
+        }
+        // 仅在需要倒计时的阶段重启计时器；次数型 WAITING 不需要 interval。
+        if (this.state === this.STATE.PREPARING
+            || this.state === this.STATE.TRAINING
+            || this.state === this.STATE.SET_REST
+            || this.state === this.STATE.TRANSITION) {
+            this.intervalId = setInterval(() => {
+                this.tick();
+            }, 100);
         }
         this.trigger('resume');
         return true;

@@ -9,6 +9,8 @@
         const nativeConfirm = runtime.confirm || global.confirm;
         const nativePrompt = runtime.prompt || global.prompt;
         let toastRegion = null;
+        // 同一时刻只保留一个 modal 对话框，避免快速连点叠层。
+        let activeModalFinish = null;
 
         function canUseDom() {
             return Boolean(doc && doc.body && typeof doc.createElement === 'function');
@@ -61,6 +63,14 @@
             return toast;
         }
 
+        function dismissActiveModal() {
+            if (typeof activeModalFinish === 'function') {
+                const finishPrevious = activeModalFinish;
+                activeModalFinish = null;
+                finishPrevious(false);
+            }
+        }
+
         function confirmAction(message, options) {
             if (!canUseDom()) {
                 const result = typeof nativeConfirm === 'function' ? nativeConfirm(String(message)) : false;
@@ -68,6 +78,8 @@
             }
 
             return new Promise(function (resolve) {
+                dismissActiveModal();
+
                 const labels = options || {};
                 const previousFocus = doc.activeElement;
                 const backdrop = doc.createElement('div');
@@ -102,6 +114,9 @@
                 function finish(value) {
                     if (settled) return;
                     settled = true;
+                    if (activeModalFinish === finish) {
+                        activeModalFinish = null;
+                    }
 
                     if (typeof dialog.removeEventListener === 'function') {
                         dialog.removeEventListener('keydown', onKeydown);
@@ -117,6 +132,7 @@
                     if (previousFocus && typeof previousFocus.focus === 'function') {
                         previousFocus.focus();
                     }
+                    // 默认分支仍返回布尔值；escapeValue 可保留调用方需要的三态语义。
                     resolve(value);
                 }
 
@@ -148,6 +164,7 @@
                     }
                 }
 
+                activeModalFinish = finish;
                 cancelButton.addEventListener('click', onCancel);
                 confirmButton.addEventListener('click', onConfirm);
                 dialog.addEventListener('keydown', onKeydown);
@@ -180,6 +197,8 @@
             }
 
             return new Promise(function (resolve) {
+                dismissActiveModal();
+
                 const previousFocus = doc.activeElement;
                 const backdrop = doc.createElement('div');
                 backdrop.className = 'tool-dialog-backdrop';
@@ -218,6 +237,9 @@
                 function finish(value) {
                     if (settled) return;
                     settled = true;
+                    if (activeModalFinish === finish) {
+                        activeModalFinish = null;
+                    }
 
                     dialog.removeEventListener('keydown', onKeydown);
                     cancelButton.removeEventListener('click', onCancel);
@@ -226,7 +248,8 @@
                     if (previousFocus && typeof previousFocus.focus === 'function') {
                         previousFocus.focus();
                     }
-                    resolve(value);
+                    // prompt 被顶替或取消时统一返回 null。
+                    resolve(value === undefined ? null : value);
                 }
 
                 function onCancel() {
@@ -260,6 +283,7 @@
                     }
                 }
 
+                activeModalFinish = finish;
                 cancelButton.addEventListener('click', onCancel);
                 confirmButton.addEventListener('click', onConfirm);
                 dialog.addEventListener('keydown', onKeydown);

@@ -135,7 +135,7 @@ function mealHarness(now, options = {}) {
         }
     };
     const context = vm.createContext(sandbox);
-    vm.runInContext(`${source}\n;globalThis.MealTest = {\n        detectWeekFromHeader, standardizeDate, parseDateString, processMealData,\n        removeExpiredArrangements, renderArrangements, startRefreshTimer\n    };`, context, { filename: 'mealViewer.js' });
+    vm.runInContext(`${source}\n;globalThis.MealTest = {\n        detectWeekFromHeader, standardizeDate, parseDateString, processMealData,\n        removeExpiredArrangements, renderArrangements, displayMeals, displayTodayMeals, startRefreshTimer, readArrangements\n    };`, context, { filename: 'mealViewer.js' });
 
     return {
         api: sandbox.MealTest,
@@ -321,6 +321,33 @@ test('meal grouping treats __proto__ and malicious persisted text as literal con
     assert.equal(harness.elements.mealHistory.textContent.includes(malicious), true);
 });
 
+test('meal display ignores unparsable dates instead of throwing', () => {
+    const harness = mealHarness('2026-07-22T10:00:00', {
+        stored: [
+            {
+                date: 'not-a-date',
+                mealTime: '晚餐',
+                number: '1',
+                content: '坏数据',
+                owner: 'mine'
+            },
+            {
+                date: '2026年7月23日-周四',
+                mealTime: '晚餐',
+                number: '2',
+                content: '有效安排',
+                owner: 'mine'
+            }
+        ]
+    });
+
+    assert.doesNotThrow(() => harness.api.displayMeals());
+    assert.doesNotThrow(() => harness.api.displayTodayMeals());
+    assert.equal(harness.api.readArrangements().length, 1);
+    assert.match(harness.elements.mealHistory.textContent, /有效安排/);
+    assert.equal(harness.elements.mealHistory.textContent.includes('坏数据'), false);
+});
+
 if (!process.env.MEAL_TIMEZONE_CHILD) {
     test('meal business-day behavior passes in UTC and an American timezone', () => {
         for (const timezone of ['UTC', 'America/Los_Angeles']) {
@@ -331,7 +358,7 @@ if (!process.env.MEAL_TIMEZONE_CHILD) {
                 env: childEnv
             });
             assert.equal(result.status, 0, `${timezone}\n${result.stdout}\n${result.stderr}`);
-            assert.match(result.stdout, /pass 11/);
+            assert.match(result.stdout, /pass 12/);
         }
     });
 }

@@ -318,17 +318,18 @@ function kebabToCamel(str) {
 }
 
 /**
- * 安全获取本地存储中的JSON数据（优先使用公共工具库）
+ * 安全获取本地存储中的JSON数据（优先 StorageService）
  * @param {string} key - 存储键名
  * @param {*} defaultValue - 默认值
  * @returns {*} 解析后的数据或默认值
  */
 function getLocalStorageItem(key, defaultValue = null) {
-    // 优先使用公共工具库
+    if (window.StorageService && typeof window.StorageService.getJson === 'function') {
+        return window.StorageService.getJson(key, defaultValue);
+    }
     if (window.CommonUtils && window.CommonUtils.getLocalStorageItem) {
         return window.CommonUtils.getLocalStorageItem(key, defaultValue);
     }
-    // 降级处理：如果公共工具库未加载，使用本地实现
     try {
         const item = localStorage.getItem(key);
         if (item === null) return defaultValue;
@@ -340,17 +341,18 @@ function getLocalStorageItem(key, defaultValue = null) {
 }
 
 /**
- * 安全设置本地存储中的JSON数据（优先使用公共工具库）
+ * 安全设置本地存储中的JSON数据（优先 StorageService）
  * @param {string} key - 存储键名
  * @param {*} value - 要存储的数据
  * @returns {boolean} 是否成功
  */
 function setLocalStorageItem(key, value) {
-    // 优先使用公共工具库
+    if (window.StorageService && typeof window.StorageService.setJson === 'function') {
+        return window.StorageService.setJson(key, value).ok;
+    }
     if (window.CommonUtils && window.CommonUtils.setLocalStorageItem) {
         return window.CommonUtils.setLocalStorageItem(key, value);
     }
-    // 降级处理：如果公共工具库未加载，使用本地实现
     try {
         localStorage.setItem(key, JSON.stringify(value));
         return true;

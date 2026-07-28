@@ -242,8 +242,22 @@
         return { lists: [list], activeListId: list.id };
     }
 
+    function readTravelPayload() {
+        if (window.StorageService && typeof window.StorageService.getJson === 'function') {
+            return window.StorageService.getJson(STORAGE_KEY, null);
+        }
+        return window.CommonUtils.getLocalStorageItem(STORAGE_KEY, null);
+    }
+
+    function writeTravelPayload(payload) {
+        if (window.StorageService && typeof window.StorageService.setJson === 'function') {
+            return window.StorageService.setJson(STORAGE_KEY, payload).ok;
+        }
+        return window.CommonUtils.setLocalStorageItem(STORAGE_KEY, payload);
+    }
+
     function loadData() {
-        const raw = window.CommonUtils.getLocalStorageItem(STORAGE_KEY, null);
+        const raw = readTravelPayload();
         if (raw && raw.version === DATA_VERSION) {
             if (isValidStoredState(raw.data)) {
                 state.lists = raw.data.lists;
@@ -274,7 +288,7 @@
             version: DATA_VERSION,
             data: { lists: nextState.lists, activeListId: nextState.activeListId }
         };
-        if (!window.CommonUtils.setLocalStorageItem(STORAGE_KEY, payload)) {
+        if (!writeTravelPayload(payload)) {
             renderList();
             showMessage('保存失败，本次修改已撤销', 'error');
             return false;

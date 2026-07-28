@@ -55,15 +55,37 @@ class StorageManager {
      */
     isLocalStorageAvailable() {
         const test = '__storage_test__';
-        if (!window.CommonUtils.setLocalStorageItem(test, test)) return false;
-        return window.CommonUtils.removeLocalStorageItem(test);
+        if (!this.writeJson(test, test)) return false;
+        return this.removeKey(test);
+    }
+
+    /** 优先 StorageService，测试环境可回退 CommonUtils。 */
+    readJson(key, fallback) {
+        if (window.StorageService && typeof window.StorageService.getJson === 'function') {
+            return window.StorageService.getJson(key, fallback);
+        }
+        return window.CommonUtils.getLocalStorageItem(key, fallback);
+    }
+
+    writeJson(key, value) {
+        if (window.StorageService && typeof window.StorageService.setJson === 'function') {
+            return window.StorageService.setJson(key, value).ok;
+        }
+        return window.CommonUtils.setLocalStorageItem(key, value);
+    }
+
+    removeKey(key) {
+        if (window.StorageService && typeof window.StorageService.remove === 'function') {
+            return window.StorageService.remove(key).ok;
+        }
+        return window.CommonUtils.removeLocalStorageItem(key);
     }
 
     /**
      * 获取所有数据（使用公共工具库）
      */
     getData() {
-        const data = window.CommonUtils.getLocalStorageItem(this.STORAGE_KEY, null);
+        const data = this.readJson(this.STORAGE_KEY, null);
 
         if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data.plans)) return null;
 
@@ -128,7 +150,7 @@ class StorageManager {
      * 保存所有数据（使用公共工具库）
      */
     saveData(data) {
-        return window.CommonUtils.setLocalStorageItem(this.STORAGE_KEY, data);
+        return this.writeJson(this.STORAGE_KEY, data);
     }
 
     /**

@@ -443,19 +443,93 @@
                     this.state.bonuses[i] = getOptionalNumber(`bonus_m${i}`);
                 }
 
-                window.CommonUtils.setLocalStorageItem(TAX_STORAGE_KEY, this.state);
+                if (!this.persistState(this.state)) {
+                    window.CommonUtils.showNotification('输入保存失败，刷新页面后可能无法恢复', 'error');
+                }
+            },
+
+            /** 优先 StorageService，兼容仅注入 CommonUtils 的测试环境。 */
+            persistState: function(state) {
+                if (window.StorageService && typeof window.StorageService.setJson === 'function') {
+                    return window.StorageService.setJson(TAX_STORAGE_KEY, state).ok;
+                }
+                return window.CommonUtils.setLocalStorageItem(TAX_STORAGE_KEY, state);
+            },
+
+            readPersistedState: function() {
+                if (window.StorageService && typeof window.StorageService.getJson === 'function') {
+                    return window.StorageService.getJson(TAX_STORAGE_KEY, null);
+                }
+                return window.CommonUtils.getLocalStorageItem(TAX_STORAGE_KEY, null);
+            },
+
+            /**
+             * 只恢复白名单字段；缺失字段保持默认，非法值丢弃，避免脏数据污染表单。
+             */
+            sanitizeRestoredState: function(parsed) {
+                if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+
+                const maxAmount = Number.MAX_SAFE_INTEGER / 24;
+                // undefined = 缺失或非法（不覆盖默认）；'' = 显式留空；number = 合法值。
+                const sanitizeOptionalNumber = (value, min, max) => {
+                    if (value === undefined) return undefined;
+                    if (value === '' || value === null) return '';
+                    const number = Number(value);
+                    if (!Number.isFinite(number) || number < min || number > max) return undefined;
+                    return number;
+                };
+                const sanitizeMonthOption = (value, minMonth) => {
+                    if (value === undefined) return undefined;
+                    if (value === '' || value === null) return '';
+                    const month = Number(value);
+                    if (!Number.isInteger(month) || month < minMonth || month > 12) return undefined;
+                    return String(month);
+                };
+
+                const next = {};
+                const assignIfDefined = (key, value) => {
+                    if (value !== undefined) next[key] = value;
+                };
+
+                assignIfDefined('baseSalary', sanitizeOptionalNumber(parsed.baseSalary, 0, maxAmount));
+                assignIfDefined('specialDeduction', sanitizeOptionalNumber(parsed.specialDeduction, 0, maxAmount));
+                assignIfDefined('socialBase', sanitizeOptionalNumber(parsed.socialBase, 0, maxAmount));
+                assignIfDefined('fundBase', sanitizeOptionalNumber(parsed.fundBase, 0, maxAmount));
+                assignIfDefined('fundRate', sanitizeOptionalNumber(parsed.fundRate, 0, 100));
+                assignIfDefined('medicalPersonalRate', sanitizeOptionalNumber(parsed.medicalPersonalRate, 0, 100));
+                assignIfDefined('medicalCompanyRate', sanitizeOptionalNumber(parsed.medicalCompanyRate, 0, 100));
+                assignIfDefined('otherSocialPersonalRate', sanitizeOptionalNumber(parsed.otherSocialPersonalRate, 0, 100));
+                assignIfDefined('bonusTaxMonth', sanitizeMonthOption(parsed.bonusTaxMonth, 1));
+                assignIfDefined('jobChangeMonth', sanitizeMonthOption(parsed.jobChangeMonth, 2));
+                assignIfDefined('newBaseSalary', sanitizeOptionalNumber(parsed.newBaseSalary, 0, maxAmount));
+                assignIfDefined('newSocialBase', sanitizeOptionalNumber(parsed.newSocialBase, 0, maxAmount));
+                assignIfDefined('newFundBase', sanitizeOptionalNumber(parsed.newFundBase, 0, maxAmount));
+                assignIfDefined('newFundRate', sanitizeOptionalNumber(parsed.newFundRate, 0, 100));
+                assignIfDefined('newSpecialDeduction', sanitizeOptionalNumber(parsed.newSpecialDeduction, 0, maxAmount));
+                assignIfDefined('newMedicalPersonalRate', sanitizeOptionalNumber(parsed.newMedicalPersonalRate, 0, 100));
+                assignIfDefined('newMedicalCompanyRate', sanitizeOptionalNumber(parsed.newMedicalCompanyRate, 0, 100));
+                assignIfDefined('newOtherSocialPersonalRate', sanitizeOptionalNumber(parsed.newOtherSocialPersonalRate, 0, 100));
+
+                if (parsed.bonuses && typeof parsed.bonuses === 'object' && !Array.isArray(parsed.bonuses)) {
+                    const bonuses = {};
+                    for (let month = 1; month <= 12; month += 1) {
+                        const bonus = sanitizeOptionalNumber(parsed.bonuses[month], 0, maxAmount);
+                        if (bonus !== undefined) bonuses[month] = bonus;
+                    }
+                    next.bonuses = bonuses;
+                }
+                return next;
             },
 
             loadState: function() {
-                const parsed = window.CommonUtils.getLocalStorageItem(TAX_STORAGE_KEY, null);
-                
-                if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-                    this.state = { ...this.state, ...parsed };
-                    if (!this.state.bonuses || typeof this.state.bonuses !== 'object'
-                        || Array.isArray(this.state.bonuses)) {
-                        this.state.bonuses = {};
-                    }
-                }
+                const parsed = this.readPersistedState();
+                const sanitized = this.sanitizeRestoredState(parsed);
+                if (!sanitized) return;
+
+                const nextBonuses = sanitized.bonuses
+                    ? { ...this.state.bonuses, ...sanitized.bonuses }
+                    : this.state.bonuses;
+                this.state = { ...this.state, ...sanitized, bonuses: nextBonuses };
             },
 
             restoreUI: function() {
@@ -790,4 +864,6 @@
 
         if (typeof module === 'object' && module.exports) {
             module.exports = TaxCalculator;
+            // Node 测试需要校验表单恢复逻辑，挂到导出对象上但不影响浏览器全局。
+            module.exports.app = app;
         }

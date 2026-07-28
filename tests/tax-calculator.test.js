@@ -71,3 +71,27 @@ test('40000 annual bonus uses the official lookup formula without segmented resu
     assert.equal(result.avgAmount, 40000 / 12);
     assert.equal(Object.hasOwn(result, 'segments'), false);
 });
+
+test('sanitizeRestoredState keeps defaults for missing fields and drops invalid values', () => {
+    assert.ok(TaxCalculator.app && typeof TaxCalculator.app.sanitizeRestoredState === 'function');
+
+    const sanitized = TaxCalculator.app.sanitizeRestoredState({
+        baseSalary: 12000,
+        specialDeduction: -1,
+        socialBase: 'oops',
+        fundRate: 5,
+        bonusTaxMonth: '13',
+        jobChangeMonth: '2',
+        bonuses: { 1: 1000, 2: 'bad', 3: -5 }
+    });
+
+    assert.equal(sanitized.baseSalary, 12000);
+    assert.equal(Object.hasOwn(sanitized, 'specialDeduction'), false);
+    assert.equal(Object.hasOwn(sanitized, 'socialBase'), false);
+    assert.equal(sanitized.fundRate, 5);
+    assert.equal(Object.hasOwn(sanitized, 'bonusTaxMonth'), false);
+    assert.equal(sanitized.jobChangeMonth, '2');
+    assert.equal(sanitized.bonuses[1], 1000);
+    assert.equal(Object.hasOwn(sanitized.bonuses, 2), false);
+    assert.equal(Object.hasOwn(sanitized.bonuses, 3), false);
+});

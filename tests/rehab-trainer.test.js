@@ -211,6 +211,7 @@ test('sample exercises are added with one atomic write', () => {
 
 function createTimerHarness() {
     let intervalCount = 0;
+    let clearCount = 0;
     const context = {
         console: silentConsole,
         Date,
@@ -219,14 +220,17 @@ function createTimerHarness() {
             intervalCount += 1;
             return intervalCount;
         },
-        clearInterval() {}
+        clearInterval() {
+            clearCount += 1;
+        }
     };
     vm.createContext(context);
     vm.runInContext(timerSource, context);
     const TrainingTimer = vm.runInContext('TrainingTimer', context);
     return {
         timer: new TrainingTimer(),
-        getIntervalCount: function() { return intervalCount; }
+        getIntervalCount: function() { return intervalCount; },
+        getClearCount: function() { return clearCount; }
     };
 }
 
@@ -246,6 +250,26 @@ test('training timer rejects invalid exercise and timing values before starting 
         assert.equal(harness.timer.state, harness.timer.STATE.IDLE);
         assert.equal(harness.getIntervalCount(), 0);
     });
+});
+
+test('training timer stops interval on pause and restarts on resume', () => {
+    const harness = createTimerHarness();
+    const exercise = { name: '平板支撑', type: 'duration', duration: 30, sets: 1, setRest: 0 };
+
+    assert.equal(harness.timer.start([exercise], 10, 5, 10), true);
+    assert.equal(harness.timer.state, harness.timer.STATE.PREPARING);
+    assert.equal(harness.getIntervalCount(), 1);
+
+    assert.equal(harness.timer.pause(), true);
+    assert.equal(harness.timer.state, harness.timer.STATE.PAUSED);
+    assert.equal(harness.timer.intervalId, null);
+    assert.ok(harness.getClearCount() >= 1);
+
+    const intervalsBeforeResume = harness.getIntervalCount();
+    assert.equal(harness.timer.resume(), true);
+    assert.equal(harness.timer.state, harness.timer.STATE.PREPARING);
+    assert.equal(harness.getIntervalCount(), intervalsBeforeResume + 1);
+    assert.notEqual(harness.timer.intervalId, null);
 });
 
 function createTransferHarness() {

@@ -201,6 +201,21 @@ test('confirmAction cancels on Escape, restores focus, and cleans listeners once
     assert.equal(trigger.focusCount, 2);
 });
 
+test('confirmAction preserves a custom null Escape value', async () => {
+    const document = createFakeDocument();
+    const { createDialogService } = require('../utils/dialog.js');
+    const service = createDialogService({ document });
+    const promise = service.confirmAction('请选择导入方式', { escapeValue: null });
+    const dialog = document.body.children[0].children[0];
+
+    dialog.listeners.keydown({
+        key: 'Escape',
+        preventDefault() {}
+    });
+
+    assert.equal(await promise, null);
+});
+
 test('confirmAction falls back to native confirm without document', async () => {
     const { createDialogService } = require('../utils/dialog.js');
     const service = createDialogService({
@@ -265,4 +280,23 @@ test('promptAction cancels on Escape and falls back to native prompt without a d
         await fallback.promptAction('请输入文件名', { defaultValue: '默认方案' }),
         '浏览器输入'
     );
+});
+
+test('opening a second modal dismisses the previous one without stacking backdrops', async () => {
+    const document = createFakeDocument();
+    const { createDialogService } = require('../utils/dialog.js');
+    const service = createDialogService({ document });
+
+    const first = service.confirmAction('第一次确认');
+    assert.equal(document.body.children.length, 1);
+
+    const second = service.confirmAction('第二次确认');
+    assert.equal(document.body.children.length, 1);
+    assert.equal(await first, false);
+
+    const dialog = document.body.children[0].children[0];
+    assert.equal(dialog.attributes['aria-label'], '第二次确认');
+    dialog.children[1].children[1].listeners.click();
+    assert.equal(await second, true);
+    assert.equal(document.body.children.length, 0);
 });
