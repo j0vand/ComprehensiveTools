@@ -55,6 +55,14 @@ header {
     vertical-align: middle;
 }
 
+#post-retirement-table td.num-cell {
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    padding-left: 12px;
+    padding-right: 12px;
+}
+
 #trend-chart,
 #cashflow-chart {
     width: 100%;

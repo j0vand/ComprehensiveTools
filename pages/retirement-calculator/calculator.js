@@ -344,8 +344,13 @@ function renderResults(ctx) {
     resultSection.focus({ preventScroll: true });
 }
 
+function formatYuan(value) {
+    const amount = Math.round(Number(value) || 0);
+    return '¥ ' + amount.toLocaleString('zh-CN');
+}
+
 function renderPostRetirementMonthlyTable(trendData, firstFireAge, ctx) {
-    const { actualRetireAge, lifeExpectancy, currentAge, inflationRate } = ctx;
+    const { actualRetireAge, lifeExpectancy } = ctx;
 
     const postRetirementTitle = document.getElementById('post-retirement-title');
     const postRetirementBody = document.getElementById('post-retirement-body');
@@ -364,28 +369,29 @@ function renderPostRetirementMonthlyTable(trendData, firstFireAge, ctx) {
     const assetSeries = buildAssetSeries(trendData, firstFireAge, ctx, ctx.extraSavingYearsAfterFire);
 
     for (let age = actualRetireAge; age < lifeExpectancy; age += 1) {
-        const yearsFromNow = age - currentAge;
-        const cashflow = window.FireProjection.calculateYearlyCashflow(ctx, age);
-        const monthlyNetReal = cashflow.monthlyNetOutflow / Math.pow(1 + inflationRate, yearsFromNow);
         const ageIndex = trendData.findIndex((item) => item.age === age);
         const startingAssets = ageIndex >= 0 ? assetSeries[ageIndex] : 0;
-        const yearlyInvestmentGain = window.FireProjection.calculateRetirementYearInvestmentGain({
+        const breakdown = window.FireProjection.calculateRetirementYearBreakdown({
             ...ctx,
             startingAssets,
             age,
             retireAge: actualRetireAge
         });
+        // 与资产曲线共用下一岁年初余额，避免明细与曲线口径不一致
+        const remainingBalance = ageIndex >= 0 && ageIndex + 1 < assetSeries.length
+            ? assetSeries[ageIndex + 1]
+            : breakdown.endBalance;
 
         const row = document.createElement('tr');
         row.innerHTML =
             '<td>' + age + ' 岁</td>' +
-            '<td>¥ ' + Math.round(cashflow.monthlyExpense).toLocaleString() + '</td>' +
-            '<td>¥ ' + Math.round(cashflow.monthlyMedicalExpense).toLocaleString() + '</td>' +
-            '<td>¥ ' + Math.round(cashflow.monthlyPension).toLocaleString() + '</td>' +
-            '<td>¥ ' + Math.round(cashflow.monthlyNetOutflow).toLocaleString() + '</td>' +
-            '<td>¥ ' + Math.round(cashflow.yearlyGrossSpending).toLocaleString() + '</td>' +
-            '<td>¥ ' + Math.round(yearlyInvestmentGain).toLocaleString() + '</td>' +
-            '<td>¥ ' + Math.round(monthlyNetReal).toLocaleString() + '</td>';
+            '<td class="num-cell">' + formatYuan(breakdown.monthlyExpense) + '</td>' +
+            '<td class="num-cell">' + formatYuan(breakdown.monthlyMedicalExpense) + '</td>' +
+            '<td class="num-cell">' + formatYuan(breakdown.monthlyPension) + '</td>' +
+            '<td class="num-cell">' + formatYuan(breakdown.monthlyNetOutflow) + '</td>' +
+            '<td class="num-cell">' + formatYuan(breakdown.yearlyGrossSpending) + '</td>' +
+            '<td class="num-cell">' + formatYuan(breakdown.yearlyInvestmentGain) + '</td>' +
+            '<td class="num-cell">' + formatYuan(remainingBalance) + '</td>';
         postRetirementBody.appendChild(row);
     }
 }

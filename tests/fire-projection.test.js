@@ -239,6 +239,85 @@ test('retirement year investment gain uses remaining assets after spending', () 
     }), 80);
 });
 
+test('retirement year end balance is remaining assets after spend and return', () => {
+    // 年初 1000 - 支出 200 - 医疗备用金 100 = 700，再 ×1.1 → 年末 770
+    assert.equal(Math.round(FireProjection.calculateRetirementYearEndBalance({
+        startingAssets: 1000,
+        age: 40,
+        retireAge: 40,
+        currentAge: 40,
+        monthlyExpense: 200 / 12,
+        medicalMonthlyExpense: 0,
+        medicalReserve: 100,
+        expectedPension: 0,
+        pensionAge: 65,
+        inflationRate: 0,
+        pensionGrowthRate: 0,
+        investmentReturn: 0.1
+    }) * 100) / 100, 770);
+});
+
+test('retirement year breakdown keeps gain and end balance on the same principal', () => {
+    const breakdown = FireProjection.calculateRetirementYearBreakdown({
+        startingAssets: 3000000,
+        age: 46,
+        retireAge: 46,
+        currentAge: 30,
+        monthlyExpense: 7000,
+        medicalMonthlyExpense: 300,
+        medicalReserve: 500000,
+        expectedPension: 0,
+        pensionAge: 65,
+        inflationRate: 0.02,
+        pensionGrowthRate: 0,
+        investmentReturn: 0.02
+    });
+
+    assert.equal(
+        Math.round(breakdown.endBalance),
+        Math.round(breakdown.remainingAfterSpend + breakdown.yearlyInvestmentGain)
+    );
+    assert.ok(breakdown.endBalance > 1000000, '年末剩余应与百万级本金同量级，而非数千元');
+    assert.ok(
+        breakdown.yearlyInvestmentGain < breakdown.remainingAfterSpend,
+        '理财收益应小于计息本金'
+    );
+});
+
+test('stop-saving series next balance matches retirement year end balance', () => {
+    const params = {
+        currentAge: 30,
+        lifeExpectancy: 90,
+        currentAssets: 1000000,
+        annualSavings: 200000,
+        monthlyExpense: 5000,
+        medicalMonthlyExpense: 200,
+        medicalReserve: 500000,
+        expectedPension: 0,
+        pensionAge: 65,
+        inflationRate: 0.02,
+        pensionGrowthRate: 0,
+        investmentReturn: 0.02,
+        extraSavingYearsAfterFire: 0
+    };
+    const { trendData, firstFireAge } = FireProjection.calculateFireTrend(params);
+    assert.ok(firstFireAge > 0);
+    const series = FireProjection.calculateStopSavingAssetSeries({
+        ...params,
+        trendData,
+        firstFireAge,
+        extraSavingYearsAfterFire: 0
+    });
+    const idx = trendData.findIndex((item) => item.age === firstFireAge);
+    const endBalance = FireProjection.calculateRetirementYearEndBalance({
+        ...params,
+        startingAssets: series[idx],
+        age: firstFireAge,
+        retireAge: firstFireAge
+    });
+    assert.equal(Math.round(series[idx + 1]), Math.round(endBalance));
+});
+
 test('FIRE trend never treats life expectancy as a retirement candidate', () => {
     const result = FireProjection.calculateFireTrend({
         currentAge: 84,

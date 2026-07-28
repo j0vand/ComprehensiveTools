@@ -101,20 +101,48 @@
         return actualRetireAge;
     }
 
-    /** 退休某年：先扣净支出（退休首年另扣医疗备用金），剩余资产再计理财收益。 */
-    function calculateRetirementYearInvestmentGain(params) {
+    /** 退休某年收支分解：与停储蓄资产序列同一套「先扣支出再计收益」口径。 */
+    function calculateRetirementYearBreakdown(params) {
         const startingAssets = Math.max(0, Number(params.startingAssets) || 0);
         const rate = Number(params.investmentReturn) || 0;
         const cashflow = calculateYearlyCashflow(params, params.age);
-        const medicalReserve = params.age === params.retireAge
+        const medicalReserveOutlay = Number(params.age) === Number(params.retireAge)
             ? applyInflation(
                 Math.max(0, Number(params.medicalReserve) || 0),
                 params.retireAge - params.currentAge,
                 params.inflationRate
             )
             : 0;
-        const remaining = Math.max(0, startingAssets - cashflow.yearlyNetOutflow - medicalReserve);
-        return remaining * rate;
+        const remainingAfterSpend = Math.max(
+            0,
+            startingAssets - cashflow.yearlyNetOutflow - medicalReserveOutlay
+        );
+        const yearlyInvestmentGain = remainingAfterSpend * rate;
+        const endBalance = remainingAfterSpend * (1 + rate);
+
+        return {
+            startingAssets,
+            medicalReserveOutlay,
+            remainingAfterSpend,
+            yearlyInvestmentGain,
+            endBalance,
+            yearlyGrossSpending: cashflow.yearlyGrossSpending,
+            yearlyNetOutflow: cashflow.yearlyNetOutflow,
+            monthlyExpense: cashflow.monthlyExpense,
+            monthlyMedicalExpense: cashflow.monthlyMedicalExpense,
+            monthlyPension: cashflow.monthlyPension,
+            monthlyNetOutflow: cashflow.monthlyNetOutflow
+        };
+    }
+
+    /** 退休某年：先扣净支出（退休首年另扣医疗备用金），剩余资产再计理财收益。 */
+    function calculateRetirementYearInvestmentGain(params) {
+        return calculateRetirementYearBreakdown(params).yearlyInvestmentGain;
+    }
+
+    /** 退休某年年末剩余存款：扣完支出后的余额再叠加当年理财收益。 */
+    function calculateRetirementYearEndBalance(params) {
+        return calculateRetirementYearBreakdown(params).endBalance;
     }
 
     /** 生成严格早于预期寿命的 FIRE 候选轨迹，寿命年龄本身不参与判定。 */
@@ -325,6 +353,8 @@
         calculateTargetAnnualSavings,
         calculateRequiredSpendingCapitalAtAge,
         calculateYearlyCashflow,
-        calculateRetirementYearInvestmentGain
+        calculateRetirementYearBreakdown,
+        calculateRetirementYearInvestmentGain,
+        calculateRetirementYearEndBalance
     };
 });
