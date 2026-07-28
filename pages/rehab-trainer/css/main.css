@@ -1,23 +1,23 @@
-/* 腰突康复训练 - 表现优化（与首页/出行清单设计一致） */
+/* 腰突康复训练 - 对齐全站青绿主题 */
 :root {
-    --bg-color: #f6fbf8;
-    --card-bg: rgba(255, 255, 255, 0.94);
-    --text-main: #16302b;
-    --text-sub: #667c76;
+    --bg-color: #f3f8f6;
+    --card-bg: rgba(255, 255, 255, 0.96);
+    --text-main: #14332d;
+    --text-sub: #5f7470;
     --training-text: #f3fff9;
     --training-text-muted: #b8d8cf;
-    --accent-neon: #16a34a;
-    --accent-neon-dim: rgba(22, 163, 74, 0.16);
-    --border-color: #dbe9e5;
+    --accent-neon: #0f9f8f;
+    --accent-neon-dim: rgba(15, 159, 143, 0.16);
+    --border-color: #c9ddd7;
     
-    --primary: var(--accent-neon);
-    --primary-hover: #15803d;
-    --success: var(--accent-neon);
+    --primary: #0f9f8f;
+    --primary-hover: #0b8176;
+    --success: #16a34a;
     --light-bg: var(--bg-color);
     --text: var(--text-main);
     --text-muted: var(--text-sub);
-    --shadow-card: 0 10px 28px rgba(24, 78, 68, 0.08);
-    --shadow-card-hover: 0 16px 38px rgba(24, 78, 68, 0.12);
+    --shadow-card: 0 8px 24px rgba(20, 51, 45, 0.08);
+    --shadow-card-hover: 0 16px 40px rgba(20, 51, 45, 0.12);
     --radius: 16px;
     --radius-sm: 8px;
 }
@@ -28,8 +28,8 @@
 
 body {
     background:
-        radial-gradient(circle at top left, rgba(22, 163, 74, 0.12), transparent 30rem),
-        linear-gradient(135deg, var(--bg-color) 0%, #eef7ff 100%);
+        radial-gradient(ellipse 70% 50% at 0% 0%, rgba(15, 159, 143, 0.12), transparent 55%),
+        linear-gradient(165deg, var(--bg-color) 0%, #f7faf8 100%);
     color: var(--text-main);
     padding-bottom: 80px;
     min-height: 100vh;
@@ -151,21 +151,12 @@ body {
 #mainView header h1 {
     font-family: var(--font-heading);
     font-weight: 700;
-    letter-spacing: 0;
+    letter-spacing: -0.02em;
     color: var(--text-main);
-    text-shadow: 0 0 10px rgba(255,255,255,0.1);
 }
 
-#mainView header .btn-outline-secondary {
-    border-color: var(--border-color);
-    color: var(--text-sub);
-}
-
-#mainView header .btn-outline-secondary:hover {
-    border-color: var(--accent-neon);
-    color: var(--accent-neon);
-    background: var(--accent-neon-dim);
-    box-shadow: 0 0 10px var(--accent-neon-dim);
+#mainView header .back-to-home {
+    margin-bottom: 0;
 }
 
 /* 计划选择卡片 */
@@ -346,19 +337,42 @@ body {
     border-color: var(--primary-hover);
 }
 
-.btn-outline-primary {
-    border-color: var(--primary);
-    color: var(--primary);
+.btn-outline-info,
+.btn-outline-info:hover,
+.btn-outline-info:focus,
+.btn-outline-info:active {
+    color: var(--primary) !important;
+    border-color: var(--primary) !important;
+    background-color: transparent !important;
+}
+
+.btn-outline-info:hover {
+    color: #ffffff !important;
+    background-color: var(--primary) !important;
+}
+
+.btn-info,
+.btn-info:hover,
+.btn-info:focus,
+.btn-info:active {
+    color: #ffffff !important;
+    background-color: var(--primary) !important;
+    border-color: var(--primary) !important;
+}
+
+.btn-info:hover {
+    background-color: var(--primary-hover) !important;
+    border-color: var(--primary-hover) !important;
 }
 
 .btn-success {
-    background-color: var(--success);
-    border-color: var(--success);
+    background-color: var(--primary);
+    border-color: var(--primary);
 }
 
 .btn-success:hover:not(:disabled) {
-    background-color: #047857;
-    border-color: #047857;
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
 }
 
 .btn-success:disabled {

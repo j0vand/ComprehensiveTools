@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="theme-color" content="#10b981">
+    <meta name="theme-color" content="#0f9f8f">
     <title>个税计算器</title>
     <link rel="icon" href="../../static/logo.png" type="image/png">
     <link rel="stylesheet" href="../../css/base.css">
@@ -14,15 +14,15 @@
             --primary-dark: #0b8176;
             --primary-light: #dff7f2;
             --danger: #e85d75;
-            --warning: #f59e0b;
-            --text-main: #16302b;
-            --text-sub: #667c76;
-            --bg-body: #f6fbf8;
+            --warning: #d97706;
+            --text-main: #14332d;
+            --text-sub: #5f7470;
+            --bg-body: #f3f8f6;
             --bg-card: #ffffff;
-            --border: #dbe9e5;
+            --border: #c9ddd7;
             --radius: 16px;
             --radius-sm: 10px;
-            --shadow: 0 12px 30px rgba(24, 78, 68, 0.10);
+            --shadow: 0 12px 30px rgba(20, 51, 45, 0.10);
         }
 
         * {
@@ -33,8 +33,9 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            font-family: var(--font-body);
             background-color: var(--bg-body);
+            background-image: var(--app-background);
             color: var(--text-main);
             line-height: 1.6;
             padding-bottom: 40px;
@@ -57,11 +58,19 @@
             justify-content: space-between;
             align-items: center;
             margin-bottom: 10px;
+            gap: 12px;
+        }
+
+        .header-top .back-to-home {
+            margin-bottom: 0;
+            flex-shrink: 0;
         }
 
         .header h1 {
             font-size: 22px;
             font-weight: 700;
+            flex: 1;
+            text-align: center;
         }
 
         .help-btn {
@@ -604,7 +613,7 @@
 
     <div class="header">
         <div class="header-top">
-            <a href="../../index.html" style="color: white; text-decoration: none; font-size: 14px; opacity: 0.9; display: flex; align-items: center;">
+            <a href="../../index.html" class="back-to-home back-to-home--on-dark">
                 ← 返回主页
             </a>
             <h1>个税计算器</h1>

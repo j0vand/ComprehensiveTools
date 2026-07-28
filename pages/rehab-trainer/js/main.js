@@ -522,7 +522,7 @@ class RehabTrainerApp {
                 const quickStartBtn = document.createElement('button');
                 quickStartBtn.type = 'button';
                 quickStartBtn.id = 'quickStartBtn';
-                quickStartBtn.className = 'btn btn-info mt-3';
+                quickStartBtn.className = 'btn btn-primary mt-3';
                 quickStartBtn.innerHTML = '<i class="bi bi-lightning-fill"></i> 快速添加示例训练';
                 quickStartBtn.addEventListener('click', () => this.addSampleExercises(), { signal: this.signal });
                 this.emptyState.appendChild(quickStartBtn);

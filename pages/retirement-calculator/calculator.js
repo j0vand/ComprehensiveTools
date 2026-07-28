@@ -470,8 +470,8 @@ function renderTrendChart(trendData, firstFireAge, pensionAge, ctx) {
     const assetDatasets = [{
         label: '当前场景资产',
         data: currentAssetSeries,
-        borderColor: '#1e88e5',
-        backgroundColor: 'rgba(30,136,229,0.12)',
+        borderColor: '#0f9f8f',
+        backgroundColor: 'rgba(15,159,143,0.12)',
         tension: 0.25,
         pointRadius: 2
     }];
@@ -599,8 +599,8 @@ function renderCashflowChart(trendData, firstFireAge, ctx) {
                     label: '退休后资产余额',
                     data: assetSeries,
                     yAxisID: 'asset',
-                    borderColor: '#1e88e5',
-                    backgroundColor: 'rgba(30,136,229,0.10)',
+                    borderColor: '#0f9f8f',
+                    backgroundColor: 'rgba(15,159,143,0.10)',
                     tension: 0.25,
                     pointRadius: 2
                 },

@@ -3,20 +3,20 @@
    ========================================== */
 
 :root {
-    --tc-bg: #f6fbf8;
-    --tc-bg-card: rgba(255, 255, 255, 0.94);
-    --tc-text: #16302b;
-    --tc-text-muted: #667c76;
-    --tc-primary: #0f9f8f;
-    --tc-primary-hover: #0b8176;
-    --tc-accent-done: #16a34a;
-    --tc-border: #dbe9e5;
-    --tc-shadow: 0 10px 28px rgba(24, 78, 68, 0.08);
-    --tc-shadow-hover: 0 16px 38px rgba(24, 78, 68, 0.12);
+    --tc-bg: var(--app-bg, #f3f8f6);
+    --tc-bg-card: rgba(255, 255, 255, 0.96);
+    --tc-text: var(--text-strong, #14332d);
+    --tc-text-muted: var(--text-muted, #5f7470);
+    --tc-primary: var(--brand-primary, #0f9f8f);
+    --tc-primary-hover: var(--brand-primary-hover, #0b8176);
+    --tc-accent-done: var(--brand-green, #16a34a);
+    --tc-border: var(--border-soft, #c9ddd7);
+    --tc-shadow: var(--shadow-soft, 0 8px 24px rgba(20, 51, 45, 0.08));
+    --tc-shadow-hover: var(--shadow-lift, 0 16px 40px rgba(20, 51, 45, 0.12));
     --tc-radius: 16px;
     --tc-radius-sm: 10px;
-    --tc-font-heading: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-    --tc-font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    --tc-font-heading: var(--font-heading);
+    --tc-font-body: var(--font-body);
     --tc-touch-min: 44px;
 }
 
@@ -30,12 +30,8 @@ body {
     font-family: var(--tc-font-body);
     font-size: 16px;
     line-height: 1.5;
-    background:
-        radial-gradient(circle at top left, rgba(14, 165, 233, 0.10), transparent 28rem),
-        linear-gradient(135deg, var(--tc-bg) 0%, #fff8ec 100%);
     color: var(--tc-text);
     min-height: 100vh;
-    padding: 16px;
 }
 
 .container {
@@ -45,35 +41,16 @@ body {
 
 /* ----- 标题区 ----- */
 .header {
-    margin-bottom: 24px;
+    margin-bottom: 0;
 }
 
-.back-to-home {
-    display: inline-block;
-    font-size: 0.9rem;
-    color: var(--tc-primary);
-    text-decoration: none;
-    margin-bottom: 12px;
-    transition: color 0.2s;
-}
-
-.back-to-home:hover {
-    color: var(--tc-primary-hover);
-}
-
-.header h1 {
+.header h1,
+.header .tool-page-title {
     font-family: var(--tc-font-heading);
-    font-weight: 700;
-    font-size: 2.5rem;
-    color: var(--tc-text);
-    margin-bottom: 8px;
-    text-align: center;
 }
 
 .subtitle {
     font-size: 0.95rem;
-    color: var(--tc-text-muted);
-    text-align: center;
 }
 
 /* ----- 清单选择区 ----- */
@@ -197,12 +174,12 @@ body {
     font-size: 0.9rem;
     font-weight: 500;
     color: var(--tc-primary);
-    background: rgba(59, 130, 246, 0.08);
+    background: rgba(15, 159, 143, 0.10);
     border: 1px solid var(--tc-primary);
 }
 
 .btn-types-manage:hover {
-    background: rgba(59, 130, 246, 0.15);
+    background: rgba(15, 159, 143, 0.18);
     border-color: var(--tc-primary-hover);
     color: var(--tc-primary-hover);
 }

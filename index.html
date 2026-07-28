@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0f9f8f">
     <title>综合工具箱</title>
     <link rel="icon" href="static/logo.png" type="image/png">
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -12,109 +13,123 @@
     <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/tool-layout.css">
     <style>
-        :root {
-            /* 主题覆盖 */
-            --bg-gradient: linear-gradient(135deg, #f6fbf8 0%, #eef7ff 48%, #fff8ec 100%);
-            --card-bg: rgba(255, 255, 255, 0.82);
-            --card-border: rgba(221, 235, 231, 0.95);
-            --text-main: #16302b;
-            --text-sub: #657b75;
-            --shadow-glass: 0 12px 34px rgba(24, 78, 68, 0.08);
-            --shadow-glass-hover: 0 20px 52px rgba(24, 78, 68, 0.14);
-            --gap-grid: 20px;
-        }
-
         body {
-            background: var(--bg-gradient);
-            color: var(--text-main);
             padding: var(--space-md);
             min-height: 100vh;
             overflow-x: hidden;
         }
-        
+
         .container {
-            max-width: 1200px;
+            max-width: 1080px;
             margin: 0 auto;
         }
 
-        .header {
+        .brand-hero {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             text-align: center;
-            margin-bottom: var(--space-lg);
-            padding: var(--space-lg) 0;
-            border-bottom: none;
-        }
-
-        .header h1 {
-            font-size: 2.5rem;
-            color: var(--text-main);
-            letter-spacing: 0;
+            padding: 36px 16px 28px;
             margin-bottom: 8px;
         }
 
-        .header p {
-            color: var(--text-sub);
-            font-size: 1.1rem;
+        .brand-mark {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+
+        .brand-logo {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            object-fit: cover;
+            box-shadow: 0 10px 24px rgba(15, 159, 143, 0.25);
+            border: 2px solid rgba(255, 255, 255, 0.9);
+        }
+
+        .brand-name {
+            font-family: var(--font-heading);
+            font-size: clamp(2rem, 4vw, 2.75rem);
+            font-weight: 700;
+            letter-spacing: -0.03em;
+            color: var(--text-strong);
+            line-height: 1.15;
+        }
+
+        .brand-tagline {
+            max-width: 28em;
+            color: var(--text-muted);
+            font-size: 1.05rem;
             font-weight: 500;
+        }
+
+        .tool-category {
+            margin-top: 28px;
+        }
+
+        .category-label {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 14px;
+            padding-left: 2px;
+        }
+
+        .category-label h2 {
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .category-label::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            border-radius: 3px;
+            background: var(--cat-accent, var(--brand-primary));
+            box-shadow: 0 0 0 3px color-mix(in srgb, var(--cat-accent, var(--brand-primary)) 22%, transparent);
         }
 
         .tools-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: var(--gap-grid);
-            padding: var(--space-md) 0;
+            gap: 16px;
         }
 
         .tool-card {
-            background: var(--card-bg);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border-radius: var(--radius-md);
-            padding: var(--space-md);
-            border: 1px solid var(--card-border);
-            box-shadow: var(--shadow-glass);
-            transition: all var(--transition-normal);
-            cursor: pointer;
-            text-decoration: none;
-            color: inherit;
-            animation: card-enter 0.45s ease-out backwards;
+            --tool-accent: var(--cat-accent, var(--brand-primary));
+            --tool-accent-soft: var(--cat-accent-soft, var(--brand-primary-soft));
             display: block;
             position: relative;
             overflow: hidden;
+            background: #ffffff;
+            border-radius: var(--radius-md);
+            padding: 20px 18px 18px;
+            border: 1px solid #b7d0c9;
+            box-shadow: 0 10px 28px rgba(20, 51, 45, 0.10);
+            text-decoration: none;
+            color: inherit;
+            transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+            animation: card-enter 0.4s ease-out backwards;
         }
 
-        .tool-card:nth-child(1)  { animation-delay: 0.02s; }
-        .tool-card:nth-child(2)  { animation-delay: 0.06s; }
-        .tool-card:nth-child(3)  { animation-delay: 0.10s; }
-        .tool-card:nth-child(4)  { animation-delay: 0.14s; }
-        .tool-card:nth-child(5)  { animation-delay: 0.18s; }
-        .tool-card:nth-child(6)  { animation-delay: 0.22s; }
-        .tool-card:nth-child(7)  { animation-delay: 0.26s; }
-        .tool-card:nth-child(8)  { animation-delay: 0.30s; }
-        .tool-card:nth-child(9)  { animation-delay: 0.34s; }
-        .tool-card:nth-child(10) { animation-delay: 0.38s; }
-        .tool-card:nth-child(11) { animation-delay: 0.42s; }
-        .tool-card:nth-child(12) { animation-delay: 0.46s; }
+        .tool-category[data-category="finance"] { --cat-accent: var(--cat-finance); --cat-accent-soft: var(--cat-finance-soft); }
+        .tool-category[data-category="life"] { --cat-accent: var(--cat-life); --cat-accent-soft: var(--cat-life-soft); }
+        .tool-category[data-category="health"] { --cat-accent: var(--cat-health); --cat-accent-soft: var(--cat-health-soft); }
 
-        .tool-card:nth-child(1)  { --tool-accent: #16a34a; --tool-accent-soft: #dcfce7; }
-        .tool-card:nth-child(2)  { --tool-accent: #0f9f8f; --tool-accent-soft: #dff7f2; }
-        .tool-card:nth-child(3)  { --tool-accent: #3b82f6; --tool-accent-soft: #dbeafe; }
-        .tool-card:nth-child(4)  { --tool-accent: #f59e0b; --tool-accent-soft: #fef3c7; }
-        .tool-card:nth-child(5)  { --tool-accent: #8b5cf6; --tool-accent-soft: #ede9fe; }
-        .tool-card:nth-child(6)  { --tool-accent: #e85d75; --tool-accent-soft: #ffe4ea; }
-        .tool-card:nth-child(7)  { --tool-accent: #14b8a6; --tool-accent-soft: #ccfbf1; }
-        .tool-card:nth-child(8)  { --tool-accent: #0ea5e9; --tool-accent-soft: #e0f2fe; }
-        .tool-card:nth-child(9)  { --tool-accent: #f97316; --tool-accent-soft: #ffedd5; }
-
-        @keyframes card-enter {
-            from {
-                opacity: 0;
-                transform: translateY(12px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
+        .tool-category[data-category="finance"] .tool-card:nth-child(1) { animation-delay: 0.02s; }
+        .tool-category[data-category="finance"] .tool-card:nth-child(2) { animation-delay: 0.06s; }
+        .tool-category[data-category="finance"] .tool-card:nth-child(3) { animation-delay: 0.10s; }
+        .tool-category[data-category="finance"] .tool-card:nth-child(4) { animation-delay: 0.14s; }
+        .tool-category[data-category="finance"] .tool-card:nth-child(5) { animation-delay: 0.18s; }
+        .tool-category[data-category="life"] .tool-card:nth-child(1) { animation-delay: 0.20s; }
+        .tool-category[data-category="life"] .tool-card:nth-child(2) { animation-delay: 0.24s; }
+        .tool-category[data-category="life"] .tool-card:nth-child(3) { animation-delay: 0.28s; }
+        .tool-category[data-category="health"] .tool-card:nth-child(1) { animation-delay: 0.30s; }
 
         .tool-card::before {
             content: '';
@@ -122,65 +137,76 @@
             top: 0;
             left: 0;
             right: 0;
-            height: 4px;
-            background: var(--tool-accent, #0f9f8f);
+            height: 3px;
+            background: var(--tool-accent);
         }
 
         .tool-card:hover {
-            transform: translateY(-4px);
-            box-shadow: var(--shadow-glass-hover);
-            background: rgba(255, 255, 255, 0.9);
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lift);
+            border-color: color-mix(in srgb, var(--tool-accent) 35%, var(--border-soft));
         }
 
         .tool-card:hover .tool-icon {
-            transform: scale(1.05);
+            transform: translateY(-1px);
+            background: color-mix(in srgb, var(--tool-accent-soft) 70%, #ffffff);
         }
 
         .tool-icon {
-            width: 48px;
-            height: 48px;
-            background: var(--tool-accent-soft, #dff7f2);
-            border: 1px solid rgba(15, 159, 143, 0.16);
-            border: 1px solid color-mix(in srgb, var(--tool-accent, #0f9f8f) 24%, #ffffff);
-            border-radius: var(--radius-sm);
-            margin-bottom: 16px;
+            width: 44px;
+            height: 44px;
+            margin-bottom: 14px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            color: var(--tool-accent, #0f9f8f);
-            box-shadow: 0 8px 18px rgba(24, 78, 68, 0.08);
-            box-shadow: 0 8px 18px color-mix(in srgb, var(--tool-accent, #0f9f8f) 18%, transparent);
-            transition: transform var(--transition-fast);
+            border-radius: 10px;
+            background: var(--tool-accent-soft);
+            border: 1px solid color-mix(in srgb, var(--tool-accent) 28%, #ffffff);
+            color: var(--tool-accent);
+            transition: transform var(--transition-fast), background-color var(--transition-fast);
+        }
+
+        .tool-icon svg {
+            width: 22px;
+            height: 22px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 1.75;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
 
         .tool-title {
-            font-size: 1.2em;
+            font-size: 1.1rem;
             font-weight: 600;
-            margin-bottom: 8px;
-            color: var(--text-main);
+            margin-bottom: 6px;
+            color: var(--text-strong);
         }
 
         .tool-description {
-            color: var(--text-sub);
-            font-size: 0.95em;
+            color: var(--text-muted);
+            font-size: 0.92rem;
             line-height: 1.5;
         }
 
-        /* 可访问性：减弱动效 */
+        @keyframes card-enter {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         @media (prefers-reduced-motion: reduce) {
             .tool-card,
             .tool-icon {
                 animation: none;
                 transition: none;
             }
-            .tool-card {
-                animation-delay: 0s;
-            }
             .tool-card:hover {
-                transform: none;
-            }
-            .tool-card:hover .tool-icon {
                 transform: none;
             }
         }
@@ -191,95 +217,123 @@
             }
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 640px) {
             body {
                 padding: 16px;
             }
 
-            .header {
-                margin-bottom: var(--space-md);
-                padding: var(--space-md) 0;
+            .brand-hero {
+                padding: 24px 8px 16px;
             }
 
-            .header h1 {
-                font-size: 1.75rem;
+            .brand-logo {
+                width: 48px;
+                height: 48px;
             }
 
-            .tools-grid {
-                gap: 16px;
-                padding: 16px 0;
-            }
-        }
-
-        @media (max-width: 640px) {
             .tools-grid {
                 grid-template-columns: 1fr;
+                gap: 12px;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <header class="header">
-            <h1>综合工具箱</h1>
-            <p>为您提供多种智能计算和管理工具，提升日常效率</p>
+        <header class="brand-hero">
+            <div class="brand-mark">
+                <img class="brand-logo" src="static/logo.png" width="56" height="56" alt="">
+                <h1 class="brand-name">综合工具箱</h1>
+            </div>
+            <p class="brand-tagline">算清钱、管好物、练到位</p>
         </header>
 
-        <div class="tools-grid">
-            <a href="pages/rehab-trainer/rehabTrainer.html" class="tool-card">
-                <div class="tool-icon" aria-hidden="true">🏃</div>
-                <h2 class="tool-title">腰突康复训练</h2>
-                <p class="tool-description">专业的腰椎间盘突出康复训练计时器，支持自定义训练计划和语音提示</p>
-            </a>
+        <section class="tool-category" data-category="finance" aria-labelledby="cat-finance">
+            <div class="category-label">
+                <h2 id="cat-finance">财务计算</h2>
+            </div>
+            <div class="tools-grid">
+                <a href="pages/tax/taxCalculator.html" class="tool-card">
+                    <div class="tool-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M4 12h10"/><path d="M4 17h7"/><path d="M17 12v7"/><path d="M14 15.5h6"/></svg>
+                    </div>
+                    <h3 class="tool-title">个税计算器</h3>
+                    <p class="tool-description">快速计算个人所得税，支持年终奖与专项附加扣除</p>
+                </a>
+                <a href="pages/mortgage/mortgageCalculator.html" class="tool-card">
+                    <div class="tool-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M3 11.5 12 4l9 7.5"/><path d="M6 10.5V20h12v-9.5"/><path d="M10 20v-5h4v5"/></svg>
+                    </div>
+                    <h3 class="tool-title">房贷计算器</h3>
+                    <p class="tool-description">商业贷、公积金与组合贷，等额本息 / 等额本金</p>
+                </a>
+                <a href="pages/finance/financeCalculator.html" class="tool-card">
+                    <div class="tool-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M4 19V9"/><path d="M10 19V5"/><path d="M16 19v-7"/><path d="M3 19h18"/></svg>
+                    </div>
+                    <h3 class="tool-title">理财计算器</h3>
+                    <p class="tool-description">复利、定投收益与目标规划等常用计算</p>
+                </a>
+                <a href="pages/pension-calculator/pensionCalculator.html" class="tool-card">
+                    <div class="tool-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 19c1.5-3.5 4-5 7-5s5.5 1.5 7 5"/></svg>
+                    </div>
+                    <h3 class="tool-title">养老金计算器</h3>
+                    <p class="tool-description">按养老保险制度估算退休后可领金额</p>
+                </a>
+                <a href="pages/retirement-calculator/retirementCalculator.html" class="tool-card">
+                    <div class="tool-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+                    </div>
+                    <h3 class="tool-title">FIRE 退休规划</h3>
+                    <p class="tool-description">测算提早退休需要多少钱与最早退休年龄</p>
+                </a>
+            </div>
+        </section>
 
-            <a href="pages/tax/taxCalculator.html" class="tool-card">
-                <div class="tool-icon" aria-hidden="true">💰</div>
-                <h2 class="tool-title">个税计算器</h2>
-                <p class="tool-description">快速计算个人所得税，支持年终奖、专项附加扣除等复杂场景</p>
-            </a>
+        <section class="tool-category" data-category="life" aria-labelledby="cat-life">
+            <div class="category-label">
+                <h2 id="cat-life">生活管理</h2>
+            </div>
+            <div class="tools-grid">
+                <a href="pages/inventory/inventoryManager.html" class="tool-card">
+                    <div class="tool-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M4 8h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8z"/><path d="M8 8V6a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M4 12h16"/></svg>
+                    </div>
+                    <h3 class="tool-title">库存管理</h3>
+                    <p class="tool-description">记录物品库存，支持搜索与自动分类</p>
+                </a>
+                <a href="pages/meal/mealViewer.html" class="tool-card">
+                    <div class="tool-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M5 11h14"/><path d="M7 11V7a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v4"/><path d="M6 11v7a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-7"/><path d="M10 15h4"/></svg>
+                    </div>
+                    <h3 class="tool-title">今日点餐</h3>
+                    <p class="tool-description">查看和管理今日午餐、晚餐安排</p>
+                </a>
+                <a href="pages/travel-checklist/travelChecklist.html" class="tool-card">
+                    <div class="tool-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M8 7h11a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H8"/><path d="M8 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h1"/><path d="M11 12l2 2 4-4"/></svg>
+                    </div>
+                    <h3 class="tool-title">出行清单</h3>
+                    <p class="tool-description">出行前逐项确认，支持多份清单与导入导出</p>
+                </a>
+            </div>
+        </section>
 
-            <a href="pages/mortgage/mortgageCalculator.html" class="tool-card">
-                <div class="tool-icon" aria-hidden="true">🏠</div>
-                <h2 class="tool-title">房贷计算器</h2>
-                <p class="tool-description">商业贷款、公积金贷款和组合贷款计算，支持等额本息和等额本金</p>
-            </a>
-
-            <a href="pages/finance/financeCalculator.html" class="tool-card">
-                <div class="tool-icon" aria-hidden="true">📊</div>
-                <h2 class="tool-title">理财计算器</h2>
-                <p class="tool-description">支持复利、贷款、定投收益和目标规划等多种计算</p>
-            </a>
-
-            <a href="pages/inventory/inventoryManager.html" class="tool-card">
-                <div class="tool-icon" aria-hidden="true">📦</div>
-                <h2 class="tool-title">库存管理</h2>
-                <p class="tool-description">记录和管理您的物品库存，支持智能搜索和自动分类</p>
-            </a>
-
-            <a href="pages/meal/mealViewer.html" class="tool-card">
-                <div class="tool-icon" aria-hidden="true">🍱</div>
-                <h2 class="tool-title">今日点餐</h2>
-                <p class="tool-description">查看和管理今日餐点，支持午餐和晚餐记录</p>
-            </a>
-
-            <a href="pages/pension-calculator/pensionCalculator.html" class="tool-card">
-                <div class="tool-icon" aria-hidden="true">👵</div>
-                <h2 class="tool-title">养老金计算器</h2>
-                <p class="tool-description">基于中国养老保险制度，估算退休后可领取的养老金金额</p>
-            </a>
-
-            <a href="pages/retirement-calculator/retirementCalculator.html" class="tool-card">
-                <div class="tool-icon" aria-hidden="true">🏖️</div>
-                <h2 class="tool-title">FIRE 退休规划</h2>
-                <p class="tool-description">计算通胀与投资收益，测算提早退休需要多少钱以及最早退休年龄</p>
-            </a>
-
-            <a href="pages/travel-checklist/travelChecklist.html" class="tool-card">
-                <div class="tool-icon" aria-hidden="true">🧳</div>
-                <h2 class="tool-title">出行清单</h2>
-                <p class="tool-description">出行前逐项确认必备物品与必做事项，支持多份清单、导出导入与重置勾选</p>
-            </a>
-        </div>
+        <section class="tool-category" data-category="health" aria-labelledby="cat-health">
+            <div class="category-label">
+                <h2 id="cat-health">健康训练</h2>
+            </div>
+            <div class="tools-grid">
+                <a href="pages/rehab-trainer/rehabTrainer.html" class="tool-card">
+                    <div class="tool-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M7 10V8a2 2 0 0 1 2-2h1"/><path d="M17 10V8a2 2 0 0 0-2-2h-1"/><path d="M5 10h14v2a5 5 0 0 1-5 5h-4a5 5 0 0 1-5-5v-2z"/><path d="M10 17v3"/><path d="M14 17v3"/></svg>
+                    </div>
+                    <h3 class="tool-title">腰突康复训练</h3>
+                    <p class="tool-description">自定义训练计划与语音提示的康复计时器</p>
+                </a>
+            </div>
+        </section>
     </div>
 </body>
 </html>

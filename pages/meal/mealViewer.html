@@ -5,29 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>订餐安排查看器</title>
     <link rel="icon" href="../../static/logo.png" type="image/png">
+    <meta name="theme-color" content="#0f9f8f">
     <link rel="stylesheet" href="../../css/base.css">
     <link rel="stylesheet" href="../../css/components.css">
     <link rel="stylesheet" href="../../css/tool-layout.css">
     <style>
         :root {
-            --primary-color: #0f9f8f;
-            --primary-hover: #0b8176;
-            --background-color: #f6fbf8;
-            --card-background: rgba(255, 255, 255, 0.94);
-            --text-color: #16302b;
-            --text-muted: #667c76;
-            --border-color: #dbe9e5;
+            --primary-color: var(--brand-primary, #0f9f8f);
+            --primary-hover: var(--brand-primary-hover, #0b8176);
+            --background-color: var(--app-bg, #f3f8f6);
+            --card-background: rgba(255, 255, 255, 0.96);
+            --text-color: var(--text-strong, #14332d);
+            --meal-muted: var(--text-muted, #5f7470);
+            --border-color: var(--border-soft, #c9ddd7);
             --radius-large: 16px;
             --radius-sm: 10px;
-            --shadow-soft: 0 10px 28px rgba(24, 78, 68, 0.08);
-            --font-heading: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --meal-shadow: var(--shadow-soft, 0 8px 24px rgba(20, 51, 45, 0.08));
         }
 
         body {
-            font-family: var(--font-body);
             margin: 0;
-            padding: 16px;
-            background-color: var(--background-color);
             color: var(--text-color);
             line-height: 1.6;
         }
@@ -37,29 +34,21 @@
             margin: 0 auto;
         }
 
-        .back-to-home {
-            color: var(--primary-color);
-            text-decoration: none;
-            font-size: 14px;
-            display: inline-flex;
-            align-items: center;
-        }
-
         .card {
             background: var(--card-background);
             border-radius: var(--radius-large);
             padding: 24px;
             margin-bottom: 20px;
-            box-shadow: var(--shadow-soft);
-            border: 1px solid #fff;
+            box-shadow: var(--meal-shadow);
+            border: 1px solid var(--border-color);
         }
 
         h2 {
             font-family: var(--font-heading);
-            font-size: 1.5rem;
-            color: var(--primary-color);
+            font-size: 1.35rem;
+            color: var(--text-color);
             margin-bottom: 16px;
-            border-bottom: 2px dashed var(--border-color);
+            border-bottom: 1px solid var(--border-color);
             padding-bottom: 8px;
         }
 
@@ -74,13 +63,13 @@
             font-family: var(--font-body);
             resize: vertical;
             background-color: var(--card-background);
-            transition: all 0.2s ease;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .meal-input:focus {
             outline: none;
             border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(15, 159, 143, 0.16);
+            box-shadow: var(--focus-ring);
         }
 
         .button {
@@ -88,18 +77,17 @@
             color: white;
             border: none;
             padding: 12px 24px;
-            border-radius: 50px; /* 大圆角按钮 */
+            border-radius: var(--radius-sm);
             cursor: pointer;
             font-size: 1rem;
-            font-weight: bold;
+            font-weight: 600;
             width: 100%;
-            transition: all 0.2s ease;
+            transition: background-color 0.2s ease;
             box-shadow: 0 4px 10px rgba(15, 159, 143, 0.2);
         }
 
         .button:hover {
             background: var(--primary-hover);
-            transform: translateY(-1px);
         }
 
         .button:active {
@@ -110,14 +98,9 @@
             border-left: 4px solid var(--primary-color);
             margin-bottom: 12px;
             padding: 12px 16px;
-            background: #f9fafb;
+            background: var(--surface-tint, #f7fbfa);
             border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
             position: relative;
-            transition: transform 0.2s ease;
-        }
-
-        .meal-card:hover {
-            transform: translateX(4px);
         }
 
         .meal-content {
@@ -128,7 +111,7 @@
 
         .today-meals {
             background: #fff;
-            border: 2px solid var(--border-color);
+            border: 1px solid var(--border-color);
         }
 
         #todayMeals {
@@ -139,7 +122,7 @@
 
         .clear-button {
             background: transparent;
-            color: var(--text-muted);
+            color: var(--meal-muted);
             border: 1px solid var(--border-color);
             margin-top: 12px;
             box-shadow: none;
@@ -147,22 +130,22 @@
 
         .clear-button:hover {
             background: #fee2e2;
-            color: #ef4444;
+            color: #e85d75;
             border-color: #fca5a5;
         }
 
         .today-date {
             font-family: var(--font-heading);
-            font-size: 1.2rem;
+            font-size: 1.15rem;
             color: var(--primary-color);
-            font-weight: bold;
+            font-weight: 700;
             padding-bottom: 8px;
             border-bottom: 1px dashed var(--border-color);
             margin-bottom: 12px;
         }
 
         .meal-item {
-            background: #f9fafb;
+            background: var(--surface-tint, #f7fbfa);
             border-radius: var(--radius-sm);
             padding: 16px;
             margin: 8px 0;
@@ -170,32 +153,35 @@
         }
 
         .meal-number {
-            color: #ef4444;
-            font-weight: bold;
+            color: var(--primary-color);
+            font-weight: 700;
             font-size: 24px;
             margin-right: 4px;
             font-family: var(--font-heading);
         }
         
-        /* 覆盖内联样式 */
         .owner-options span, .quick-add-section label {
             color: var(--text-color) !important;
         }
         
         .save-options .hint-box {
-            background-color: #f9fafb !important;
+            background-color: var(--surface-tint, #f7fbfa) !important;
             border-left: 3px solid var(--primary-color) !important;
-            color: var(--text-muted) !important;
+            color: var(--meal-muted) !important;
         }
     </style>
 </head>
 <body class="tool-page">
     <div class="container tool-page-shell">
-        <div class="tool-page-nav">
-            <a href="../../index.html" class="back-to-home">
-                ← 返回主页
-            </a>
-        </div>
+        <header class="tool-page-header">
+            <div class="tool-page-nav">
+                <a href="../../index.html" class="back-to-home back-to-home--on-dark">
+                    ← 返回主页
+                </a>
+            </div>
+            <h1 class="tool-page-title">今日点餐</h1>
+            <p class="tool-page-subtitle">查看和管理今日午餐、晚餐安排</p>
+        </header>
         <div class="card today-meals">
             <h2>今日餐点</h2>
             <div id="todayMeals">

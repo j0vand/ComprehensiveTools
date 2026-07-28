@@ -2,32 +2,103 @@
 
 .tool-page {
     min-height: 100vh;
-    color: var(--text-strong, #16302b);
-    background-color: var(--app-bg, #f6fbf8);
+    color: var(--text-strong, #14332d);
+    background-color: var(--app-bg, #f3f8f6);
+    background-image: var(--app-background);
+    background-attachment: fixed;
 }
 
 .tool-page-shell {
     width: min(960px, calc(100% - 32px));
     margin: 0 auto;
-    padding: 20px 0 40px;
+    padding: 20px 0 48px;
 }
 
+.tool-page-nav {
+    margin-bottom: 12px;
+}
+
+.tool-page-nav .back-to-home {
+    margin-bottom: 0;
+}
+
+/* 签名元素：青绿顶栏条 */
 .tool-page-header {
     margin-bottom: 22px;
-    padding: 20px;
-    background: linear-gradient(135deg, rgba(15, 159, 143, 0.12), rgba(59, 130, 246, 0.08));
-    border: 1px solid var(--border-soft, #dbe9e5);
+    padding: 22px 24px;
+    color: #ffffff;
+    background: linear-gradient(135deg, #0f9f8f 0%, #0b8176 55%, #0a6e65 100%) !important;
+    border: none !important;
     border-radius: var(--radius-lg, 16px);
+    box-shadow: 0 12px 28px rgba(15, 159, 143, 0.22);
 }
 
-.tool-page-title {
+.tool-page-header .tool-page-nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.tool-page-header .back-to-home {
+    margin-bottom: 0;
+}
+
+.tool-page-header .tool-page-title,
+.tool-page-header h1 {
     margin: 0 0 6px;
-    color: var(--text-strong, #16302b);
+    color: #ffffff !important;
+    font-size: 1.55rem;
+    font-weight: 700;
 }
 
-.tool-page-subtitle {
+.tool-page-header .tool-page-subtitle,
+.tool-page-header .subtitle,
+.tool-page-header p {
     margin: 0;
-    color: var(--text-muted, #667c76);
+    color: rgba(255, 255, 255, 0.88) !important;
+    font-size: 0.95rem;
+    font-weight: 500;
+}
+
+/* 顶栏内导入导出按钮 */
+.tool-page-header .form-transfer-btn,
+.tool-page-header .form-transfer-toolbar-inline .form-transfer-btn {
+    background: rgba(255, 255, 255, 0.16) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.28) !important;
+}
+
+.tool-page-header .form-transfer-btn:hover,
+.tool-page-header .form-transfer-toolbar-inline .form-transfer-btn:hover {
+    background: rgba(255, 255, 255, 0.26) !important;
+}
+
+/* 浅色页头（非签名顶栏时使用） */
+.tool-page-header--soft {
+    color: var(--text-strong) !important;
+    background: linear-gradient(135deg, rgba(15, 159, 143, 0.14), rgba(15, 159, 143, 0.04)) !important;
+    border: 1px solid var(--border-soft, #c9ddd7) !important;
+    box-shadow: none !important;
+}
+
+.tool-page-header--soft .tool-page-title,
+.tool-page-header--soft h1 {
+    color: var(--text-strong) !important;
+}
+
+.tool-page-header--soft .tool-page-subtitle,
+.tool-page-header--soft .subtitle,
+.tool-page-header--soft p {
+    color: var(--text-muted) !important;
+}
+
+.tool-page-header--soft .form-transfer-btn,
+.tool-page-header--soft .form-transfer-toolbar-inline .form-transfer-btn {
+    background: rgba(15, 159, 143, 0.10) !important;
+    color: var(--brand-primary, #0f9f8f) !important;
+    border: 1px solid rgba(15, 159, 143, 0.22) !important;
 }
 
 .tool-section-stack {
@@ -48,7 +119,11 @@
     }
 
     .tool-page-header {
-        padding: 16px;
+        padding: 18px 16px;
+    }
+
+    .tool-page-title {
+        font-size: 1.35rem;
     }
 
     .tool-form-grid {

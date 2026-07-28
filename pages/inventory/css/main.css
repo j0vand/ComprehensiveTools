@@ -1,34 +1,33 @@
 /* 全局样式 */
 :root {
-/* 主题颜色 */
     --primary-color: #0f9f8f;
     --primary-light: #34d3c2;
     --primary-dark: #0b8176;
-    --secondary-color: #3b82f6;
-    --secondary-light: #93c5fd;
-    --secondary-dark: #1d4ed8;
+    --secondary-color: #0f9f8f;
+    --secondary-light: #5eead4;
+    --secondary-dark: #0b8176;
     --text-on-primary: #ffffff;
     --text-on-secondary: #ffffff;
     
     /* 内容颜色 */
-    --text-primary: #16302b;
-    --text-secondary: #667c76;
-    --divider-color: #dbe9e5;
-    --background-color: #f6fbf8;
-    --background-gradient-end: #eef7ff;
-    --card-color: rgba(255, 255, 255, 0.94);
+    --text-primary: #14332d;
+    --text-secondary: #5f7470;
+    --divider-color: #c9ddd7;
+    --background-color: #f3f8f6;
+    --background-gradient-end: #eef8f6;
+    --card-color: rgba(255, 255, 255, 0.96);
     --hover-color: #eef8f6;
     
-    /* 状态颜色 (工业警示色) */
+    /* 状态颜色 */
     --success-color: #16a34a;
-    --warning-color: #f59e0b;
+    --warning-color: #d97706;
     --error-color: #e85d75;
-    --info-color: #3b82f6;
+    --info-color: #0284c7;
     
     /* 阴影 */
-    --shadow-light: 0 6px 18px rgba(24, 78, 68, 0.07);
-    --shadow-medium: 0 12px 30px rgba(24, 78, 68, 0.10);
-    --shadow-heavy: 0 20px 45px rgba(24, 78, 68, 0.14);
+    --shadow-light: 0 6px 18px rgba(20, 51, 45, 0.07);
+    --shadow-medium: 0 12px 30px rgba(20, 51, 45, 0.10);
+    --shadow-heavy: 0 20px 45px rgba(20, 51, 45, 0.14);
     
     /* 尺寸 */
     --header-height: 64px;
@@ -41,8 +40,8 @@
     --spacing-xl: 32px;
     
     /* 字体 */
-    --font-family: 'DM Sans', 'Courier New', monospace, -apple-system, sans-serif;
-    --font-heading: 'Outfit', 'Courier New', monospace, sans-serif;
+    --font-family: 'DM Sans', 'PingFang SC', 'Microsoft YaHei', -apple-system, sans-serif;
+    --font-heading: 'Outfit', 'PingFang SC', 'Microsoft YaHei', sans-serif;
     --font-size-small: 0.875rem;
     --font-size-normal: 1rem;
     --font-size-medium: 1.125rem;
@@ -190,8 +189,10 @@ ul, ol {
 
 /* 头部导航 */
 .app-header {
-    height: var(--header-height);
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    min-height: var(--header-height);
+    height: auto;
+    padding: 14px 0;
+    background: linear-gradient(135deg, #0f9f8f 0%, #0b8176 100%);
     color: var(--text-on-primary);
     box-shadow: var(--shadow-medium);
     position: sticky;
@@ -204,7 +205,20 @@ ul, ol {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    gap: var(--spacing-md);
     height: 100%;
+}
+
+.header-main {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+}
+
+.header-main .back-to-home {
+    margin-bottom: 0;
 }
 
 .app-title {

@@ -4,8 +4,8 @@
 
 header {
     margin-bottom: 22px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid rgba(30, 136, 229, 0.12);
+    padding-bottom: 0;
+    border-bottom: none;
 }
 
 .input-section .panel {
@@ -13,16 +13,16 @@ header {
 }
 
 .panel-header {
-    border-bottom: 1px solid #e8edf3;
-    background: #f8fbff;
+    border-bottom: 1px solid var(--border-color);
+    background: #f5faf8;
 }
 
 .panel-header h2 {
-    color: #2d6fa8;
+    color: var(--primary-color);
 }
 
 .form-helper {
-    color: #75879a;
+    color: var(--text-sub);
 }
 
 .gender-group {
@@ -62,7 +62,7 @@ header {
 }
 
 .status-ok {
-    color: var(--brand-green);
+    color: var(--brand-green, #16a34a);
     font-weight: bold;
 }
 
@@ -78,12 +78,12 @@ header {
 
 .result-header h3 {
     font-size: 1.25rem;
-    color: #1f4f78;
+    color: var(--primary-color);
 }
 
 .section-layer-title {
     margin: 20px 0 12px;
-    color: #2a628f;
+    color: var(--primary-color);
     font-weight: 600;
     font-size: 0.92rem;
 }
@@ -96,7 +96,7 @@ header {
     height: 16px;
     margin-left: 6px;
     border-radius: 50%;
-    background: rgba(30, 136, 229, 0.15);
+    background: rgba(15, 159, 143, 0.15);
     color: var(--primary-color);
     font-size: 11px;
     font-weight: 700;
@@ -113,8 +113,8 @@ header {
     margin-left: 8px;
     padding: 1px 6px;
     border-radius: 10px;
-    background: rgba(255, 152, 0, 0.14);
-    color: #ef6c00;
+    background: rgba(217, 119, 6, 0.14);
+    color: #b45309;
     font-size: 12px;
     font-weight: 600;
     vertical-align: middle;
@@ -122,7 +122,7 @@ header {
 
 .optional-input {
     border-style: dashed !important;
-    border-color: #ffcc80 !important;
+    border-color: #f5c98a !important;
     background-color: #fffaf0 !important;
 }
 
@@ -136,9 +136,9 @@ header {
 
 .scenario-button,
 .chart-tab {
-    border: 1px solid #cfe0ef;
-    background: #f8fbff;
-    color: #2b5d87;
+    border: 1px solid var(--border-color);
+    background: #f5faf8;
+    color: var(--text-main);
     border-radius: 8px;
     padding: 7px 11px;
     font-size: 0.86rem;
@@ -148,7 +148,7 @@ header {
 .scenario-button.active,
 .chart-tab.active {
     border-color: var(--primary-color);
-    background: rgba(30, 136, 229, 0.12);
+    background: rgba(15, 159, 143, 0.12);
     color: var(--primary-color);
     font-weight: 600;
 }
@@ -163,7 +163,7 @@ header {
 }
 
 .warning-card {
-    background: linear-gradient(135deg, #f59e0b, #e85d75);
+    background: linear-gradient(135deg, #d97706, #e85d75);
 }
 
 .value-unit {
@@ -189,28 +189,28 @@ header {
 
 .data-card h4 {
     font-size: 0.84rem;
-    color: #6d7f91;
+    color: var(--text-sub);
 }
 
 .data-card .data-value {
-    color: #1d5f90;
+    color: var(--primary-color);
     font-size: 1.15rem;
 }
 
 .data-card .data-desc {
-    color: #8698aa;
+    color: var(--text-sub);
 }
 
 .result-block {
     margin-top: 12px !important;
     padding: 16px;
-    border: 1px solid #e4ecf4;
+    border: 1px solid var(--border-color);
     border-radius: 8px;
     background: #ffffff;
 }
 
 .result-block h4 {
-    color: #24608f;
+    color: var(--primary-color);
 }
 
 .table-note {
@@ -224,7 +224,7 @@ header {
 
 .note-list li {
     margin: 4px 0;
-    color: #5f7388;
+    color: var(--text-sub);
 }
 
 .advanced-settings {
@@ -239,8 +239,8 @@ header {
 }
 
 .advanced-content {
-    background: #f8fbff;
-    border: 1px solid #e3edf7;
+    background: #f5faf8;
+    border: 1px solid var(--border-color);
 }
 
 .advanced-note {

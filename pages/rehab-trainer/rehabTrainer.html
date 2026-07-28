@@ -20,12 +20,12 @@
     <link rel="stylesheet" href="css/cards.css">
     <link rel="stylesheet" href="css/modal.css">
 </head>
-<body>
+<body class="tool-bootstrap-skin">
     <!-- 如果JavaScript被禁用，显示提示 -->
     <noscript>
-        <div style="position: fixed; top: 0; left: 0; right: 0; background: #dc3545; color: white; padding: 20px; text-align: center; z-index: 99999; font-size: 16px;">
-            ⚠️ 此应用需要JavaScript才能运行！<br>
-            请启用浏览器的JavaScript功能。
+        <div style="position: fixed; top: 0; left: 0; right: 0; background: #e85d75; color: white; padding: 20px; text-align: center; z-index: 99999; font-size: 16px;">
+            此应用需要 JavaScript 才能运行！<br>
+            请启用浏览器的 JavaScript 功能。
         </div>
     </noscript>
     
@@ -33,14 +33,13 @@
     <div id="mainView" class="container py-4">
         <!-- 顶部导航 -->
         <header class="mb-4">
-            <!-- 返回主页按钮 -->
             <div class="mb-3">
-                <a href="../../index.html" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-arrow-left"></i> 返回主页
+                <a href="../../index.html" class="back-to-home">
+                    ← 返回主页
                 </a>
             </div>
             <h1 class="text-center mb-3">
-                <i class="bi bi-heart-pulse text-danger"></i>
+                <i class="bi bi-heart-pulse" style="color: var(--brand-primary, #0f9f8f);"></i>
                 腰突康复训练
             </h1>
             <!-- 语音支持状态 -->
@@ -72,7 +71,7 @@
                         </button>
                     </div>
                     <div class="col-6">
-                        <button type="button" id="importBtn" class="btn btn-outline-info btn-sm w-100">
+                        <button type="button" id="importBtn" class="btn btn-outline-primary btn-sm w-100">
                             <i class="bi bi-upload"></i> 导入数据
                         </button>
                         <input type="file" id="importFile" accept=".json" style="display: none;">

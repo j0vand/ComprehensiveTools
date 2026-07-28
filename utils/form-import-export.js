@@ -339,8 +339,8 @@
                 padding: 0 10px;
                 border: 1px solid transparent;
                 border-radius: 8px;
-                background: color-mix(in srgb, var(--primary-color, var(--primary, #2563eb)) 7%, transparent);
-                color: var(--primary-color, var(--primary, #2563eb));
+                background: color-mix(in srgb, var(--primary-color, var(--primary, #0f9f8f)) 7%, transparent);
+                color: var(--primary-color, var(--primary, #0f9f8f));
                 font-size: 13px;
                 font-weight: 600;
                 line-height: 1;
@@ -348,7 +348,7 @@
                 transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
             }
             .form-transfer-btn:hover {
-                background: color-mix(in srgb, var(--primary-color, var(--primary, #2563eb)) 13%, transparent);
+                background: color-mix(in srgb, var(--primary-color, var(--primary, #0f9f8f)) 13%, transparent);
             }
             .form-transfer-btn:active {
                 transform: translateY(1px);
@@ -358,13 +358,13 @@
                 padding: 0 12px;
                 border: 0;
                 border-radius: 8px;
-                background: color-mix(in srgb, var(--primary-color, var(--primary, #2563eb)) 8%, transparent);
-                color: var(--primary-color, var(--primary, #2563eb));
+                background: color-mix(in srgb, var(--primary-color, var(--primary, #0f9f8f)) 8%, transparent);
+                color: var(--primary-color, var(--primary, #0f9f8f));
                 font-size: 14px;
                 box-shadow: none;
             }
             .form-transfer-toolbar-inline .form-transfer-btn:hover {
-                background: color-mix(in srgb, var(--primary-color, var(--primary, #2563eb)) 15%, transparent);
+                background: color-mix(in srgb, var(--primary-color, var(--primary, #0f9f8f)) 15%, transparent);
             }
             @media (max-width: 640px) {
                 .form-transfer-toolbar {

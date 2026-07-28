@@ -2,9 +2,101 @@
 
 .tool-card-surface {
     background: var(--surface, #ffffff);
-    border: 1px solid var(--border-soft, #dbe9e5);
+    border: 1px solid var(--border-soft, #c9ddd7);
     border-radius: var(--radius-md, 12px);
-    box-shadow: var(--shadow-soft, 0 10px 30px rgba(24, 78, 68, 0.08));
+    box-shadow: var(--shadow-soft, 0 8px 24px rgba(20, 51, 45, 0.08));
+}
+
+/* Bootstrap 主题覆盖（康复训练等仍依赖 Bootstrap 布局时） */
+.tool-bootstrap-skin {
+    --bs-primary: #0f9f8f;
+    --bs-primary-rgb: 15, 159, 143;
+    --bs-success: #16a34a;
+    --bs-success-rgb: 22, 163, 74;
+    --bs-info: #0284c7;
+    --bs-info-rgb: 2, 132, 199;
+    --bs-warning: #d97706;
+    --bs-danger: #e85d75;
+    --bs-body-color: #14332d;
+    --bs-body-bg: transparent;
+    --bs-border-color: #c9ddd7;
+    --bs-link-color: #0f9f8f;
+    --bs-link-hover-color: #0b8176;
+}
+
+.tool-bootstrap-skin .btn-primary {
+    --bs-btn-bg: #0f9f8f;
+    --bs-btn-border-color: #0f9f8f;
+    --bs-btn-hover-bg: #0b8176;
+    --bs-btn-hover-border-color: #0b8176;
+    --bs-btn-active-bg: #0a6e65;
+    --bs-btn-active-border-color: #0a6e65;
+}
+
+.tool-bootstrap-skin .btn-outline-primary {
+    --bs-btn-color: #0f9f8f;
+    --bs-btn-border-color: #0f9f8f;
+    --bs-btn-hover-bg: #0f9f8f;
+    --bs-btn-hover-border-color: #0f9f8f;
+    --bs-btn-active-bg: #0b8176;
+    --bs-btn-active-border-color: #0b8176;
+}
+
+.tool-bootstrap-skin .btn-outline-success {
+    --bs-btn-color: #0f9f8f;
+    --bs-btn-border-color: #0f9f8f;
+    --bs-btn-hover-bg: #0f9f8f;
+    --bs-btn-hover-border-color: #0f9f8f;
+}
+
+.tool-bootstrap-skin .btn-outline-info {
+    --bs-btn-color: #0f9f8f;
+    --bs-btn-border-color: #0f9f8f;
+    --bs-btn-hover-bg: #0f9f8f;
+    --bs-btn-hover-border-color: #0f9f8f;
+    --bs-btn-active-bg: #0b8176;
+    --bs-btn-active-border-color: #0b8176;
+}
+
+.tool-bootstrap-skin .btn-info {
+    --bs-btn-color: #ffffff;
+    --bs-btn-bg: #0f9f8f;
+    --bs-btn-border-color: #0f9f8f;
+    --bs-btn-hover-bg: #0b8176;
+    --bs-btn-hover-border-color: #0b8176;
+    --bs-btn-active-bg: #0a6e65;
+    --bs-btn-active-border-color: #0a6e65;
+}
+
+.tool-bootstrap-skin .btn-success {
+    --bs-btn-bg: #0f9f8f;
+    --bs-btn-border-color: #0f9f8f;
+    --bs-btn-hover-bg: #0b8176;
+    --bs-btn-hover-border-color: #0b8176;
+}
+
+.tool-bootstrap-skin .btn-outline-secondary {
+    --bs-btn-color: #5f7470;
+    --bs-btn-border-color: #c9ddd7;
+    --bs-btn-hover-color: #0f9f8f;
+    --bs-btn-hover-bg: #dff7f2;
+    --bs-btn-hover-border-color: rgba(15, 159, 143, 0.35);
+}
+
+.tool-bootstrap-skin .alert-info {
+    --bs-alert-color: #0b8176;
+    --bs-alert-bg: #dff7f2;
+    --bs-alert-border-color: #a7e8dc;
+}
+
+.tool-bootstrap-skin .text-danger {
+    color: #0f9f8f !important;
+}
+
+.tool-bootstrap-skin .form-select:focus,
+.tool-bootstrap-skin .form-control:focus {
+    border-color: #0f9f8f;
+    box-shadow: 0 0 0 0.2rem rgba(15, 159, 143, 0.2);
 }
 
 .tool-button {
