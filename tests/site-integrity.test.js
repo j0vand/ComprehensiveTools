@@ -129,7 +129,7 @@ test('uni-app manifest requests no native permissions for the static site', () =
     assert.doesNotMatch(manifest, /<uses-(?:permission|feature)\b/i);
 });
 
-test('form transfer pages load dialog assets before the transfer script', () => {
+test('form preset pages load dialog and storage assets before the preset script', () => {
     const problems = [];
 
     walk(rootDir, '.html').forEach(htmlPath => {
@@ -139,11 +139,21 @@ test('form transfer pages load dialog assets before the transfer script', () => 
 
         const relativePath = path.relative(rootDir, htmlPath);
         const dialogIndex = html.indexOf('utils/dialog.js');
+        const storageIndex = html.indexOf('utils/storage-service.js');
         if (dialogIndex === -1 || dialogIndex > transferIndex) {
             problems.push(`${relativePath}: dialog.js must load before form-import-export.js`);
         }
+        if (storageIndex === -1 || storageIndex > transferIndex) {
+            problems.push(`${relativePath}: storage-service.js must load before form-import-export.js`);
+        }
         if (!html.includes('css/components.css')) {
-            problems.push(`${relativePath}: components.css is required for the export dialog`);
+            problems.push(`${relativePath}: components.css is required for preset dialogs`);
+        }
+        if (!/FormImportExport\.init\(\{[\s\S]*storageKey\s*:/.test(html)) {
+            problems.push(`${relativePath}: FormImportExport.init must provide storageKey`);
+        }
+        if (/data-action="import"|data-action="export"|filenamePrefix\s*:/.test(html)) {
+            problems.push(`${relativePath}: calculator pages must not keep file import/export config`);
         }
     });
 

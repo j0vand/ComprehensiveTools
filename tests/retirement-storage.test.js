@@ -135,6 +135,9 @@ test('FIRE 表单保存保留原始展示值，并写入当前版本格式', () 
             }
         },
         StorageService: {
+            getJson() {
+                return null;
+            },
             setJson(key, value) {
                 assert.equal(key, 'retirement-test');
                 saved = value;
@@ -144,12 +147,13 @@ test('FIRE 表单保存保留原始展示值，并写入当前版本格式', () 
     });
 
     assert.equal(context.retirementCalculatorStorage.saveFormData(), true);
-    assert.equal(saved.version, 2);
-    assert.equal(saved.fields['current-age'], '30.5');
-    assert.equal(saved.fields['life-expectancy'], '');
-    assert.equal(saved.fields['target-retire-age'], '55.5');
-    assert.equal(saved.fields['extra-saving-years-after-fire'], '1.5');
-    assert.equal(saved.fields.gender, 'male');
+    assert.equal(saved.version, 1);
+    assert.equal(saved.draft.version, 2);
+    assert.equal(saved.draft.fields['current-age'], '30.5');
+    assert.equal(saved.draft.fields['life-expectancy'], '');
+    assert.equal(saved.draft.fields['target-retire-age'], '55.5');
+    assert.equal(saved.draft.fields['extra-saving-years-after-fire'], '1.5');
+    assert.equal(saved.draft.fields.gender, 'male');
 });
 
 test('FIRE 表单恢复忽略旧格式快照', () => {
@@ -172,13 +176,60 @@ test('FIRE 表单恢复忽略旧格式快照', () => {
             }
         }
     });
-    context.FormImportExport = {
-        applyFormData() {
-            applyCalled = true;
-        }
+    const originalApply = context.FormImportExport.applyFormData;
+    context.FormImportExport.applyFormData = function() {
+        applyCalled = true;
+        return originalApply.apply(this, arguments);
     };
 
-    context.retirementCalculatorStorage.restoreFormData();
-    assert.equal(applyCalled, false);
-    assert.equal(age.value, '30');
+    try {
+        context.retirementCalculatorStorage.restoreFormData();
+        assert.equal(applyCalled, false);
+        assert.equal(age.value, '30');
+    } finally {
+        context.FormImportExport.applyFormData = originalApply;
+    }
+});
+
+test('FIRE clearFormData 只清草稿并保留命名方案', () => {
+    let saved = {
+        version: 1,
+        draft: { version: 2, fields: { 'current-age': '30' } },
+        activePresetId: 'p1',
+        presets: [{
+            id: 'p1',
+            name: '方案一',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+            data: { version: 2, fields: { 'current-age': '30' } }
+        }]
+    };
+    let removed = false;
+
+    const context = loadStorageModule({
+        document: {
+            getElementById() {
+                return null;
+            }
+        },
+        StorageService: {
+            getJson() {
+                return saved;
+            },
+            setJson(key, value) {
+                saved = value;
+                return { ok: true };
+            },
+            remove() {
+                removed = true;
+                return { ok: true };
+            }
+        }
+    });
+
+    assert.equal(context.retirementCalculatorStorage.clearFormData(), true);
+    assert.equal(removed, false);
+    assert.equal(saved.draft, null);
+    assert.equal(saved.activePresetId, null);
+    assert.equal(saved.presets.length, 1);
+    assert.equal(saved.presets[0].name, '方案一');
 });

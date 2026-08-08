@@ -9,11 +9,9 @@ let chart = null;
 
 const STORAGE_KEY = window.StorageKeys.MORTGAGE_CALCULATOR_DATA;
 
-/**
- * 保存表单数据到 localStorage
- */
-function saveFormData() {
-    const formData = {
+/** 收集房贷表单快照（草稿与命名方案共用）。 */
+function collectDraft() {
+    return {
         loanType: currentLoanType,
         commercialAmount: document.getElementById('commercialAmount').value,
         commercialYears: document.getElementById('commercialYears').value,
@@ -28,18 +26,10 @@ function saveFormData() {
         combinedYears: document.getElementById('combinedYears').value,
         repaymentMethod: document.getElementById('repaymentMethod').value
     };
-
-    const result = window.StorageService.setJson(STORAGE_KEY, formData);
-    if (!result.ok) {
-        showNotification('输入保存失败，刷新页面后可能无法恢复', 'error');
-    }
 }
 
-/**
- * 从 localStorage 恢复表单数据
- */
-function restoreFormData() {
-    const formData = window.StorageService.getJson(STORAGE_KEY, null);
+/** 将快照写回表单。 */
+function applyDraft(formData) {
     if (!formData || typeof formData !== 'object' || Array.isArray(formData)) return;
 
     // 恢复贷款类型
@@ -67,6 +57,37 @@ function restoreFormData() {
         repaymentMethodEl.value = formData.repaymentMethod;
     }
 }
+
+/**
+ * 保存表单数据到 localStorage（方案容器草稿）
+ */
+function saveFormData() {
+    const result = window.FormImportExport.writeDraft(
+        STORAGE_KEY,
+        collectDraft(),
+        window.StorageService
+    );
+    if (!result.ok) {
+        showNotification('输入保存失败，刷新页面后可能无法恢复', 'error');
+    }
+}
+
+/**
+ * 从 localStorage 恢复表单数据
+ */
+function restoreFormData() {
+    const store = window.FormImportExport.readStore(STORAGE_KEY, window.StorageService);
+    if (store.draft == null) return;
+    applyDraft(store.draft);
+}
+
+window.MortgageCalculatorStorage = {
+    STORAGE_KEY,
+    collectDraft,
+    applyDraft,
+    saveFormData,
+    restoreFormData
+};
 
 // 切换贷款类型
 function switchLoanType(type) {

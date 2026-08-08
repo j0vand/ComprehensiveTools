@@ -413,10 +413,12 @@
         FormImportExport.init({
             pageId: 'fire-retirement-calculator',
             pageName: 'FIRE 退休规划',
-            filenamePrefix: '退休规划',
+            storageKey: StorageKeys.RETIREMENT_CALCULATOR,
             rootSelector: '.input-section',
             inlineAfterSelector: '.back-to-home',
-            insertAfterSelector: 'header'
+            insertAfterSelector: 'header',
+            collectSnapshot: () => window.retirementCalculatorStorage.collectDraft(),
+            applySnapshot: (draft) => window.retirementCalculatorStorage.applyDraft(draft)
         });
     </script>
 </body>

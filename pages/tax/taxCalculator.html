@@ -66,6 +66,30 @@
             flex-shrink: 0;
         }
 
+        /* 方案工具条放在青绿顶栏下方，避免按钮对比度过低 */
+        .form-transfer-toolbar {
+            max-width: 800px;
+            margin: 8px auto 4px;
+            padding: 0 16px;
+            justify-content: flex-start;
+        }
+
+        .form-transfer-toolbar .form-preset-label {
+            color: var(--text-sub, #5f7470);
+        }
+
+        .form-transfer-toolbar .form-transfer-btn {
+            min-height: 34px;
+            padding: 0 12px;
+            border: 1px solid rgba(15, 159, 143, 0.28);
+            background: rgba(15, 159, 143, 0.10);
+            color: var(--primary, #0f9f8f);
+        }
+
+        .form-transfer-toolbar .form-transfer-btn:hover {
+            background: rgba(15, 159, 143, 0.18);
+        }
+
         .header h1 {
             font-size: 22px;
             font-weight: 700;
@@ -1040,10 +1064,11 @@
         FormImportExport.init({
             pageId: 'tax-calculator',
             pageName: '个税计算',
-            filenamePrefix: '个税',
+            storageKey: StorageKeys.TAX_CALCULATOR_DATA,
             rootSelector: '.container',
-            inlineAfterSelector: '.header-top a[href="../../index.html"]',
-            insertAfterSelector: '.header'
+            insertAfterSelector: '.header',
+            collectSnapshot: () => window.TaxCalculatorUI.collectDraft(),
+            applySnapshot: (draft) => window.TaxCalculatorUI.applyDraft(draft)
         });
     </script>
 </body>

@@ -50,11 +50,9 @@ function restoreNumericValue(id, value) {
     if (typeof value === 'number' && Number.isFinite(value)) element.value = value;
 }
 
-/**
- * 保存表单数据到 localStorage
- */
-function saveFormData() {
-    const formData = {
+/** 收集当前表单快照，供草稿与命名方案共用。 */
+function collectDraft() {
+    return {
         // 基本信息
         gender: window.CommonUtils.getRadioValue('gender', 'male'),
         currentAge: getRawValue('current-age'),
@@ -76,20 +74,12 @@ function saveFormData() {
         socAvgGrowth: getRawValue('soc-avg-growth'),
         interestRate: getRawValue('interest-rate')
     };
-    
-    const result = window.StorageService.setJson(STORAGE_KEY, formData);
-    if (!result.ok) {
-        console.warn('无法保存数据到 localStorage:', result.error);
-    }
 }
 
-/**
- * 从 localStorage 恢复表单数据
- */
-function restoreFormData() {
-    const formData = window.StorageService.getJson(STORAGE_KEY, null);
+/** 将快照写回表单控件。 */
+function applyDraft(formData) {
     if (!formData || typeof formData !== 'object' || Array.isArray(formData)) return;
-    
+
     // 恢复基本信息
     if (['male', 'female_worker'].includes(formData.gender)) {
         const genderRadio = Array.from(document.querySelectorAll('input[name="gender"]'))
@@ -127,18 +117,46 @@ function restoreFormData() {
 }
 
 /**
- * 清除保存的数据
+ * 保存表单数据到 localStorage（写入方案容器的草稿）
+ */
+function saveFormData() {
+    const result = window.FormImportExport.writeDraft(
+        STORAGE_KEY,
+        collectDraft(),
+        window.StorageService
+    );
+    if (!result.ok) {
+        console.warn('无法保存数据到 localStorage:', result.error || result.reason);
+    }
+}
+
+/**
+ * 从 localStorage 恢复表单数据
+ */
+function restoreFormData() {
+    const store = window.FormImportExport.readStore(STORAGE_KEY, window.StorageService);
+    if (store.draft == null) return;
+    applyDraft(store.draft);
+}
+
+/**
+ * 清除当前草稿并取消当前方案指针，保留已命名方案列表。
  */
 function clearFormData() {
-    const result = window.StorageService.remove(STORAGE_KEY);
+    const result = window.FormImportExport.clearDraft(
+        STORAGE_KEY,
+        window.StorageService
+    );
     if (!result.ok) {
-        console.warn('无法清除 localStorage 数据:', result.error);
+        console.warn('无法清除草稿:', result.error || result.reason);
     }
 }
 
 // 导出到全局作用域
 if (typeof window !== 'undefined') {
     window.PensionCalculatorStorage = {
+        collectDraft,
+        applyDraft,
         saveFormData,
         restoreFormData,
         clearFormData,

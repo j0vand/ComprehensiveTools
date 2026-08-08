@@ -307,10 +307,16 @@
         FormImportExport.init({
             pageId: 'pension-calculator',
             pageName: '养老计算',
-            filenamePrefix: '养老',
+            storageKey: StorageKeys.PENSION_CALCULATOR,
             rootSelector: '.input-section',
             inlineAfterSelector: '.back-to-home',
-            insertAfterSelector: 'header'
+            insertAfterSelector: 'header',
+            collectSnapshot: () => window.PensionCalculatorStorage.collectDraft(),
+            applySnapshot: (draft) => {
+                window.PensionCalculatorStorage.applyDraft(draft);
+                if (typeof syncAgeLimits === 'function') syncAgeLimits();
+                if (typeof toggleStopAgeInput === 'function') toggleStopAgeInput();
+            }
         });
     </script>
 </body>

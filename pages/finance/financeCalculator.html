@@ -689,13 +689,15 @@
         FormImportExport.init({
             pageId: 'finance-calculator',
             pageName: '理财计算',
-            filenamePrefix: '理财',
+            storageKey: StorageKeys.FINANCE_CALCULATOR_INPUTS,
             rootSelector: '.container',
             inlineAfterSelector: 'header a[href="../../index.html"]',
             insertAfterSelector: 'header',
-            activeButtonGroups: [
-                { selector: '.type-button', attribute: 'data-calc-type', key: 'calculatorType' }
-            ]
+            collectSnapshot: () => window.FinanceCalculatorStorage.collectDraft(),
+            applySnapshot: (draft) => {
+                window.FinanceCalculatorStorage.applyDraft(draft);
+                if (typeof updatePeriodInput === 'function') updatePeriodInput();
+            }
         });
     </script>
 </body>

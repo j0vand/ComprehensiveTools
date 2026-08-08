@@ -420,38 +420,76 @@ function updatePeriodInput() {
     document.getElementById('periodUnit').textContent = unitMap[period];
 }
 
-// 恢复输入并在变更时持久化。
-function initInputPersistence() {
-    const controls = document.querySelectorAll('input[type="number"], #investmentPeriod, #targetPeriod');
-    const saved = window.StorageService.getJson(STORAGE_KEY, {});
-    const savedData = saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
+function getPersistedControls() {
+    return document.querySelectorAll('input[type="number"], #investmentPeriod, #targetPeriod');
+}
 
-    controls.forEach(control => {
+/** 收集理财计算器输入快照（含空字符串，确保清空字段可恢复）。 */
+function collectDraft() {
+    const inputData = {};
+    getPersistedControls().forEach(item => {
+        if (!item.id) return;
+        inputData[item.id] = item.value;
+    });
+    const activeType = document.querySelector('.type-button.active');
+    if (activeType) {
+        inputData.calculatorType = activeType.getAttribute('data-calc-type');
+    }
+    return inputData;
+}
+
+/** 将快照写回表单。 */
+function applyDraft(savedData) {
+    if (!savedData || typeof savedData !== 'object' || Array.isArray(savedData)) return;
+
+    // 直接切换类型，避免走按钮 click 触发二次持久化（恢复中途草稿尚未写完）。
+    if (savedData.calculatorType && typeof switchCalculator === 'function') {
+        switchCalculator(savedData.calculatorType);
+    }
+
+    getPersistedControls().forEach(control => {
+        if (!Object.prototype.hasOwnProperty.call(savedData, control.id)) return;
         const value = savedData[control.id];
-        if (value === undefined || value === null || value === '') return;
-        if (control.tagName === 'SELECT' &&
+        if (value === undefined || value === null) return;
+        if (control.tagName === 'SELECT' && value !== '' &&
             !Array.from(control.options).some(option => option.value === String(value))) {
             return;
         }
         control.value = String(value);
     });
+}
+
+/** 将当前表单写入方案容器草稿。 */
+function persistDraft() {
+    const result = window.FormImportExport.writeDraft(
+        STORAGE_KEY,
+        collectDraft(),
+        window.StorageService
+    );
+    if (!result.ok) {
+        showNotification('输入保存失败，刷新页面后可能无法恢复', 'error');
+    }
+    return result;
+}
+
+// 恢复输入并在变更时持久化。
+function initInputPersistence() {
+    const controls = getPersistedControls();
+    const store = window.FormImportExport.readStore(STORAGE_KEY, window.StorageService);
+    applyDraft(store.draft || {});
 
     controls.forEach(control => {
-        control.addEventListener('change', function() {
-            const inputData = {};
-            controls.forEach(item => {
-                if (item.value) {
-                    inputData[item.id] = item.value;
-                }
-            });
-            const result = window.StorageService.setJson(STORAGE_KEY, inputData);
-            if (!result.ok) {
-                showNotification('输入保存失败，刷新页面后可能无法恢复', 'error');
-            }
-        });
+        control.addEventListener('change', persistDraft);
     });
     updatePeriodInput();
 }
+
+window.FinanceCalculatorStorage = {
+    STORAGE_KEY,
+    collectDraft,
+    applyDraft,
+    persistDraft
+};
 
 // 初始化事件监听器
 document.addEventListener('DOMContentLoaded', function() {
@@ -460,6 +498,7 @@ document.addEventListener('DOMContentLoaded', function() {
         btn.addEventListener('click', function() {
             const type = this.getAttribute('data-calc-type');
             switchCalculator(type);
+            persistDraft();
         });
     });
 

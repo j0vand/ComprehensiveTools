@@ -4,6 +4,20 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
+const FormImportExport = require('../utils/form-import-export.js');
+
+function loadPensionStorage(contextExtras) {
+    const context = { console, FormImportExport, ...contextExtras };
+    context.window = context;
+    vm.createContext(context);
+    const source = fs.readFileSync(
+        path.join(__dirname, '../pages/pension-calculator/calculator-storage.js'),
+        'utf8'
+    );
+    vm.runInContext(source, context);
+    return context;
+}
+
 test('restoreFormData ignores malformed radio values and continues restoring fields', () => {
     const elements = {
         'current-age': { value: '30' },
@@ -35,31 +49,28 @@ test('restoreFormData ignores malformed radio values and continues restoring fie
             return radioGroups[selector] || [];
         }
     };
-    const context = { console, document };
-    context.window = context;
-    context.StorageService = {
-        getJson() {
-            return context.savedFormData;
-        },
-        setJson() {
-            return { ok: true };
-        },
-        remove() {
-            return { ok: true };
+    const context = loadPensionStorage({
+        document,
+        StorageService: {
+            getJson() {
+                return context.savedFormData;
+            },
+            setJson() {
+                return { ok: true };
+            },
+            remove() {
+                return { ok: true };
+            }
         }
-    };
-
-    vm.createContext(context);
-    context.savedFormData = vm.runInContext(`({
-        gender: '\"]',
-        baseChangeMode: '\"]',
-        paymentPlan: '\"]',
+    });
+    context.savedFormData = {
+        gender: '"]',
+        baseChangeMode: '"]',
+        paymentPlan: '"]',
         currentAge: 42,
         retireAge: 64,
         salaryGrowth: 4
-    })`, context);
-    const source = fs.readFileSync(path.join(__dirname, '../pages/pension-calculator/calculator-storage.js'), 'utf8');
-    vm.runInContext(source, context);
+    };
 
     assert.doesNotThrow(() => context.PensionCalculatorStorage.restoreFormData());
     assert.equal(elements['current-age'].value, 42);
@@ -96,22 +107,19 @@ test('restoreFormData ignores dangerous object fields and restores later primiti
             return [];
         }
     };
-    const context = { console, document };
-    context.window = context;
-    context.StorageService = {
-        getJson() {
-            return context.savedFormData;
+    const context = loadPensionStorage({
+        document,
+        StorageService: {
+            getJson() {
+                return context.savedFormData;
+            }
         }
-    };
-
-    vm.createContext(context);
-    context.savedFormData = vm.runInContext(`({
+    });
+    context.savedFormData = {
         currentAge: 42,
         retireAge: { toString: null, valueOf: null },
         salaryGrowth: 4
-    })`, context);
-    const source = fs.readFileSync(path.join(__dirname, '../pages/pension-calculator/calculator-storage.js'), 'utf8');
-    vm.runInContext(source, context);
+    };
 
     assert.doesNotThrow(() => context.PensionCalculatorStorage.restoreFormData());
     assert.equal(elements['current-age'].value, '42');
@@ -146,29 +154,30 @@ test('saveFormData persists the explicit retirement age', () => {
         }
     };
     let saved;
-    const context = { console, document };
-    context.window = context;
-    context.CommonUtils = {
-        getRadioValue(name, defaultValue) {
-            if (name === 'gender') return 'male';
-            if (name === 'base-change-mode') return 'follow_salary';
-            if (name === 'payment-plan') return 'continuous';
-            return defaultValue;
+    const context = loadPensionStorage({
+        document,
+        CommonUtils: {
+            getRadioValue(name, defaultValue) {
+                if (name === 'gender') return 'male';
+                if (name === 'base-change-mode') return 'follow_salary';
+                if (name === 'payment-plan') return 'continuous';
+                return defaultValue;
+            }
+        },
+        StorageService: {
+            getJson() {
+                return null;
+            },
+            setJson(key, value) {
+                saved = value;
+                return { ok: true };
+            }
         }
-    };
-    context.StorageService = {
-        setJson(key, value) {
-            saved = value;
-            return { ok: true };
-        }
-    };
-
-    vm.createContext(context);
-    const source = fs.readFileSync(path.join(__dirname, '../pages/pension-calculator/calculator-storage.js'), 'utf8');
-    vm.runInContext(source, context);
+    });
     context.PensionCalculatorStorage.saveFormData();
 
-    assert.equal(saved.retireAge, 64);
+    assert.equal(saved.version, 1);
+    assert.equal(saved.draft.retireAge, 64);
 });
 
 test('saveFormData preserves blank required numeric fields instead of defaults', () => {
@@ -198,33 +207,76 @@ test('saveFormData preserves blank required numeric fields instead of defaults',
         }
     };
     let saved;
-    const context = { console, document };
-    context.window = context;
-    context.CommonUtils = {
-        getRadioValue(name, defaultValue) {
-            if (name === 'gender') return 'male';
-            if (name === 'base-change-mode') return 'follow_salary';
-            if (name === 'payment-plan') return 'continuous';
-            return defaultValue;
+    const context = loadPensionStorage({
+        document,
+        CommonUtils: {
+            getRadioValue(name, defaultValue) {
+                if (name === 'gender') return 'male';
+                if (name === 'base-change-mode') return 'follow_salary';
+                if (name === 'payment-plan') return 'continuous';
+                return defaultValue;
+            }
+        },
+        StorageService: {
+            getJson() {
+                return null;
+            },
+            setJson(key, value) {
+                saved = value;
+                return { ok: true };
+            }
         }
-    };
-    context.StorageService = {
-        setJson(key, value) {
-            saved = value;
-            return { ok: true };
-        }
-    };
-
-    vm.createContext(context);
-    const source = fs.readFileSync(path.join(__dirname, '../pages/pension-calculator/calculator-storage.js'), 'utf8');
-    vm.runInContext(source, context);
+    });
     context.PensionCalculatorStorage.saveFormData();
 
+    assert.equal(saved.version, 1);
     for (const field of [
         'currentAge', 'retireAge', 'avgSalary', 'paidYears', 'accountBalance',
         'salaryBase', 'pastAvgIndex', 'futureAvgIndex', 'stopAge',
         'salaryGrowth', 'socAvgGrowth', 'interestRate'
     ]) {
-        assert.equal(saved[field], null, field);
+        assert.equal(saved.draft[field], null, field);
     }
+});
+
+test('clearFormData 只清草稿并保留命名方案', () => {
+    const document = {
+        getElementById() {
+            return null;
+        },
+        querySelectorAll() {
+            return [];
+        }
+    };
+    let saved = {
+        version: 1,
+        draft: { currentAge: 42 },
+        activePresetId: 'p1',
+        presets: [{ id: 'p1', name: 'A', updatedAt: 't', data: { currentAge: 42 } }]
+    };
+    let removed = false;
+    const context = loadPensionStorage({
+        document,
+        StorageService: {
+            getJson() {
+                return saved;
+            },
+            setJson(key, value) {
+                saved = value;
+                return { ok: true };
+            },
+            remove() {
+                removed = true;
+                return { ok: true };
+            }
+        }
+    });
+
+    context.PensionCalculatorStorage.clearFormData();
+
+    assert.equal(removed, false);
+    assert.equal(saved.draft, null);
+    assert.equal(saved.activePresetId, null);
+    assert.equal(saved.presets.length, 1);
+    assert.equal(saved.presets[0].name, 'A');
 });

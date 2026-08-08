@@ -448,8 +448,15 @@
                 }
             },
 
-            /** 优先 StorageService，兼容仅注入 CommonUtils 的测试环境。 */
+            /** 优先 FormImportExport 方案容器草稿；测试环境可回退 CommonUtils。 */
             persistState: function(state) {
+                if (window.FormImportExport && typeof window.FormImportExport.writeDraft === 'function') {
+                    return window.FormImportExport.writeDraft(
+                        TAX_STORAGE_KEY,
+                        state,
+                        window.StorageService
+                    ).ok;
+                }
                 if (window.StorageService && typeof window.StorageService.setJson === 'function') {
                     return window.StorageService.setJson(TAX_STORAGE_KEY, state).ok;
                 }
@@ -457,10 +464,39 @@
             },
 
             readPersistedState: function() {
+                if (window.FormImportExport && typeof window.FormImportExport.readStore === 'function') {
+                    const store = window.FormImportExport.readStore(
+                        TAX_STORAGE_KEY,
+                        window.StorageService
+                    );
+                    return store.draft;
+                }
                 if (window.StorageService && typeof window.StorageService.getJson === 'function') {
                     return window.StorageService.getJson(TAX_STORAGE_KEY, null);
                 }
                 return window.CommonUtils.getLocalStorageItem(TAX_STORAGE_KEY, null);
+            },
+
+            collectDraft: function() {
+                // 同步 DOM → state，但不落盘；方案工具条自行写入命名方案。
+                const persist = this.persistState;
+                this.persistState = () => true;
+                try {
+                    this.saveState();
+                } finally {
+                    this.persistState = persist;
+                }
+                return JSON.parse(JSON.stringify(this.state));
+            },
+
+            applyDraft: function(draft) {
+                const sanitized = this.sanitizeRestoredState(draft);
+                if (!sanitized) return;
+                const nextBonuses = sanitized.bonuses
+                    ? { ...this.state.bonuses, ...sanitized.bonuses }
+                    : this.state.bonuses;
+                this.state = { ...this.state, ...sanitized, bonuses: nextBonuses };
+                this.restoreUI();
             },
 
             /**
@@ -855,6 +891,10 @@
                 if (inputGroup) inputGroup.classList.toggle('error', invalid);
             }
         };
+
+        if (typeof window !== 'undefined') {
+            window.TaxCalculatorUI = app;
+        }
 
         if (typeof document !== 'undefined') {
             document.addEventListener('DOMContentLoaded', () => {

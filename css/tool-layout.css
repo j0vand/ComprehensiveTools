@@ -62,7 +62,12 @@
     font-weight: 500;
 }
 
-/* 顶栏内导入导出按钮 */
+/* 顶栏内本地方案按钮 */
+.tool-page-header .form-preset-label,
+.tool-page-header .form-transfer-toolbar-inline .form-preset-label {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
 .tool-page-header .form-transfer-btn,
 .tool-page-header .form-transfer-toolbar-inline .form-transfer-btn {
     background: rgba(255, 255, 255, 0.16) !important;
