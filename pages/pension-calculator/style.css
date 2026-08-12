@@ -747,6 +747,10 @@ summary {
     font-weight: 600;
 }
 
+.year-details-table table.hide-plan-contribution-cols .plan-contribution-col {
+    display: none;
+}
+
 .year-details-table tbody tr.hidden-row {
     opacity: 0.7;
 }

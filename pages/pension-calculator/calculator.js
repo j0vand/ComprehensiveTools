@@ -512,6 +512,26 @@ function renderCalculationDetails(result, retirementInfo, inputs) {
     });
 }
 
+/** 年度明细表金额展示：向下取整、不保留小数。 */
+function formatMoneyFloor(num) {
+    if (num === null || num === undefined || !Number.isFinite(Number(num))) return '0';
+    return Math.floor(Number(num)).toLocaleString('zh-CN');
+}
+
+/**
+ * 当前可见行里若没有任何「按计划缴费」年份，隐藏缴费基数/当年缴费两列，避免整列都是 —。
+ */
+function syncPlanContributionColumns(tableContainer, yearDetails, hiddenRowsCount, expanded) {
+    const table = tableContainer.querySelector('[data-role="year-details-data-table"]');
+    if (!table) return;
+    const hasVisibleContribution = yearDetails.some((detail, index) => {
+        if (!detail.isContributionYear) return false;
+        const isCollapsedHiddenRow = index < hiddenRowsCount && !expanded;
+        return !isCollapsedHiddenRow;
+    });
+    table.classList.toggle('hide-plan-contribution-cols', !hasVisibleContribution);
+}
+
 /**
  * 渲染年度轨迹：待遇和累计年限取年初状态，缴费基数、缴费额及账户余额取按计划年末状态。
  */
@@ -537,7 +557,7 @@ function renderYearDetailsTable(yearDetails, futureAvgSalary, currentAvgSalary) 
 
     html += `
         <div class="table-wrapper">
-            <table>
+            <table data-role="year-details-data-table">
                 <thead>
                     <tr>
                         <th>年份</th>
@@ -546,9 +566,8 @@ function renderYearDetailsTable(yearDetails, futureAvgSalary, currentAvgSalary) 
                         <th>相当于现在<br>(元/月)</th>
                         <th>社平工资<br>(元/月)</th>
                         <th>最低基数<br>(60%)</th>
-                        <th>最高基数<br>(300%)</th>
-                        <th>缴费基数<br>(按计划)</th>
-                        <th>当年缴费<br>(按计划)</th>
+                        <th class="plan-contribution-col">缴费基数<br>(按计划)</th>
+                        <th class="plan-contribution-col">当年缴费<br>(按计划)</th>
                         <th>账户余额<br>(按计划年末)</th>
                         <th>累计年限<br>(年初)</th>
                         <th>如现在停止<br>退休时余额</th>
@@ -563,10 +582,10 @@ function renderYearDetailsTable(yearDetails, futureAvgSalary, currentAvgSalary) 
         if (index < hiddenRowsCount) rowClasses.push('hidden-row');
         const rowStyle = index < hiddenRowsCount ? ' style="display: none;"' : '';
         const pensionCell = detail.eligible
-            ? window.CommonUtils.formatMoney(detail.pensionIfStop)
+            ? formatMoneyFloor(detail.pensionIfStop)
             : `<span class="eligibility-gap">差 ${formatYears(detail.eligibilityGap)} 年</span>`;
         const equivalentNowCell = detail.eligible
-            ? window.CommonUtils.formatMoney(currentAvgSalary * detail.pensionIfStop / futureAvgSalary)
+            ? formatMoneyFloor(currentAvgSalary * detail.pensionIfStop / futureAvgSalary)
             : '—';
         let baseCell = '—';
         if (detail.isContributionYear) {
@@ -578,23 +597,22 @@ function renderYearDetailsTable(yearDetails, futureAvgSalary, currentAvgSalary) 
                 : detail.isLoweredByMaxBase
                     ? '原始基数高于300%上限，已按最高基数计算'
                     : '';
-            baseCell = `<span${title ? ` title="${title}"` : ''}>${window.CommonUtils.formatMoney(detail.yearBase)}</span>${marker}`;
+            baseCell = `<span${title ? ` title="${title}"` : ''}>${formatMoneyFloor(detail.yearBase)}</span>${marker}`;
         }
 
         html += `
             <tr class="${rowClasses.join(' ')}"${rowStyle}>
                 <td>${detail.year}</td>
-                <td>${detail.age}岁</td>
+                <td>${detail.age}</td>
                 <td>${pensionCell}</td>
                 <td>${equivalentNowCell}</td>
-                <td>${window.CommonUtils.formatMoney(detail.currentYearAvgSalary)}</td>
-                <td>${window.CommonUtils.formatMoney(detail.minBase)}</td>
-                <td>${window.CommonUtils.formatMoney(detail.maxBase)}</td>
-                <td class="${detail.isRaisedByMinBase || detail.isLoweredByMaxBase ? 'base-limited' : ''}">${baseCell}</td>
-                <td>${detail.isContributionYear ? window.CommonUtils.formatMoney(detail.yearContribution) : '—'}</td>
-                <td>${window.CommonUtils.formatMoney(detail.accumulatedBalance)}</td>
+                <td>${formatMoneyFloor(detail.currentYearAvgSalary)}</td>
+                <td>${formatMoneyFloor(detail.minBase)}</td>
+                <td class="plan-contribution-col${detail.isRaisedByMinBase || detail.isLoweredByMaxBase ? ' base-limited' : ''}">${baseCell}</td>
+                <td class="plan-contribution-col">${detail.isContributionYear ? formatMoneyFloor(detail.yearContribution) : '—'}</td>
+                <td>${formatMoneyFloor(detail.accumulatedBalance)}</td>
                 <td class="${detail.eligible ? '' : 'not-eligible'}" title="退休年份最低缴费年限为${formatYears(detail.minimumContributionYears)}年">${formatYears(detail.accumulatedYears)}</td>
-                <td>${window.CommonUtils.formatMoney(detail.balanceAtRetirement)}</td>
+                <td>${formatMoneyFloor(detail.balanceAtRetirement)}</td>
             </tr>
         `;
     });
@@ -612,6 +630,7 @@ function renderYearDetailsTable(yearDetails, futureAvgSalary, currentAvgSalary) 
     `;
 
     tableContainer.innerHTML = html;
+    syncPlanContributionColumns(tableContainer, yearDetails, hiddenRowsCount, false);
 
     if (hiddenRowsCount > 0) {
         const toggleButton = tableContainer.querySelector('#toggle-hidden-rows');
@@ -624,6 +643,7 @@ function renderYearDetailsTable(yearDetails, futureAvgSalary, currentAvgSalary) 
             toggleButton.textContent = expanded
                 ? `隐藏未达到 ${formatYears(minimumContributionYears)} 年门槛的 ${hiddenRowsCount} 行`
                 : `显示未达到 ${formatYears(minimumContributionYears)} 年门槛的 ${hiddenRowsCount} 行`;
+            syncPlanContributionColumns(tableContainer, yearDetails, hiddenRowsCount, expanded);
         });
     }
 }
