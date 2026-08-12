@@ -25,6 +25,13 @@ header {
     color: var(--text-sub);
 }
 
+/* 万元单位：突出「万」，避免和「元」混淆 */
+.unit-wan {
+    color: #b45309;
+    font-weight: 800;
+    font-size: 1.08em;
+}
+
 .gender-group {
     min-width: 0;
     margin-inline: 0;
