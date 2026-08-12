@@ -204,7 +204,7 @@ function calculateAndShow() {
             throw new Error('计算结果无效，请检查输入数据');
         }
 
-        renderResults(result, retirementInfo);
+        renderResults(result, retirementInfo, inputs);
     } catch (error) {
         console.error('养老金计算失败:', error);
         showError(`计算失败：${error.message || '未知错误'}`);
@@ -216,8 +216,18 @@ function formatYears(years) {
     return String(Math.round(years * 100) / 100);
 }
 
+/** 增长率等小数转百分数字符串，去掉多余尾零。 */
+function formatPercent(rate) {
+    return `${Number((rate * 100).toFixed(4))}%`;
+}
+
+/** 缴费指数展示：最多四位小数。 */
+function formatIndex(value) {
+    return String(Number(Number(value).toFixed(4)));
+}
+
 /** 渲染主结果，并在不具领取资格时保留账户余额、隐藏所有待遇金额。 */
-function renderResults(result, retirementInfo) {
+function renderResults(result, retirementInfo, inputs) {
     const section = document.getElementById('result-section');
     section.classList.remove('hidden');
     section.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -254,66 +264,186 @@ function renderResults(result, retirementInfo) {
         window.CommonUtils.setText('res-equivalent-now', '—');
     }
 
-    renderCalculationDetails(result);
+    renderCalculationDetails(result, retirementInfo, inputs);
     renderYearDetailsTable(result.yearDetails, result.futureAvgSalary, result.currentAvgSalary);
 }
 
-/** 渲染与核心轨迹一致的计算口径说明。 */
-function renderCalculationDetails(result) {
+/**
+ * 参数名值对表格（手机可读，不用悬停）。
+ * @param {Array<{label: string, value: string}>} params
+ */
+function buildParamTable(params) {
+    if (!params || params.length === 0) return '';
+    const rows = params.map(item => `
+                    <div class="detail-param-row">
+                        <span class="detail-param-label">${item.label}</span>
+                        <span class="detail-param-value">${item.value}</span>
+                    </div>`).join('');
+    return `
+                <p class="detail-formula-label">参数</p>
+                <div class="detail-param-table" role="list">${rows}
+                </div>`;
+}
+
+/**
+ * 短算式列表，每行一条，避免长文揉在一起。
+ * @param {string[]} equations
+ */
+function buildEquationList(equations) {
+    if (!equations || equations.length === 0) return '';
+    const items = equations.map(line => `<li>${line}</li>`).join('');
+    return `
+                <p class="detail-formula-label">算式</p>
+                <ol class="detail-equation-list">${items}</ol>`;
+}
+
+/**
+ * 明细项：公式 + 参数表 + 短算式 + 结果。
+ * @param {Object} options
+ * @param {string} options.title
+ * @param {string} options.formula
+ * @param {Array<{label: string, value: string}>} options.params
+ * @param {string[]} options.equations
+ * @param {string} options.resultHtml
+ * @param {string} [options.note]
+ */
+function buildDetailSection({ title, formula, params, equations, resultHtml, note = '' }) {
+    const noteHtml = note
+        ? `<p class="detail-formula-note">${note}</p>`
+        : '';
+    return `
+            <article class="detail-section">
+                <h5>${title}</h5>
+                <p class="detail-formula-label">公式</p>
+                <p class="detail-formula">${formula}</p>
+                ${buildParamTable(params)}
+                ${buildEquationList(equations)}
+                ${noteHtml}
+                <p class="detail-result">结果 <strong>${resultHtml}</strong></p>
+            </article>`;
+}
+
+/** 渲染与核心轨迹一致的计算口径说明，并展示公式各位置的原始输入。 */
+function renderCalculationDetails(result, retirementInfo, inputs) {
     const detailsContainer = document.getElementById('calculation-details');
-    const basicPension = result.eligible ? `¥ ${window.CommonUtils.formatMoney(result.basicPension)}` : '—';
-    const personalPension = result.eligible ? `¥ ${window.CommonUtils.formatMoney(result.personalPension)}` : '—';
-    const totalPension = result.eligible ? `¥ ${window.CommonUtils.formatMoney(result.totalPension)}` : '—';
+    const money = value => window.CommonUtils.formatMoney(value);
+    const yearsToRetire = retirementInfo.yearsToRetire;
+    const core = window.PensionCalculatorCore;
+    const personalRatePct = formatPercent(core.PERSONAL_CONTRIBUTION_RATE);
+    const basicRatePct = formatPercent(core.BASIC_PENSION_RATE);
+
+    const firstContribution = result.yearDetails.find(row => row.isContributionYear);
+    const pastIndexSum = inputs.pastAvgIndex * inputs.paidYears;
+    const totalIndexSum = result.weightedAvgIndex * result.totalYears;
+    const futureIndexSum = Math.max(0, totalIndexSum - pastIndexSum);
+    const futurePaidYears = Math.max(0, result.totalYears - inputs.paidYears);
+    const firstYearIndex = firstContribution
+        ? formatIndex(firstContribution.yearBase / firstContribution.currentYearAvgSalary)
+        : null;
+    const futureIndexNote = result.futureAvgIndexCalculated
+        ? (firstContribution
+            ? `未来各年指数 = 钳制后基数 ÷ 当年社平；首年示例 ${money(firstContribution.yearBase)} ÷ ${money(firstContribution.currentYearAvgSalary)} = ${firstYearIndex}`
+            : '未来各年指数由钳制后基数 ÷ 当年社平工资计算')
+        : `未来各年指数固定为您填写的 ${formatIndex(inputs.futureAvgIndex)}`;
+
+    const basicPension = result.eligible ? `¥ ${money(result.basicPension)}` : '—';
+    const personalPension = result.eligible ? `¥ ${money(result.personalPension)}` : '—';
+    const totalPension = result.eligible ? `¥ ${money(result.totalPension)}` : '—';
 
     detailsContainer.innerHTML = `
         <details class="calculation-details">
             <summary><span>▶</span> 详细计算说明（点击展开）</summary>
-            <div class="detail-section">
-                <h5>1. 退休时社会平均工资</h5>
-                <p>当前社平工资 × (1 + 社平工资年增长率)^剩余年限</p>
-                <p>计算结果：<strong>¥ ${window.CommonUtils.formatMoney(result.futureAvgSalary)}</strong></p>
-            </div>
-            <div class="detail-section">
-                <h5>2. 缴费基数规则</h5>
-                <p>${result.baseChangeMode === 'fixed'
-                    ? '原始基数保持为当前填写值。'
-                    : '第 i 个未来缴费年的原始基数 = 当前基数 × (1 + 工资增长率)^i，首年不预先增长。'}</p>
-                <p>每年再将原始基数限制在当年社平工资的60%至300%之间。</p>
-            </div>
-            <div class="detail-section">
-                <h5>3. 个人账户累计余额</h5>
-                <p>每个工作年先对年初余额计息，再于年末加入全年个人缴费。</p>
-                <ul>
-                    <li>现有余额复利增值：¥ ${window.CommonUtils.formatMoney(result.balanceFutureValue)}</li>
-                    <li>未来缴费本息和：¥ ${window.CommonUtils.formatMoney(result.futureContributionTotal)}</li>
-                </ul>
-                <p>退休年初合计：<strong>¥ ${window.CommonUtils.formatMoney(result.totalAccountBalance)}</strong></p>
-            </div>
-            <div class="detail-section">
-                <h5>4. 加权平均缴费指数</h5>
-                <p>过去和未来缴费指数按实际缴费年限加权；未来指数${result.futureAvgIndexCalculated ? '由每年钳制后的缴费基数除以当年社平工资计算' : '使用您填写的数值逐年计算'}。</p>
-                <p>计算结果：<strong>${result.weightedAvgIndex.toFixed(2)}</strong></p>
-            </div>
-            <div class="detail-section">
-                <h5>5. 领取资格</h5>
-                <p>退休年份最低缴费年限：${formatYears(result.minimumContributionYears)} 年；预计累计：${formatYears(result.totalYears)} 年。</p>
-                <p><strong>${result.eligible ? '满足当前模型的最低缴费年限' : `暂不满足领取条件，还差 ${formatYears(result.eligibilityGap)} 年`}</strong></p>
-            </div>
-            <div class="detail-section">
-                <h5>6. 基础养老金</h5>
-                <p>退休时社平工资 × (1 + 平均缴费指数) / 2 × 累计缴费年限 × 1%</p>
-                <p>计算结果：<strong>${basicPension}</strong></p>
-            </div>
-            <div class="detail-section">
-                <h5>7. 个人账户养老金</h5>
-                <p>个人账户累计余额 / 计发月数（${result.paymentMonths}个月）</p>
-                <p>计算结果：<strong>${personalPension}</strong></p>
-            </div>
-            <div class="detail-section">
-                <h5>8. 月领养老金总额</h5>
-                <p>基础养老金 + 个人账户养老金</p>
-                <p>计算结果：<strong>${totalPension}</strong></p>
-            </div>
+            ${buildDetailSection({
+                title: '1. 退休时社会平均工资',
+                formula: '当前社平工资 × (1 + 社平工资年增长率)^剩余年限',
+                params: [
+                    { label: '当前社平工资', value: `¥ ${money(inputs.avgSalary)}` },
+                    { label: '社平工资年增长率', value: formatPercent(inputs.socAvgGrowth) },
+                    { label: '剩余年限', value: `${yearsToRetire} 年` }
+                ],
+                equations: [
+                    `${money(inputs.avgSalary)} × (1 + ${formatPercent(inputs.socAvgGrowth)})^${yearsToRetire} = ${money(result.futureAvgSalary)}`
+                ],
+                resultHtml: `¥ ${money(result.futureAvgSalary)}`
+            })}
+            ${buildDetailSection({
+                title: '2. 个人账户累计余额',
+                formula: '退休年初余额 = 现有余额复利增值 + 未来缴费本息和',
+                params: [
+                    { label: '当前账户余额', value: `¥ ${money(inputs.accountBalance)}` },
+                    { label: '记账利率', value: formatPercent(inputs.interestRate) },
+                    { label: '复利年限', value: `${yearsToRetire} 年` },
+                    { label: '个人缴费比例', value: `${personalRatePct}（年末计入）` }
+                ],
+                equations: [
+                    `现有余额复利 = ${money(inputs.accountBalance)} × (1 + ${formatPercent(inputs.interestRate)})^${yearsToRetire} = ${money(result.balanceFutureValue)}`,
+                    `未来缴费本息和 = ${money(result.totalAccountBalance)} − ${money(result.balanceFutureValue)} = ${money(result.futureContributionTotal)}`,
+                    `合计 = ${money(result.balanceFutureValue)} + ${money(result.futureContributionTotal)} = ${money(result.totalAccountBalance)}`
+                ],
+                resultHtml: `¥ ${money(result.totalAccountBalance)}`
+            })}
+            ${buildDetailSection({
+                title: '3. 加权平均缴费指数',
+                formula: '（过去缴费指数合计 + 未来缴费指数合计）÷ 累计缴费年限',
+                params: [
+                    { label: '过去平均缴费指数', value: formatIndex(inputs.pastAvgIndex) },
+                    { label: '已缴费年限', value: `${formatYears(inputs.paidYears)} 年` },
+                    { label: '过去指数合计', value: formatIndex(pastIndexSum) },
+                    { label: '未来缴费年限', value: `${formatYears(futurePaidYears)} 年` },
+                    { label: '未来指数合计', value: formatIndex(futureIndexSum) },
+                    { label: '累计缴费年限', value: `${formatYears(result.totalYears)} 年` }
+                ],
+                equations: [
+                    `(${formatIndex(pastIndexSum)} + ${formatIndex(futureIndexSum)}) ÷ ${formatYears(result.totalYears)} = ${formatIndex(result.weightedAvgIndex)}`
+                ],
+                note: futureIndexNote,
+                resultHtml: formatIndex(result.weightedAvgIndex)
+            })}
+            ${buildDetailSection({
+                title: '4. 基础养老金',
+                formula: `退休时社平工资 × (1 + 平均缴费指数) ÷ 2 × 累计缴费年限 × ${basicRatePct}`,
+                params: [
+                    { label: '退休时社平工资', value: `¥ ${money(result.futureAvgSalary)}` },
+                    { label: '平均缴费指数', value: formatIndex(result.weightedAvgIndex) },
+                    { label: '累计缴费年限', value: `${formatYears(result.totalYears)} 年` },
+                    { label: '计发比例', value: basicRatePct }
+                ],
+                equations: [
+                    result.eligible
+                        ? `${money(result.futureAvgSalary)} × (1 + ${formatIndex(result.weightedAvgIndex)}) ÷ 2 × ${formatYears(result.totalYears)} × ${basicRatePct} = ${money(result.basicPension)}`
+                        : `${money(result.futureAvgSalary)} × (1 + ${formatIndex(result.weightedAvgIndex)}) ÷ 2 × ${formatYears(result.totalYears)} × ${basicRatePct}（暂不具备领取资格）`
+                ],
+                resultHtml: basicPension
+            })}
+            ${buildDetailSection({
+                title: '5. 个人账户养老金',
+                formula: '个人账户累计余额 ÷ 计发月数',
+                params: [
+                    { label: '个人账户累计余额', value: `¥ ${money(result.totalAccountBalance)}` },
+                    { label: '退休年龄', value: `${retirementInfo.retireAge} 岁` },
+                    { label: '计发月数', value: `${result.paymentMonths} 个月` }
+                ],
+                equations: [
+                    result.eligible
+                        ? `${money(result.totalAccountBalance)} ÷ ${result.paymentMonths} = ${money(result.personalPension)}`
+                        : `${money(result.totalAccountBalance)} ÷ ${result.paymentMonths}（暂不具备领取资格）`
+                ],
+                resultHtml: personalPension
+            })}
+            ${buildDetailSection({
+                title: '6. 月领养老金总额',
+                formula: '基础养老金 + 个人账户养老金',
+                params: [
+                    { label: '基础养老金', value: basicPension },
+                    { label: '个人账户养老金', value: personalPension }
+                ],
+                equations: [
+                    result.eligible
+                        ? `${money(result.basicPension)} + ${money(result.personalPension)} = ${money(result.totalPension)}`
+                        : '暂不具备领取资格，不合计发放额'
+                ],
+                resultHtml: totalPension
+            })}
         </details>
     `;
 

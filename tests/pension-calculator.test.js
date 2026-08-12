@@ -67,6 +67,18 @@ function createPageContext(valueOverrides = {}) {
     elements['calculate-btn'] = createElement();
     elements['reset-btn'] = createElement();
     elements['stop-age-group'] = createElement();
+    elements['calculation-details'] = {
+        innerHTML: '',
+        querySelector(selector) {
+            if (selector === 'details') {
+                return { addEventListener() {} };
+            }
+            if (selector === 'summary span') {
+                return { textContent: '▶' };
+            }
+            return null;
+        }
+    };
     const radioGroups = {
         'input[name="payment-plan"]': [createElement('continuous'), createElement('stop_early')],
         'input[name="gender"]': [createElement('male'), createElement('female_worker')],
@@ -102,10 +114,17 @@ function createPageContext(valueOverrides = {}) {
             if (name === 'gender') return 'male';
             return defaultValue;
         },
+        formatMoney(value) {
+            return Number(value).toLocaleString('zh-CN', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+        },
         showNotification(message) {
             notifications.push(message);
         }
     };
+    context.PensionCalculatorCore = PensionCalculatorCore;
     context.PensionCalculatorStorage = {
         DEFAULT_VALUES: {
             currentAge: 30,
@@ -326,4 +345,42 @@ test('手填未来指数逐年使用，留空时使用已钳制基数对应指�
 
     assert.equal(manual.weightedAvgIndex, (10 + 2 + 2) / 12);
     assert.equal(automatic.weightedAvgIndex, 3);
+});
+
+test('展开明细会展示公式各位置的原始输入代入', () => {
+    const { context, elements } = createPageContext();
+    const inputs = {
+        currentAge: 40,
+        avgSalary: 8000,
+        paidYears: 10,
+        accountBalance: 20000,
+        salaryBase: 8000,
+        pastAvgIndex: 1,
+        futureAvgIndex: null,
+        baseChangeMode: 'follow_salary',
+        paymentPlan: 'continuous',
+        stopAge: 50,
+        salaryGrowth: 0.03,
+        socAvgGrowth: 0.03,
+        interestRate: 0.03
+    };
+    const info = retirementInfo(40, 43, 2029);
+    const result = PensionCalculatorCore.calculatePension(inputs, info);
+    context.__result = result;
+    context.__info = info;
+    context.__inputs = inputs;
+
+    vm.runInContext('renderCalculationDetails(__result, __info, __inputs)', context);
+
+    const html = elements['calculation-details'].innerHTML;
+    assert.match(html, /detail-param-table/);
+    assert.match(html, /detail-equation-list/);
+    assert.match(html, /当前社平工资/);
+    assert.match(html, /8,000\.00 × \(1 \+ 3%\)\^3/);
+    assert.match(html, /20,000\.00 × \(1 \+ 3%\)\^3/);
+    assert.match(html, /÷ 223/);
+    assert.match(html, /公式/);
+    assert.match(html, /参数/);
+    assert.match(html, /算式/);
+    assert.doesNotMatch(html, /detail-formula-sub/);
 });

@@ -73,6 +73,108 @@
             margin-bottom: 16px;
         }
 
+        .helper-text {
+            margin: 0 0 16px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+
+        .runway-adjustments {
+            margin: 0 0 16px;
+            display: grid;
+            gap: 10px;
+        }
+
+        .runway-adjustments-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .runway-adjustments-header h3 {
+            margin: 0;
+            font-size: 0.95rem;
+            color: var(--text-color);
+        }
+
+        .runway-add-btn {
+            min-height: 36px;
+            padding: 0 12px;
+            border: 1px solid rgba(15, 159, 143, 0.28);
+            border-radius: 8px;
+            background: rgba(15, 159, 143, 0.08);
+            color: var(--primary-color);
+            font: inherit;
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .runway-adjustment {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            background: #f7fbf9;
+            display: grid;
+            gap: 10px;
+        }
+
+        .runway-adjustment-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+        }
+
+        .runway-adjustment label {
+            display: grid;
+            gap: 6px;
+            margin: 0;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .runway-adjustment-check {
+            display: flex !important;
+            align-items: center;
+            gap: 8px;
+            grid-template-columns: none !important;
+            font-size: 0.88rem !important;
+            color: var(--text-color) !important;
+        }
+
+        .runway-adjustment-check input {
+            width: 18px;
+            height: 18px;
+            margin: 0;
+            accent-color: var(--primary-color);
+        }
+
+        .runway-adjustment-actions {
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .runway-remove-btn {
+            min-height: 34px;
+            padding: 0 12px;
+            border: 0;
+            border-radius: 8px;
+            background: rgba(232, 93, 117, 0.12);
+            color: #c23b55;
+            font: inherit;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        @media (max-width: 640px) {
+            .runway-adjustment-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
         .input-group label {
             display: block;
             margin-bottom: 8px;
@@ -340,7 +442,7 @@
                 </a>
             </div>
             <h1 class="tool-page-title">理财计算器</h1>
-            <p class="tool-page-subtitle">复利、贷款、定投与目标规划</p>
+            <p class="tool-page-subtitle">复利、贷款、定投、目标规划与资金耗尽</p>
         </header>
 
         <div class="calculator-types" role="tablist" aria-label="计算器类型">
@@ -348,7 +450,7 @@
             <button type="button" id="tab-loan" class="type-button" role="tab" aria-selected="false" aria-controls="loan" data-calc-type="loan">贷款计算</button>
             <button type="button" id="tab-investment" class="type-button" role="tab" aria-selected="false" aria-controls="investment" data-calc-type="investment">定投收益</button>
             <button type="button" id="tab-target" class="type-button" role="tab" aria-selected="false" aria-controls="target" data-calc-type="target">目标规划</button>
-            <button type="button" id="tab-credit-card" class="type-button" role="tab" aria-selected="false" aria-controls="creditCard" data-calc-type="creditCard">信用卡免息</button>
+            <button type="button" id="tab-runway" class="type-button" role="tab" aria-selected="false" aria-controls="runway" data-calc-type="runway">资金耗尽</button>
         </div>
 
         <!-- 复利计算器 -->
@@ -617,56 +719,72 @@
             </div>
         </div>
 
-        <!-- 信用卡免息收益计算器 -->
-        <div id="creditCard" class="calculator-section" role="tabpanel" aria-labelledby="tab-credit-card">
+        <!-- 资金耗尽计算器 -->
+        <div id="runway" class="calculator-section" role="tabpanel" aria-labelledby="tab-runway">
             <div class="card">
                 <div class="input-group">
-                    <label for="creditAmount">消费本金</label>
+                    <label for="runwayPrincipal">初始资金</label>
                     <div class="input-addon" data-unit="元">
-                        <input type="number" id="creditAmount" class="input-field" placeholder="请输入消费本金" min="0.01" step="0.01">
+                        <input type="number" id="runwayPrincipal" class="input-field" placeholder="请输入初始资金" min="0.01" step="0.01">
                     </div>
                 </div>
                 <div class="input-group">
-                    <label for="creditPeriods">免息期数</label>
-                    <div class="input-addon" data-unit="期">
-                        <input type="number" id="creditPeriods" class="input-field" placeholder="请输入免息期数" min="1" max="1200" step="1">
-                    </div>
-                </div>
-                <div class="input-group">
-                    <label for="creditRate">资金年化收益率</label>
+                    <label for="runwayRate">年化收益率</label>
                     <div class="input-addon" data-unit="%">
-                        <input type="number" id="creditRate" class="input-field" placeholder="请输入预期年化收益率" min="0" max="100" step="0.01">
+                        <input type="number" id="runwayRate" class="input-field" placeholder="请输入年化收益率" min="0" max="100" step="0.01">
                     </div>
                 </div>
-                <button type="button" class="calculate-button" id="calculate-credit-card-btn">计算免息收益</button>
+                <div class="input-group">
+                    <label for="runwayMonthlySpend">每月支出</label>
+                    <div class="input-addon" data-unit="元">
+                        <input type="number" id="runwayMonthlySpend" class="input-field" placeholder="请输入当前每月支出" min="0.01" step="0.01">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="runwayInflation">年通胀率</label>
+                    <div class="input-addon" data-unit="%">
+                        <input type="number" id="runwayInflation" class="input-field" placeholder="0 表示不考虑通胀" min="0" max="100" step="0.01" value="0">
+                    </div>
+                </div>
+
+                <div class="runway-adjustments">
+                    <div class="runway-adjustments-header">
+                        <h3>阶段性支出调整</h3>
+                        <button type="button" class="runway-add-btn" id="add-runway-adjustment-btn">添加调整</button>
+                    </div>
+                    <p class="helper-text" style="margin-bottom: 0;">可无限添加。勾选「考虑通胀」时，填写金额按初始购买力理解：例如起点 1000，十年后通胀到 2000，改为 800 → 实际按 1600 起算，之后继续跟通胀。</p>
+                    <div id="runway-adjustment-list"></div>
+                </div>
+
+                <p class="helper-text">按月复利估算：每月先计息，再于月末按当前支出扣款，随后按月通胀上调支出。通胀为 0、无调整且月支出不超过当月利息时，显示可长期维持。</p>
+                <button type="button" class="calculate-button" id="calculate-runway-btn">计算可支撑时长</button>
             </div>
-            <div id="creditResult" class="result-card" hidden>
+            <div id="runwayResult" class="result-card" hidden>
                 <div class="result-item">
-                    <span class="result-label">每期应还</span>
-                    <span class="result-value" id="creditMonthlyPayment">0元</span>
+                    <span class="result-label">可支撑时长</span>
+                    <span class="result-value" id="runwayDurationResult">—</span>
                 </div>
                 <div class="result-item">
-                    <span class="result-label">总收益</span>
-                    <span class="result-value" id="creditTotalInterest">0元</span>
+                    <span class="result-label">合计约</span>
+                    <span class="result-value" id="runwayMonthsResult">—</span>
                 </div>
                 <div class="result-item">
-                    <span class="result-label">年化收益率</span>
-                    <span class="result-value" id="creditEffectiveRate">0%</span>
+                    <span class="result-label">累计支出</span>
+                    <span class="result-value" id="runwayWithdrawnResult">—</span>
                 </div>
-                
-                <div class="yearly-details">
-                    <h3>还款计划与收益明细</h3>
+
+                <div class="yearly-details" id="runwayDetails" hidden>
+                    <h3>年度余额变化</h3>
                     <div class="table-container">
-                        <table id="creditTable">
+                        <table id="runwayTable">
                             <thead>
                                 <tr>
-                                    <th>期数</th>
-                                    <th>期初本金</th>
-                                    <th>本期还款</th>
-                                    <th>剩余本金</th>
-                                    <th>当期收益</th>
-                                    <th>累计收益</th>
-                                    <th>资金使用率</th>
+                                    <th>年份</th>
+                                    <th>年初余额</th>
+                                    <th>当年收益</th>
+                                    <th>当年支出</th>
+                                    <th>当年末月支出</th>
+                                    <th>年末余额</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -691,7 +809,7 @@
             pageName: '理财计算',
             storageKey: StorageKeys.FINANCE_CALCULATOR_INPUTS,
             rootSelector: '.container',
-            inlineAfterSelector: 'header a[href="../../index.html"]',
+            inlineAfterSelector: '.back-to-home',
             insertAfterSelector: 'header',
             collectSnapshot: () => window.FinanceCalculatorStorage.collectDraft(),
             applySnapshot: (draft) => {

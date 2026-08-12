@@ -1,6 +1,6 @@
 /**
  * 理财计算器
- * 提供复利计算、贷款计算、定投收益、目标规划、信用卡免息期等五个计算工具
+ * 提供复利计算、贷款计算、定投收益、目标规划、资金耗尽等五个计算工具
  * @module FinanceCalculator
  */
 
@@ -337,80 +337,130 @@ function switchTargetView(viewType) {
     });
 }
 
-// 添加信用卡免息期计算
-function calculateCreditCard() {
-    document.getElementById('creditResult').hidden = true;
-    const amount = getElementValue('creditAmount', 'float', NaN);
-    const periods = getElementValue('creditPeriods', 'float', NaN);
-    const interestRate = getElementValue('creditRate', 'float', NaN);
+/** 格式化资金耗尽时长：优先显示「X年Y个月」。 */
+function formatRunwayDuration(months) {
+    const totalMonths = Math.max(0, Math.round(months));
+    const years = Math.floor(totalMonths / 12);
+    const remainMonths = totalMonths % 12;
+    if (years === 0) return `${remainMonths}个月`;
+    if (remainMonths === 0) return `${years}年`;
+    return `${years}年${remainMonths}个月`;
+}
 
-    // 验证输入
-    if (!Number.isFinite(amount) || amount <= 0 || !Number.isInteger(periods) || periods <= 0 ||
-        periods > window.FinanceCalculations.MAX_INSTALLMENT_PERIODS) {
-        showNotification('请输入有效的消费金额和正整数免息期数', 'error');
-        return;
-    }
-
-    if (!Number.isFinite(interestRate) || interestRate < 0 || interestRate > 100) {
-        showNotification('年化收益率必须在 0% 到 100% 之间', 'error');
-        return;
-    }
-
-    // 计算每期应还金额（等额分期）
-    const monthlyPayment = amount / periods;
-
-    let remainingPrincipal = amount;
-    const monthlyRate = interestRate / 100 / 12;
-
-    // 生成还款计划明细
-    const schedule = [];
-    let cumulativeInterest = 0;
-
-    for (let i = 1; i <= periods; i++) {
-        const periodStartPrincipal = remainingPrincipal;
-        const periodInterest = periodStartPrincipal * monthlyRate;
-        cumulativeInterest += periodInterest;
-        remainingPrincipal -= monthlyPayment;
-
-        schedule.push({
-            startPrincipal: periodStartPrincipal,
-            remainingPrincipal: Math.max(0, remainingPrincipal),
-            periodInterest,
-            cumulativeInterest
+/** 读取页面上的阶段性支出调整。 */
+function collectRunwayAdjustments() {
+    return Array.from(document.querySelectorAll('#runway-adjustment-list [data-role="runway-adjustment"]'))
+        .map(row => {
+            const afterYearsRaw = row.querySelector('[data-field="afterYears"]').value.trim();
+            const monthlySpendRaw = row.querySelector('[data-field="monthlySpend"]').value.trim();
+            return {
+                afterYears: afterYearsRaw === '' ? NaN : Number(afterYearsRaw),
+                monthlySpend: monthlySpendRaw === '' ? NaN : Number(monthlySpendRaw),
+                applyInflation: row.querySelector('[data-field="applyInflation"]').checked
+            };
         });
+}
+
+/** 新增一条阶段性支出调整；默认勾选考虑通胀。 */
+function addRunwayAdjustment(preset = {}) {
+    const list = document.getElementById('runway-adjustment-list');
+    const max = window.FinanceCalculations.MAX_RUNWAY_ADJUSTMENTS;
+    if (list.children.length >= max) {
+        showNotification(`最多添加 ${max} 条支出调整`, 'error');
+        return null;
     }
 
-    if (!Number.isFinite(cumulativeInterest)) {
-        showNotification('当前参数产生的收益金额过大，请降低消费本金或收益率', 'error');
+    const row = document.createElement('div');
+    row.className = 'runway-adjustment';
+    row.setAttribute('data-role', 'runway-adjustment');
+    const afterYears = preset.afterYears == null ? '' : String(preset.afterYears);
+    const monthlySpend = preset.monthlySpend == null ? '' : String(preset.monthlySpend);
+    const applyInflation = preset.applyInflation !== false;
+    row.innerHTML = `
+        <div class="runway-adjustment-grid">
+            <label>
+                多少年后开始
+                <div class="input-addon" data-unit="年">
+                    <input type="number" class="input-field" data-field="afterYears" min="1" max="200" step="1" placeholder="例如 10" value="${afterYears}">
+                </div>
+            </label>
+            <label>
+                每月支出改为
+                <div class="input-addon" data-unit="元">
+                    <input type="number" class="input-field" data-field="monthlySpend" min="0.01" step="0.01" placeholder="填写金额" value="${monthlySpend}">
+                </div>
+            </label>
+        </div>
+        <label class="runway-adjustment-check">
+            <input type="checkbox" data-field="applyInflation"${applyInflation ? ' checked' : ''}>
+            考虑通胀（按初始购买力换算）
+        </label>
+        <div class="runway-adjustment-actions">
+            <button type="button" class="runway-remove-btn" data-action="remove-adjustment">删除</button>
+        </div>
+    `;
+    list.appendChild(row);
+    return row;
+}
+
+/** 用草稿数据重建调整列表。 */
+function renderRunwayAdjustments(adjustments) {
+    const list = document.getElementById('runway-adjustment-list');
+    list.innerHTML = '';
+    if (!Array.isArray(adjustments) || adjustments.length === 0) return;
+    adjustments.forEach(item => addRunwayAdjustment(item));
+}
+
+/** 初始资金 + 年化收益 + 每月支出 → 可支撑多久。 */
+function calculateRunway() {
+    document.getElementById('runwayResult').hidden = true;
+    document.getElementById('runwayDetails').hidden = true;
+
+    const inflationInput = document.getElementById('runwayInflation').value.trim();
+    const result = window.FinanceCalculations.calculateCapitalRunway({
+        principal: getElementValue('runwayPrincipal', 'float', NaN),
+        annualPercent: getElementValue('runwayRate', 'float', NaN),
+        monthlySpend: getElementValue('runwayMonthlySpend', 'float', NaN),
+        inflationPercent: inflationInput === '' ? 0 : Number(inflationInput),
+        adjustments: collectRunwayAdjustments()
+    });
+    if (!result.valid) {
+        showNotification(result.error, 'error');
         return;
     }
 
-    // 计算有效年化收益率
-    // 总收益 / 原始金额 / (期数/12) * 100
-    const effectiveRate = (cumulativeInterest / amount / (periods / 12) * 100).toFixed(2);
+    document.getElementById('runwayResult').hidden = false;
+    const durationEl = document.getElementById('runwayDurationResult');
+    const monthsEl = document.getElementById('runwayMonthsResult');
+    const withdrawnEl = document.getElementById('runwayWithdrawnResult');
 
-    // 更新总体结果
-    document.getElementById('creditResult').hidden = false;
-    document.getElementById('creditMonthlyPayment').textContent = formatMoney(monthlyPayment) + '元';
-    document.getElementById('creditTotalInterest').textContent = formatMoney(cumulativeInterest) + '元';
-    document.getElementById('creditEffectiveRate').textContent = effectiveRate + '%';
+    if (result.sustainable) {
+        durationEl.textContent = result.capped
+            ? `超过 ${window.FinanceCalculations.MAX_RUNWAY_MONTHS / 12} 年`
+            : '可长期维持';
+        monthsEl.textContent = '本金不会被花完';
+        withdrawnEl.textContent = '—';
+        return;
+    }
 
-    // 更新还款计划表格
-    const tbody = document.getElementById('creditTable').getElementsByTagName('tbody')[0];
+    durationEl.textContent = formatRunwayDuration(result.months);
+    monthsEl.textContent = `${result.months}个月`;
+    withdrawnEl.textContent = formatMoney(result.totalWithdrawn) + '元';
+
+    const tbody = document.getElementById('runwayTable').getElementsByTagName('tbody')[0];
     tbody.innerHTML = '';
-
-    schedule.forEach((item, index) => {
-        const row = tbody.insertRow();
-        row.innerHTML = `
-            <td>第${index + 1}期</td>
-            <td>${formatMoney(item.startPrincipal)}元</td>
-            <td>${formatMoney(monthlyPayment)}元</td>
-            <td>${formatMoney(item.remainingPrincipal)}元</td>
-            <td>${formatMoney(item.periodInterest)}元</td>
-            <td>${formatMoney(item.cumulativeInterest)}元</td>
-            <td>${(item.startPrincipal / amount * 100).toFixed(2)}%</td>
+    result.yearDetails.forEach(row => {
+        const tr = tbody.insertRow();
+        tr.innerHTML = `
+            <td>第${row.year}年</td>
+            <td>${formatMoney(row.startBalance)}元</td>
+            <td>${formatMoney(row.interest)}元</td>
+            <td>${formatMoney(row.withdrawn)}元</td>
+            <td>${formatMoney(row.monthlySpend)}元</td>
+            <td>${formatMoney(row.endBalance)}元</td>
         `;
     });
+    document.getElementById('runwayDetails').hidden = result.yearDetails.length === 0;
 }
 
 // 更新周期单位显示
@@ -435,6 +485,11 @@ function collectDraft() {
     if (activeType) {
         inputData.calculatorType = activeType.getAttribute('data-calc-type');
     }
+    inputData.runwayAdjustments = collectRunwayAdjustments().map(item => ({
+        afterYears: Number.isFinite(item.afterYears) ? item.afterYears : '',
+        monthlySpend: Number.isFinite(item.monthlySpend) ? item.monthlySpend : '',
+        applyInflation: item.applyInflation !== false
+    }));
     return inputData;
 }
 
@@ -444,7 +499,13 @@ function applyDraft(savedData) {
 
     // 直接切换类型，避免走按钮 click 触发二次持久化（恢复中途草稿尚未写完）。
     if (savedData.calculatorType && typeof switchCalculator === 'function') {
-        switchCalculator(savedData.calculatorType);
+        // 旧版「信用卡免息」草稿回退到资金耗尽
+        const type = savedData.calculatorType === 'creditCard'
+            ? 'runway'
+            : savedData.calculatorType;
+        if (document.getElementById(type)) {
+            switchCalculator(type);
+        }
     }
 
     getPersistedControls().forEach(control => {
@@ -457,6 +518,8 @@ function applyDraft(savedData) {
         }
         control.value = String(value);
     });
+
+    renderRunwayAdjustments(savedData.runwayAdjustments);
 }
 
 /** 将当前表单写入方案容器草稿。 */
@@ -506,7 +569,20 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('calculate-loan-btn').addEventListener('click', calculateLoan);
     document.getElementById('calculate-investment-btn').addEventListener('click', calculateInvestment);
     document.getElementById('calculate-target-btn').addEventListener('click', calculateTarget);
-    document.getElementById('calculate-credit-card-btn').addEventListener('click', calculateCreditCard);
+    document.getElementById('calculate-runway-btn').addEventListener('click', calculateRunway);
+
+    document.getElementById('add-runway-adjustment-btn').addEventListener('click', () => {
+        addRunwayAdjustment();
+        persistDraft();
+    });
+    document.getElementById('runway-adjustment-list').addEventListener('click', event => {
+        const removeBtn = event.target.closest('[data-action="remove-adjustment"]');
+        if (!removeBtn) return;
+        const row = removeBtn.closest('[data-role="runway-adjustment"]');
+        if (row) row.remove();
+        persistDraft();
+    });
+    document.getElementById('runway-adjustment-list').addEventListener('change', persistDraft);
 
     // 投资明细视图切换按钮
     document.querySelectorAll('.period-button[data-view-type="investment"]').forEach(btn => {

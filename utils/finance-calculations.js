@@ -21,8 +21,10 @@
 
     /** 单次计划允许生成的最大明细期数，避免输入异常大时阻塞页面。 */
     const MAX_PLAN_PERIODS = 5000;
-    /** 贷款和信用卡明细的最大期数。 */
+    /** 贷款明细的最大期数。 */
     const MAX_INSTALLMENT_PERIODS = 1200;
+    /** 资金耗尽推演的最大月数（200 年），超出视为可长期维持。 */
+    const MAX_RUNWAY_MONTHS = 2400;
 
     /** 国内贷款报价为名义年利率，月利率按年利率直接除以 12。 */
     function nominalMonthlyRate(annualPercent) {
@@ -143,6 +145,181 @@
         return groups;
     }
 
+    /** 支出调整最多条数，避免异常输入拖垮页面。 */
+    const MAX_RUNWAY_ADJUSTMENTS = 50;
+
+    /**
+     * 规范化资金耗尽的阶段性支出调整。
+     * afterYears：满该年后的下一月生效；applyInflation 默认 true，表示按初始购买力×累计通胀换算。
+     */
+    function normalizeRunwayAdjustments(adjustments) {
+        if (adjustments == null) {
+            return { valid: true, adjustments: [] };
+        }
+        if (!Array.isArray(adjustments)) {
+            return { valid: false, error: '支出调整列表格式无效' };
+        }
+        if (adjustments.length > MAX_RUNWAY_ADJUSTMENTS) {
+            return { valid: false, error: `支出调整不能超过 ${MAX_RUNWAY_ADJUSTMENTS} 条` };
+        }
+
+        const normalized = [];
+        for (let index = 0; index < adjustments.length; index += 1) {
+            const item = adjustments[index] || {};
+            const afterYears = Number(item.afterYears);
+            const monthlySpend = Number(item.monthlySpend);
+            if (!Number.isInteger(afterYears) || afterYears <= 0 || afterYears > 200) {
+                return { valid: false, error: `第 ${index + 1} 条调整：年数须为 1 到 200 的整数` };
+            }
+            if (!Number.isFinite(monthlySpend) || monthlySpend <= 0) {
+                return { valid: false, error: `第 ${index + 1} 条调整：每月支出须大于 0` };
+            }
+            normalized.push({
+                afterYears,
+                startMonth: afterYears * 12 + 1,
+                monthlySpend,
+                applyInflation: item.applyInflation !== false
+            });
+        }
+
+        normalized.sort((left, right) => {
+            if (left.startMonth !== right.startMonth) return left.startMonth - right.startMonth;
+            return left.afterYears - right.afterYears;
+        });
+        return { valid: true, adjustments: normalized };
+    }
+
+    /**
+     * 计算初始资金在年化收益、通胀与每月支出下还能支撑多久。
+     * 口径：名义月利率/月通胀 = 年化%/12；每月先计息，再于月末支出，随后按月通胀上调支出。
+     * 勾选「考虑通胀」的调整：新支出 = 填写金额 × 自起点累计通胀因子（如 1000→2000 时改 800 → 1600）。
+     */
+    function calculateCapitalRunway(params) {
+        const principal = Number(params.principal);
+        const annualPercent = Number(params.annualPercent);
+        const monthlySpendInput = Number(params.monthlySpend);
+        const inflationRaw = params.inflationPercent;
+        const inflationPercent = inflationRaw === undefined || inflationRaw === null || inflationRaw === ''
+            ? 0
+            : Number(inflationRaw);
+        const normalizedAdjustments = normalizeRunwayAdjustments(params.adjustments);
+        if (!normalizedAdjustments.valid) {
+            return normalizedAdjustments;
+        }
+        const adjustments = normalizedAdjustments.adjustments;
+
+        if (!Number.isFinite(principal) || principal <= 0) {
+            return { valid: false, error: '初始资金必须大于 0' };
+        }
+        if (!Number.isFinite(annualPercent) || annualPercent < 0 || annualPercent > 100) {
+            return { valid: false, error: '年化收益率必须在 0% 到 100% 之间' };
+        }
+        if (!Number.isFinite(monthlySpendInput) || monthlySpendInput <= 0) {
+            return { valid: false, error: '每月支出必须大于 0' };
+        }
+        if (!Number.isFinite(inflationPercent) || inflationPercent < 0 || inflationPercent > 100) {
+            return { valid: false, error: '年通胀率必须在 0% 到 100% 之间' };
+        }
+
+        let monthlyRate;
+        let monthlyInflation;
+        try {
+            monthlyRate = nominalMonthlyRate(annualPercent);
+            monthlyInflation = nominalMonthlyRate(inflationPercent);
+        } catch (error) {
+            return { valid: false, error: error.message };
+        }
+
+        // 无调整、无通胀且月支出不超过当月利息时，本金不会被消耗完
+        if (adjustments.length === 0
+            && monthlyInflation === 0
+            && monthlyRate > 0
+            && monthlySpendInput <= principal * monthlyRate + 1e-9) {
+            return {
+                valid: true,
+                sustainable: true,
+                months: null,
+                years: null,
+                totalWithdrawn: null,
+                yearDetails: []
+            };
+        }
+
+        let balance = principal;
+        let spend = monthlySpendInput;
+        let inflationFactor = 1;
+        let month = 0;
+        let totalWithdrawn = 0;
+        let adjustmentIndex = 0;
+        const yearDetails = [];
+        let yearStartBalance = principal;
+        let yearInterest = 0;
+        let yearWithdrawn = 0;
+
+        while (balance > 1e-9 && month < MAX_RUNWAY_MONTHS) {
+            month += 1;
+
+            while (adjustmentIndex < adjustments.length
+                && adjustments[adjustmentIndex].startMonth === month) {
+                const adjustment = adjustments[adjustmentIndex];
+                spend = adjustment.applyInflation
+                    ? adjustment.monthlySpend * inflationFactor
+                    : adjustment.monthlySpend;
+                adjustmentIndex += 1;
+            }
+
+            const interest = balance * monthlyRate;
+            const available = balance + interest;
+            const withdrawn = Math.min(spend, available);
+            balance = available - withdrawn;
+
+            yearInterest += interest;
+            yearWithdrawn += withdrawn;
+            totalWithdrawn += withdrawn;
+            spend *= (1 + monthlyInflation);
+            inflationFactor *= (1 + monthlyInflation);
+
+            const yearEnded = month % 12 === 0;
+            const depleted = balance <= 1e-9;
+            if (yearEnded || depleted) {
+                yearDetails.push({
+                    year: Math.ceil(month / 12),
+                    startBalance: yearStartBalance,
+                    interest: yearInterest,
+                    withdrawn: yearWithdrawn,
+                    endBalance: Math.max(0, balance),
+                    monthlySpend: spend / (1 + monthlyInflation)
+                });
+                yearStartBalance = Math.max(0, balance);
+                yearInterest = 0;
+                yearWithdrawn = 0;
+            }
+
+            if (depleted) break;
+        }
+
+        if (balance > 1e-9) {
+            return {
+                valid: true,
+                sustainable: true,
+                capped: true,
+                months: null,
+                years: null,
+                totalWithdrawn: null,
+                yearDetails
+            };
+        }
+
+        return {
+            valid: true,
+            sustainable: false,
+            months: month,
+            years: month / 12,
+            totalWithdrawn,
+            yearDetails
+        };
+    }
+
     /** 计算按所选周期投入的目标计划，时长严格表示正整数期数。 */
     function calculateTargetPlan(params) {
         const target = Number(params.target);
@@ -210,12 +387,16 @@
     return {
         PERIODS_PER_YEAR,
         MAX_INSTALLMENT_PERIODS,
+        MAX_RUNWAY_MONTHS,
+        MAX_RUNWAY_ADJUSTMENTS,
         nominalMonthlyRate,
         equalPayment,
         loanYearsToMonths,
         validateRecurringInvestment,
         canAggregatePeriods,
         groupPeriods,
+        normalizeRunwayAdjustments,
+        calculateCapitalRunway,
         calculateTargetPlan
     };
 });

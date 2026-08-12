@@ -155,6 +155,10 @@ test('form preset pages load dialog and storage assets before the preset script'
         if (/data-action="import"|data-action="export"|filenamePrefix\s*:/.test(html)) {
             problems.push(`${relativePath}: calculator pages must not keep file import/export config`);
         }
+        // 有「返回主页」的方案页，工具条应挂在返回链接旁，避免插到内容区或被顶栏重叠盖住
+        if (html.includes('back-to-home') && !/inlineAfterSelector\s*:\s*['"]\.back-to-home['"]/.test(html)) {
+            problems.push(`${relativePath}: FormImportExport.init must use inlineAfterSelector: '.back-to-home'`);
+        }
     });
 
     assert.deepEqual(problems, []);

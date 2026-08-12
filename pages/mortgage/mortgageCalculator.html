@@ -424,8 +424,8 @@
             pageName: '房贷计算',
             storageKey: StorageKeys.MORTGAGE_CALCULATOR_DATA,
             rootSelector: '.calculator-container',
-            inlineAfterSelector: '.header a[href="../../index.html"]',
-            insertAfterSelector: '.header',
+            inlineAfterSelector: '.back-to-home',
+            insertAfterSelector: 'header',
             collectSnapshot: () => window.MortgageCalculatorStorage.collectDraft(),
             applySnapshot: (draft) => window.MortgageCalculatorStorage.applyDraft(draft)
         });

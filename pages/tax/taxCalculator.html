@@ -8,6 +8,7 @@
     <link rel="icon" href="../../static/logo.png" type="image/png">
     <link rel="stylesheet" href="../../css/base.css">
     <link rel="stylesheet" href="../../css/components.css">
+    <link rel="stylesheet" href="../../css/tool-layout.css">
     <style>
         :root {
             --primary: #0f9f8f;
@@ -17,7 +18,6 @@
             --warning: #d97706;
             --text-main: #14332d;
             --text-sub: #5f7470;
-            --bg-body: #f3f8f6;
             --bg-card: #ffffff;
             --border: #c9ddd7;
             --radius: 16px;
@@ -25,95 +25,34 @@
             --shadow: 0 12px 30px rgba(20, 51, 45, 0.10);
         }
 
-        * {
-            box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: var(--font-body);
-            background-color: var(--bg-body);
-            background-image: var(--app-background);
-            color: var(--text-main);
-            line-height: 1.6;
-            padding-bottom: 40px;
-        }
-
-        /* 顶部导航区 */
-        .header {
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            padding: 20px 20px 60px; /* 底部留白给卡片重叠 */
-            color: white;
-            border-bottom-left-radius: 24px;
-            border-bottom-right-radius: 24px;
-            margin-bottom: -40px; /* 让下方内容上浮 */
-            position: relative;
-            z-index: 0;
-        }
-
-        .header-top {
+        /* 标题行右侧放「说明」，与理财/房贷顶栏结构一致 */
+        .tax-header-title-row {
             display: flex;
+            align-items: flex-start;
             justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
             gap: 12px;
         }
 
-        .header-top .back-to-home {
-            margin-bottom: 0;
-            flex-shrink: 0;
-        }
-
-        /* 方案工具条放在青绿顶栏下方，避免按钮对比度过低 */
-        .form-transfer-toolbar {
-            max-width: 800px;
-            margin: 8px auto 4px;
-            padding: 0 16px;
-            justify-content: flex-start;
-        }
-
-        .form-transfer-toolbar .form-preset-label {
-            color: var(--text-sub, #5f7470);
-        }
-
-        .form-transfer-toolbar .form-transfer-btn {
-            min-height: 34px;
-            padding: 0 12px;
-            border: 1px solid rgba(15, 159, 143, 0.28);
-            background: rgba(15, 159, 143, 0.10);
-            color: var(--primary, #0f9f8f);
-        }
-
-        .form-transfer-toolbar .form-transfer-btn:hover {
-            background: rgba(15, 159, 143, 0.18);
-        }
-
-        .header h1 {
-            font-size: 22px;
-            font-weight: 700;
-            flex: 1;
-            text-align: center;
+        .tax-header-title-row .tool-page-title {
+            margin-bottom: 6px;
         }
 
         .help-btn {
-            background: rgba(255, 255, 255, 0.2);
-            border: none;
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
+            flex-shrink: 0;
+            margin-top: 2px;
+            min-height: 36px;
+            padding: 0 12px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.18);
+            color: #ffffff;
             font-size: 13px;
-            backdrop-filter: blur(4px);
+            font-weight: 600;
             cursor: pointer;
         }
 
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 0 16px;
-            position: relative;
-            z-index: 1;
+        .help-btn:hover {
+            background: rgba(255, 255, 255, 0.28);
         }
 
         /* 卡片通用样式 */
@@ -613,40 +552,31 @@
             cursor: pointer;
         }
         
-        /* 移动端优化 */
-        @media (max-width: 768px) {
-            .container {
-                padding: 10px;
-            }
-
-        }
-
         @media (max-width: 480px) {
-            h1 {
-                font-size: 20px;
-            }
-
             .input-group {
                 margin-bottom: 15px;
             }
-
         }
     </style>
 </head>
-<body>
+<body class="tool-page">
+    <div class="container tool-page-shell">
+        <header class="tool-page-header">
+            <div class="tool-page-nav">
+                <a href="../../index.html" class="back-to-home back-to-home--on-dark">
+                    ← 返回主页
+                </a>
+            </div>
+            <div class="tax-header-title-row">
+                <div>
+                    <h1 class="tool-page-title">个税计算器</h1>
+                    <p class="tool-page-subtitle">现行综合所得税率 · 累计预扣预缴法</p>
+                </div>
+                <button class="help-btn" id="help-btn" type="button" aria-controls="helpModal" aria-expanded="false">说明</button>
+            </div>
+        </header>
 
-    <div class="header">
-        <div class="header-top">
-            <a href="../../index.html" class="back-to-home back-to-home--on-dark">
-                ← 返回主页
-            </a>
-            <h1>个税计算器</h1>
-            <button class="help-btn" id="help-btn" type="button" aria-controls="helpModal" aria-expanded="false">说明</button>
-        </div>
-        <p style="font-size: 13px; opacity: 0.9;">现行综合所得税率 · 累计预扣预缴法</p>
-    </div>
-
-    <div class="container">
+        <div class="tax-calculator">
         <!-- 收入配置卡片 -->
         <div class="card">
             <h2 class="card-title">收入与扣除</h2>
@@ -978,6 +908,7 @@
                 * 结果仅供参考，实际以税务局计算为准
             </p>
         </div>
+        </div>
     </div>
 
     <!-- 帮助弹窗 -->
@@ -1065,8 +996,9 @@
             pageId: 'tax-calculator',
             pageName: '个税计算',
             storageKey: StorageKeys.TAX_CALCULATOR_DATA,
-            rootSelector: '.container',
-            insertAfterSelector: '.header',
+            rootSelector: '.tax-calculator',
+            inlineAfterSelector: '.back-to-home',
+            insertAfterSelector: 'header',
             collectSnapshot: () => window.TaxCalculatorUI.collectDraft(),
             applySnapshot: (draft) => window.TaxCalculatorUI.applyDraft(draft)
         });
