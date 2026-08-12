@@ -49,6 +49,57 @@ function getMinimumContributionYears(retireYear) {
 }
 
 /**
+ * 按已缴费年限与退休年份门槛，估算提前停缴时至少还需缴到多少岁。
+ * 与年度轨迹一致：停缴年龄当年不再缴费，故所需停缴年龄 = 当前年龄 + 还需整年缴费年数。
+ */
+function getMinimumStopContributionAge(params) {
+    if (!params || typeof params !== 'object' || Array.isArray(params)) {
+        throw new TypeError('停缴年龄估算参数无效');
+    }
+    const currentAge = Number(params.currentAge);
+    const retireAge = Number(params.retireAge);
+    const paidYears = Number(params.paidYears);
+    const retireYear = params.retireYear == null
+        ? new Date().getFullYear() + (retireAge - currentAge)
+        : Number(params.retireYear);
+
+    if (!Number.isInteger(currentAge) || currentAge < 18
+        || !Number.isInteger(retireAge) || retireAge < 40 || retireAge > 70
+        || currentAge >= retireAge) {
+        return { valid: false, error: '当前年龄或退休年龄无效' };
+    }
+    if (!Number.isFinite(paidYears) || paidYears < 0 || paidYears > 60
+        || !Number.isInteger(paidYears * 2)) {
+        return { valid: false, error: '已缴费年限无效' };
+    }
+    if (!Number.isInteger(retireYear)) {
+        return { valid: false, error: '退休年份无效' };
+    }
+
+    const minimumContributionYears = getMinimumContributionYears(retireYear);
+    let yearsNeeded = 0;
+    let accumulatedYears = paidYears;
+    while (accumulatedYears + 1e-9 < minimumContributionYears) {
+        yearsNeeded += 1;
+        accumulatedYears += 1;
+        if (yearsNeeded > 80) break;
+    }
+
+    const requiredStopAge = currentAge + yearsNeeded;
+    const achievable = requiredStopAge <= retireAge;
+    return {
+        valid: true,
+        alreadyMet: yearsNeeded === 0,
+        yearsNeeded,
+        requiredStopAge,
+        minStopAge: Math.min(requiredStopAge, retireAge),
+        achievable,
+        minimumContributionYears,
+        retireYear
+    };
+}
+
+/**
  * 生成从当前年龄年初到退休年龄年初的唯一年度轨迹。
  * 每行“如现在停止”取该行年初状态；“按计划年末”才包含该年利息和缴费。
  * @param {Object} data 表单输入
@@ -233,6 +284,7 @@ const PensionCalculatorCore = {
     calculateYearDetails,
     getPaymentMonths,
     getMinimumContributionYears,
+    getMinimumStopContributionAge,
     PERSONAL_CONTRIBUTION_RATE,
     BASIC_PENSION_RATE,
     MIN_CONTRIBUTION_RATE,

@@ -171,6 +171,35 @@ select:focus {
     color: var(--text-sub);
 }
 
+.stop-age-hint {
+    margin: 0 0 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid rgba(15, 159, 143, 0.22);
+    background: rgba(15, 159, 143, 0.08);
+    color: var(--text-main);
+    font-size: 0.86rem;
+    line-height: 1.5;
+}
+
+.stop-age-hint[hidden] {
+    display: none;
+}
+
+.stop-age-hint strong {
+    color: var(--primary-color);
+    font-weight: 700;
+}
+
+.stop-age-hint.is-warning {
+    border-color: rgba(217, 119, 6, 0.28);
+    background: rgba(217, 119, 6, 0.10);
+}
+
+.stop-age-hint.is-warning strong {
+    color: #b45309;
+}
+
 /* 单选按钮组 */
 .radio-group {
     display: flex;

@@ -67,6 +67,16 @@ function createPageContext(valueOverrides = {}) {
     elements['calculate-btn'] = createElement();
     elements['reset-btn'] = createElement();
     elements['stop-age-group'] = createElement();
+    elements['stop-age-hint'] = {
+        hidden: true,
+        textContent: '',
+        innerHTML: '',
+        classList: {
+            add() {},
+            remove() {},
+            toggle() {}
+        }
+    };
     elements['calculation-details'] = {
         innerHTML: '',
         querySelector(selector) {
@@ -275,6 +285,40 @@ test('最低缴费年限按退休年份逐步提高并封顶20年', () => {
     assert.equal(PensionCalculatorCore.getMinimumContributionYears(2031), 16);
     assert.equal(PensionCalculatorCore.getMinimumContributionYears(2039), 20);
     assert.equal(PensionCalculatorCore.getMinimumContributionYears(2045), 20);
+});
+
+test('最低停缴年龄按已缴费与退休门槛动态估算', () => {
+    const estimate = PensionCalculatorCore.getMinimumStopContributionAge({
+        currentAge: 40,
+        retireAge: 63,
+        paidYears: 7,
+        retireYear: 2048
+    });
+    // 2048 年门槛 20 年；已缴 7 年，还需 13 年 → 至少缴至 53 岁
+    assert.equal(estimate.valid, true);
+    assert.equal(estimate.minimumContributionYears, 20);
+    assert.equal(estimate.yearsNeeded, 13);
+    assert.equal(estimate.minStopAge, 53);
+    assert.equal(estimate.achievable, true);
+
+    const alreadyMet = PensionCalculatorCore.getMinimumStopContributionAge({
+        currentAge: 45,
+        retireAge: 60,
+        paidYears: 20,
+        retireYear: 2040
+    });
+    assert.equal(alreadyMet.alreadyMet, true);
+    assert.equal(alreadyMet.minStopAge, 45);
+
+    const halfYear = PensionCalculatorCore.getMinimumStopContributionAge({
+        currentAge: 40,
+        retireAge: 55,
+        paidYears: 7,
+        retireYear: 2030
+    });
+    // 门槛 15.5，已缴 7，还需 9 年 → 49 岁；退休 55 岁可达成
+    assert.equal(halfYear.yearsNeeded, 9);
+    assert.equal(halfYear.minStopAge, 49);
 });
 
 test('2030年退休时15年不具资格而15.5年具备资格', () => {

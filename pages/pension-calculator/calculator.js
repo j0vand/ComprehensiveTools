@@ -37,6 +37,9 @@ function initEventListeners() {
         const input = document.getElementById(id);
         input.addEventListener('input', () => {
             if (id === 'current-age' || id === 'retire-age') syncAgeLimits();
+            if (id === 'current-age' || id === 'retire-age' || id === 'paid-years') {
+                updateStopAgeHint();
+            }
             window.PensionCalculatorStorage.saveFormData();
         });
     });
@@ -45,6 +48,7 @@ function initEventListeners() {
         radio.addEventListener('change', () => {
             document.getElementById('retire-age').value = radio.value === 'female_worker' ? 58 : 63;
             syncAgeLimits();
+            updateStopAgeHint();
             window.PensionCalculatorStorage.saveFormData();
         });
     });
@@ -61,6 +65,59 @@ function toggleStopAgeInput() {
     const stopAgeGroup = document.getElementById('stop-age-group');
     const paymentPlan = window.CommonUtils.getRadioValue('payment-plan', 'continuous');
     stopAgeGroup.classList.toggle('hidden', paymentPlan !== 'stop_early');
+    updateStopAgeHint();
+}
+
+/**
+ * 按当前年龄、已缴费年限与退休年份门槛，提示至少需缴费到多少岁。
+ * 仅在「提前停止缴费」时展示；不强制改写用户已填的停缴年龄。
+ */
+function updateStopAgeHint() {
+    const hint = document.getElementById('stop-age-hint');
+    if (!hint) return;
+
+    const paymentPlan = window.CommonUtils.getRadioValue('payment-plan', 'continuous');
+    if (paymentPlan !== 'stop_early') {
+        hint.hidden = true;
+        hint.textContent = '';
+        hint.classList.remove('is-warning');
+        return;
+    }
+
+    const currentAge = Number.parseInt(document.getElementById('current-age').value, 10);
+    const retireAge = Number.parseInt(document.getElementById('retire-age').value, 10);
+    const paidYears = getRequiredNumber('paid-years');
+    const estimate = window.PensionCalculatorCore.getMinimumStopContributionAge({
+        currentAge,
+        retireAge,
+        paidYears,
+        retireYear: Number.isInteger(currentAge) && Number.isInteger(retireAge)
+            ? new Date().getFullYear() + (retireAge - currentAge)
+            : undefined
+    });
+
+    if (!estimate.valid) {
+        hint.hidden = false;
+        hint.classList.remove('is-warning');
+        hint.textContent = '请先填写有效的当前年龄、退休年龄和已缴费年限，以估算最低停缴年龄。';
+        return;
+    }
+
+    hint.hidden = false;
+    if (estimate.alreadyMet) {
+        hint.classList.remove('is-warning');
+        hint.innerHTML = `按退休年份 ${estimate.retireYear} 的最低缴费门槛 <strong>${formatYears(estimate.minimumContributionYears)} 年</strong>估算，当前已缴费年限已达标，最低可填当前年龄 <strong>${estimate.minStopAge}</strong> 岁。`;
+        return;
+    }
+
+    if (!estimate.achievable) {
+        hint.classList.add('is-warning');
+        hint.innerHTML = `按退休年份 ${estimate.retireYear} 门槛 <strong>${formatYears(estimate.minimumContributionYears)} 年</strong>估算，还需再缴 <strong>${estimate.yearsNeeded}</strong> 年，至少缴至 <strong>${estimate.requiredStopAge}</strong> 岁；但退休年龄仅 <strong>${retireAge}</strong> 岁，即使缴到退休仍可能不够领取资格。`;
+        return;
+    }
+
+    hint.classList.remove('is-warning');
+    hint.innerHTML = `按退休年份 ${estimate.retireYear} 的最低缴费门槛 <strong>${formatYears(estimate.minimumContributionYears)} 年</strong>估算，还需再缴 <strong>${estimate.yearsNeeded}</strong> 年，建议至少缴费至 <strong>${estimate.minStopAge}</strong> 岁。`;
 }
 
 /** 退休年龄是年龄约束的唯一上界，性别不参与校验和计算。 */
@@ -78,6 +135,7 @@ function syncAgeLimits() {
     if (Number.isInteger(currentAge)) {
         stopAgeInput.min = String(currentAge);
     }
+    updateStopAgeHint();
 }
 
 /** 必填数值不使用默认值，空白或非法文本交由validateInputs统一拒绝。 */
