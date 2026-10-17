@@ -6,6 +6,10 @@
     }
 })(typeof window !== 'undefined' ? window : globalThis, function() {
     const STORE_VERSION = 1;
+    // 方案名上限：避免超长名称把 localStorage 配额挤占掉。
+    const PRESET_NAME_MAX_LENGTH = 50;
+    // 同一会话内每个 storageKey 只做一次「更高版本数据」备份。
+    const newerVersionBackedUpKeys = new Set();
 
     /**
      * 仅接受 JSON 表单协议中的普通键值对象，数组等复合结构由导入边界拒绝。
@@ -184,10 +188,13 @@
         };
     }
 
+    /**
+     * 带 presets 数组就按方案容器处理，不能用 version 相等来判断。
+     * 否则版本更高（或版本回退）的数据会被误判成旧格式草稿，presets 在内存中被丢弃，
+     * 并在下一次任意写入时把残缺结构永久落盘。
+     */
     function isPresetStore(value) {
-        return isPlainObject(value)
-            && value.version === STORE_VERSION
-            && Array.isArray(value.presets);
+        return isPlainObject(value) && Array.isArray(value.presets);
     }
 
     function cloneJson(value) {
@@ -235,10 +242,28 @@
         return null;
     }
 
+    /**
+     * 读到比当前版本更新的数据时先另存一份备份再继续。
+     * 这样即使发生版本回退，用户在新版本里保存过的内容也不会被旧代码静默覆盖掉。
+     */
+    function backupNewerVersionStore(storageKey, backend, raw) {
+        if (!raw || typeof raw.version !== 'number' || raw.version <= STORE_VERSION) return;
+        if (newerVersionBackedUpKeys.has(storageKey)) return;
+        newerVersionBackedUpKeys.add(storageKey);
+
+        const backupKey = `${storageKey}_backup_v${raw.version}_${Date.now()}`;
+        const result = typeof backend.setJson === 'function' ? backend.setJson(backupKey, raw) : null;
+        if (result && result.ok && typeof console !== 'undefined' && typeof console.warn === 'function') {
+            console.warn(`检测到更高版本的表单数据，已备份到 ${backupKey}`);
+        }
+    }
+
     function readStore(storageKey, storage) {
         const backend = getStorage(storage);
         if (!backend || !storageKey || typeof backend.getJson !== 'function') return emptyStore();
-        return normalizeStore(backend.getJson(storageKey, null));
+        const raw = backend.getJson(storageKey, null);
+        backupNewerVersionStore(storageKey, backend, raw);
+        return normalizeStore(raw);
     }
 
     function persistStore(storageKey, store, storage) {
@@ -279,6 +304,8 @@
             .replace(/[\\/:*?"<>|]+/g, '_')
             .replace(/\s+/g, ' ')
             .replace(/_+/g, '_')
+            .trim()
+            .slice(0, PRESET_NAME_MAX_LENGTH)
             .trim();
     }
 
@@ -288,14 +315,18 @@
             throw new Error('方案名称不能为空');
         }
         const next = normalizeStore(store);
-        const id = typeof idFactory === 'function' ? idFactory() : createPresetId();
+        const existingIndex = next.presets.findIndex(item => item.name === cleanedName);
+        // 同名「另存为」按覆盖处理，但必须沿用原方案 id：
+        // 换 id 会让 activePresetId 等已有引用悬空，等于凭空多出一个孤儿方案。
+        const id = existingIndex >= 0
+            ? next.presets[existingIndex].id
+            : (typeof idFactory === 'function' ? idFactory() : createPresetId());
         const preset = {
             id,
             name: cleanedName,
             updatedAt: new Date().toISOString(),
             data: cloneJson(draft)
         };
-        const existingIndex = next.presets.findIndex(item => item.name === cleanedName);
         if (existingIndex >= 0) {
             next.presets[existingIndex] = preset;
         } else {
@@ -649,6 +680,7 @@
 
     function openManageDialog(config, refreshLabel) {
         const store = readStore(config.storageKey);
+        const previousFocus = document.activeElement;
         const backdrop = document.createElement('div');
         backdrop.className = 'form-preset-backdrop';
         backdrop.setAttribute('role', 'presentation');
@@ -664,7 +696,40 @@
         dialog.appendChild(title);
 
         function close() {
+            if (typeof dialog.removeEventListener === 'function') {
+                dialog.removeEventListener('keydown', onKeydown);
+            }
             backdrop.remove();
+            if (previousFocus && typeof previousFocus.focus === 'function') {
+                previousFocus.focus();
+            }
+        }
+
+        // Escape 关闭 + Tab 循环：弹层声明了 aria-modal，就必须把焦点约束在弹层内。
+        function onKeydown(event) {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                close();
+                return;
+            }
+            if (event.key !== 'Tab') return;
+
+            const focusables = Array.from(dialog.querySelectorAll('button, [href], input, select, textarea'))
+                .filter(element => !element.disabled);
+            if (!focusables.length) return;
+
+            const first = focusables[0];
+            const last = focusables[focusables.length - 1];
+            const active = document.activeElement;
+            const inside = dialog.contains(active);
+
+            if (event.shiftKey && (active === first || !inside)) {
+                event.preventDefault();
+                last.focus();
+            } else if (!event.shiftKey && (active === last || !inside)) {
+                event.preventDefault();
+                first.focus();
+            }
         }
 
         if (!store.presets.length) {
@@ -794,6 +859,7 @@
         backdrop.addEventListener('click', event => {
             if (event.target === backdrop) close();
         });
+        dialog.addEventListener('keydown', onKeydown);
         backdrop.appendChild(dialog);
         document.body.appendChild(backdrop);
         closeBtn.focus();
@@ -881,8 +947,25 @@
 
         refreshLabel();
 
+        /**
+         * 收集快照可能因页面校验失败而抛错（例如必填项为空、步进不符），
+         * 这里统一转成可读提示，避免保存流程静默中断或抛到调用方。
+         */
+        function collectForSave() {
+            try {
+                return { ok: true, draft: config.collectSnapshot() };
+            } catch (error) {
+                return { ok: false, message: (error && error.message) || '当前输入无法保存' };
+            }
+        }
+
         async function handleSaveAs() {
-            const draft = config.collectSnapshot();
+            const collected = collectForSave();
+            if (!collected.ok) {
+                notify(collected.message, 'error');
+                return;
+            }
+            const draft = collected.draft;
             const inputName = window.DialogService && typeof window.DialogService.promptAction === 'function'
                 ? await window.DialogService.promptAction('另存为方案', {
                     defaultValue: '',
@@ -891,22 +974,36 @@
                 : window.prompt('另存为方案', '');
             if (inputName === null) return;
             try {
-                const next = saveAsPreset(readStore(config.storageKey), draft, inputName);
+                const store = readStore(config.storageKey);
+                const cleanedName = sanitizePresetName(inputName);
+                // 同名会被覆盖，必须让用户知道，不能静默替换掉已有方案。
+                const replacing = Boolean(cleanedName)
+                    && store.presets.some(item => item.name === cleanedName);
+                const next = saveAsPreset(store, draft, inputName);
                 const persisted = persistStore(config.storageKey, next);
                 if (!persisted.ok) {
                     notify('保存失败，无法写入本地存储', 'error');
                     return;
                 }
                 refreshLabel();
-                notify(`已另存为「${getActivePresetName(next)}」`, 'success');
+                const savedName = getActivePresetName(next);
+                if (replacing) {
+                    notify(`已覆盖同名方案「${savedName}」`, 'warning');
+                } else {
+                    notify(`已另存为「${savedName}」`, 'success');
+                }
             } catch (error) {
                 notify(error.message || '另存为失败', 'error');
             }
         }
 
         toolbar.querySelector('[data-action="save"]').addEventListener('click', async () => {
-            const draft = config.collectSnapshot();
-            const saved = saveCurrentPreset(readStore(config.storageKey), draft);
+            const collected = collectForSave();
+            if (!collected.ok) {
+                notify(collected.message, 'error');
+                return;
+            }
+            const saved = saveCurrentPreset(readStore(config.storageKey), collected.draft);
             if (!saved.ok && saved.reason === 'needs-name') {
                 await handleSaveAs();
                 return;

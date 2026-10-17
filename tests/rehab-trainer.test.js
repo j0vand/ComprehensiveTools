@@ -33,13 +33,17 @@ function clone(value) {
 function createStorageHarness(initialData) {
     let saved = clone(initialData);
     let failWrites = false;
+    const writtenKeys = [];
     const context = {
         console: silentConsole,
         localStorage: {
-            getItem() {
+            getItem(key) {
+                // 与浏览器一致：只认本模块的键，可用性探测键不返回数据。
+                if (key !== 'rehab-test') return null;
                 return saved == null ? null : JSON.stringify(saved);
             },
             setItem(key, value) {
+                writtenKeys.push(key);
                 if (failWrites) throw new Error('quota exceeded');
                 if (key === 'rehab-test') saved = JSON.parse(value);
             },
@@ -52,6 +56,7 @@ function createStorageHarness(initialData) {
                     return key === 'rehab-test' && saved != null ? clone(saved) : fallback;
                 },
                 setLocalStorageItem(key, value) {
+                    writtenKeys.push(key);
                     if (key !== 'rehab-test') return true;
                     if (failWrites) return false;
                     saved = clone(value);
@@ -70,6 +75,7 @@ function createStorageHarness(initialData) {
     return {
         manager: new StorageManager(),
         getSaved: function() { return clone(saved); },
+        getWrittenKeys: function() { return writtenKeys.slice(); },
         failWrites: function(value) { failWrites = value; }
     };
 }
@@ -504,4 +510,163 @@ test('wake lock retries a request queued while an obsolete lock is being release
     assert.equal(manager.active, true);
     assert.equal(staleLock.released, true);
     assert.equal(replacementLock.released, false);
+});
+
+test('settings 只有 3 个键时用户计划不再被静默清空', () => {
+    // 与仓库 professional_plans/*.json 一致：旧版导入会把这 3 键 settings 原样落盘。
+    const legacy = baseRehabData();
+    legacy.settings = { voiceRate: 1, voiceVolume: 1, prepareTime: 5 };
+
+    const harness = createStorageHarness(legacy);
+    const saved = harness.getSaved();
+
+    assert.equal(saved.plans.length, 1, '用户计划必须保留');
+    assert.equal(saved.plans[0].name, '同名计划');
+    assert.equal(saved.activePlanId, 'local-plan');
+    assert.deepEqual(
+        Object.keys(saved.settings).sort(),
+        ['countdownStart', 'prepareTime', 'transitionInterval', 'voiceRate', 'voiceVolume'],
+        '缺失的 settings 字段应按默认值补齐'
+    );
+});
+
+test('无法修复的训练数据先备份再重置，不静默销毁', () => {
+    const broken = { plans: '不是数组', activePlanId: null, settings: { voiceRate: 1 } };
+
+    const harness = createStorageHarness(broken);
+    const saved = harness.getSaved();
+
+    assert.deepEqual(saved.plans, [], '无法修复时仍重置为可用结构');
+    assert.equal(saved.activePlanId, null);
+    assert.ok(
+        harness.getWrittenKeys().some(key => key.startsWith('rehabTrainer_backup_')),
+        '原始内容必须先写入备份键'
+    );
+});
+
+test('键不存在时才生成默认结构', () => {
+    const harness = createStorageHarness(null);
+    const saved = harness.getSaved();
+
+    assert.deepEqual(saved.plans, []);
+    assert.equal(saved.activePlanId, null);
+    assert.deepEqual(Object.keys(saved.settings).sort(), [
+        'countdownStart', 'prepareTime', 'transitionInterval', 'voiceRate', 'voiceVolume'
+    ]);
+});
+
+// 以下 3 个用例锁定 skip() 的状态语义：
+// 阶段间状态（准备开始/组间休息/准备间隔）跳过只结束当前阶段，不得推进 currentExerciseIndex。
+test('准备阶段跳过后仍开始第 1 个动作而不是跳过它', () => {
+    const harness = createTimerHarness();
+    const timer = harness.timer;
+    const first = { id: 'first', name: '第一动作', type: 'duration', duration: 30, sets: 2, setRest: 20 };
+    const second = { id: 'second', name: '第二动作', type: 'duration', duration: 30, sets: 1, setRest: 0 };
+    const started = [];
+    timer.on('trainingStart', function(data) {
+        started.push({ exerciseId: data.exercise.id, set: data.set });
+    });
+
+    assert.equal(timer.start([first, second], 10, 5, 10), true);
+    assert.equal(timer.state, timer.STATE.PREPARING);
+    assert.equal(timer.currentExerciseIndex, 0);
+
+    assert.equal(timer.skip(), true);
+
+    const progress = timer.getProgress();
+    assert.equal(progress.currentExerciseIndex, 0, '准备阶段跳过不得推进动作索引');
+    assert.equal(progress.currentSet, 1, '应从第 1 组开始');
+    assert.equal(progress.state, timer.STATE.TRAINING, '跳过准备后直接进入训练');
+    assert.deepEqual(started, [{ exerciseId: 'first', set: 1 }], '应播报第 1 个动作的第 1 组');
+
+    // 在准备阶段暂停再跳过，同样不得越级跳到第 2 个动作。
+    const paused = createTimerHarness();
+    assert.equal(paused.timer.start([first, second], 10, 5, 10), true);
+    assert.equal(paused.timer.pause(), true);
+    assert.equal(paused.timer.state, paused.timer.STATE.PAUSED);
+
+    assert.equal(paused.timer.skip(), true);
+    assert.equal(paused.timer.currentExerciseIndex, 0, '暂停在准备阶段时跳过也不得跳过第 1 个动作');
+    assert.equal(paused.timer.state, paused.timer.STATE.TRAINING);
+    assert.equal(paused.timer.currentSet, 1);
+});
+
+test('训练中跳过仍推进到下一个动作', () => {
+    const harness = createTimerHarness();
+    const timer = harness.timer;
+    const first = { id: 'first', name: '第一动作', type: 'duration', duration: 30, sets: 1, setRest: 0 };
+    const second = { id: 'second', name: '第二动作', type: 'duration', duration: 30, sets: 1, setRest: 0 };
+    const started = [];
+    timer.on('trainingStart', function(data) {
+        started.push(data.exercise.id);
+    });
+
+    assert.equal(timer.start([first, second], 10, 5, 10), true);
+    assert.equal(timer.skip(), true); // PREPARING -> 第 1 个动作
+    assert.equal(timer.state, timer.STATE.TRAINING);
+
+    assert.equal(timer.skip(), true); // TRAINING -> 第 2 个动作
+
+    const progress = timer.getProgress();
+    assert.equal(progress.currentExerciseIndex, 1);
+    assert.equal(progress.currentSet, 1);
+    assert.equal(progress.state, timer.STATE.TRAINING);
+    assert.deepEqual(started, ['first', 'second']);
+
+    assert.equal(timer.skip(), true); // 最后一个动作训练中点跳过 -> 完成
+    assert.equal(timer.state, timer.STATE.COMPLETED);
+    assert.equal(timer.skip(), false, '完成后跳过应被拒绝');
+});
+
+// 语义：SET_REST / TRANSITION 属于当前动作内部，跳过只提前开始该动作的下一组，
+// currentExerciseIndex 不变；只有 TRAINING 中的跳过才会结束整个动作。
+test('组间休息和准备间隔跳过只进入同一动作的下一组', () => {
+    const harness = createTimerHarness();
+    const timer = harness.timer;
+    const first = { id: 'first', name: '第一动作', type: 'duration', duration: 30, sets: 3, setRest: 5 };
+    const second = { id: 'second', name: '第二动作', type: 'duration', duration: 30, sets: 1, setRest: 0 };
+    const startedSets = [];
+    timer.on('trainingStart', function(data) {
+        startedSets.push({ exerciseId: data.exercise.id, set: data.set });
+    });
+
+    assert.equal(timer.start([first, second], 10, 5, 10), true);
+    assert.equal(timer.skip(), true); // PREPARING -> 第 1 个动作第 1 组
+
+    // 第 1 组结束 -> 组间休息，此时跳过应进入第 2 组。
+    timer.onTimerComplete();
+    assert.equal(timer.state, timer.STATE.SET_REST);
+    assert.equal(timer.currentSet, 1);
+    assert.equal(timer.skip(), true);
+
+    let progress = timer.getProgress();
+    assert.equal(progress.currentExerciseIndex, 0, '组间休息跳过不得跳过整个动作');
+    assert.equal(progress.currentSet, 2, '应开始同一动作的下一组');
+    assert.equal(progress.state, timer.STATE.TRAINING);
+
+    // 第 2 组结束 -> 组间休息 -> 自然结束休息进入准备间隔，此时跳过应进入第 3 组。
+    timer.onTimerComplete();
+    assert.equal(timer.state, timer.STATE.SET_REST);
+    timer.onTimerComplete();
+    assert.equal(timer.state, timer.STATE.TRANSITION);
+    assert.equal(timer.currentSet, 2);
+    assert.equal(timer.skip(), true);
+
+    progress = timer.getProgress();
+    assert.equal(progress.currentExerciseIndex, 0, '准备间隔跳过不得跳过整个动作');
+    assert.equal(progress.currentSet, 3, '应开始同一动作的下一组');
+    assert.equal(progress.state, timer.STATE.TRAINING);
+
+    // 第 3 组是该动作最后一组，训练中跳过才进入下一个动作。
+    assert.equal(timer.skip(), true);
+    progress = timer.getProgress();
+    assert.equal(progress.currentExerciseIndex, 1);
+    assert.equal(progress.state, timer.STATE.TRAINING);
+
+    assert.deepEqual(startedSets, [
+        { exerciseId: 'first', set: 1 },
+        { exerciseId: 'first', set: 2 },
+        { exerciseId: 'first', set: 3 },
+        { exerciseId: 'second', set: 1 }
+    ]);
 });

@@ -18,6 +18,20 @@
     const STORAGE_KEY = (typeof window !== 'undefined' && window.StorageKeys && window.StorageKeys.TRAVEL_CHECKLIST)
         ? window.StorageKeys.TRAVEL_CHECKLIST
         : 'travelChecklist_data';
+    const BACKUP_KEY_PREFIX = 'travelChecklist_data_backup_';
+    const ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
+
+    function isValidId(value) {
+        return typeof value === 'string' && ID_PATTERN.test(value);
+    }
+
+    function isValidLabel(value, maxLength) {
+        return typeof value === 'string'
+            && value === value.trim()
+            && value.length > 0
+            && value.length <= maxLength
+            && !/[\u0000-\u001f\u007f]/.test(value);
+    }
 
     const DEFAULT_ITEMS = [
         { text: '身份证', type: 'item' },
@@ -119,17 +133,8 @@
             return false;
         }
 
-        const idPattern = /^[A-Za-z0-9_-]{1,128}$/;
-        const validId = function(value) {
-            return typeof value === 'string' && idPattern.test(value);
-        };
-        const validLabel = function(value, maxLength) {
-            return typeof value === 'string'
-                && value === value.trim()
-                && value.length > 0
-                && value.length <= maxLength
-                && !/[\u0000-\u001f\u007f]/.test(value);
-        };
+        const validId = isValidId;
+        const validLabel = isValidLabel;
         const listIds = new Set();
         const listNames = new Set();
         let itemTotal = 0;
@@ -185,39 +190,50 @@
     }
 
     /**
-     * 将旧版仅含 items 的存储结构迁移为当前 lists 结构，合法数据才保留。
+     * 只保留合法类型；不足两种时交由调用方回退到默认类型。
      */
-    function migrateLegacyData(data) {
-        if (!data || typeof data !== 'object' || Array.isArray(data) || Array.isArray(data.lists)) {
-            return null;
+    function salvageTypes(rawTypes) {
+        if (!Array.isArray(rawTypes)) return null;
+        const typeIds = new Set();
+        const typeNames = new Set();
+        const types = [];
+        for (const type of rawTypes) {
+            if (!type || typeof type !== 'object' || Array.isArray(type)
+                || !isValidId(type.id) || typeIds.has(type.id)
+                || !isValidLabel(type.name, TRAVEL_LIMITS.typeName)) {
+                continue;
+            }
+            const foldedName = type.name.toLocaleLowerCase('zh-CN');
+            if (typeNames.has(foldedName)) continue;
+            typeIds.add(type.id);
+            typeNames.add(foldedName);
+            types.push({ id: type.id, name: type.name });
         }
-        if (!Array.isArray(data.items) || data.items.length === 0) return null;
+        return types.length >= 2 ? types : null;
+    }
 
-        const idPattern = /^[A-Za-z0-9_-]{1,128}$/;
-        const types = Array.isArray(data.types) && data.types.length >= 2
-            ? data.types.map(function(type) {
-                return { id: type.id, name: type.name };
-            })
-            : getDefaultTypes();
+    /**
+     * 旧数据的项目里可能混有脏项：只丢弃脏项本身，同一清单内的合法项照常保留。
+     * 类型引用失效时归入第一种类型，与删除类型时的既有行为保持一致。
+     */
+    function salvageItems(rawItems, types) {
         const typeIds = new Set(types.map(function(type) { return type.id; }));
+        const fallbackTypeId = types[0].id;
         const itemIds = new Set();
         const itemTexts = new Set();
         const orders = new Set();
         const items = [];
 
-        for (const item of data.items) {
-            if (!item || Array.isArray(item) || typeof item.id !== 'string' || !idPattern.test(item.id)
-                || itemIds.has(item.id) || typeof item.text !== 'string'
-                || item.text !== item.text.trim() || item.text.length === 0
-                || item.text.length > TRAVEL_LIMITS.itemText
-                || /[\u0000-\u001f\u007f]/.test(item.text)
-                || typeof item.checked !== 'boolean' || !Number.isSafeInteger(item.order)
-                || item.order < 0 || orders.has(item.order)) {
-                return null;
+        for (const item of rawItems) {
+            if (!item || typeof item !== 'object' || Array.isArray(item)
+                || !isValidId(item.id) || itemIds.has(item.id)
+                || !isValidLabel(item.text, TRAVEL_LIMITS.itemText)
+                || typeof item.checked !== 'boolean'
+                || !Number.isSafeInteger(item.order) || item.order < 0 || orders.has(item.order)) {
+                continue;
             }
             const foldedText = item.text.toLocaleLowerCase('zh-CN');
-            if (itemTexts.has(foldedText)) return null;
-            if (typeof item.type !== 'string' || !typeIds.has(item.type)) return null;
+            if (itemTexts.has(foldedText)) continue;
             itemIds.add(item.id);
             itemTexts.add(foldedText);
             orders.add(item.order);
@@ -226,12 +242,64 @@
                 text: item.text,
                 checked: item.checked,
                 order: item.order,
-                type: item.type
+                type: typeIds.has(item.type) ? item.type : fallbackTypeId
             });
         }
 
         items.sort(function(left, right) { return left.order - right.order; });
         items.forEach(function(item, index) { item.order = index; });
+        return items;
+    }
+
+    /**
+     * 旧版的 lists 结构里可能混有脏清单或脏项：逐份/逐项淘汰而不是整份作废，
+     * 只要还有一份合法清单存活就返回；activeListId 失效时退回第一份清单。
+     */
+    function migrateListState(data) {
+        if (data.lists.length === 0 || data.lists.length > TRAVEL_LIMITS.lists) return null;
+
+        const listIds = new Set();
+        const listNames = new Set();
+        let itemTotal = 0;
+        const lists = [];
+
+        for (const candidate of data.lists) {
+            if (!candidate || typeof candidate !== 'object' || Array.isArray(candidate)) continue;
+            if (!isValidId(candidate.id) || listIds.has(candidate.id)) continue;
+            if (!isValidLabel(candidate.name, TRAVEL_LIMITS.listName)) continue;
+            const foldedListName = candidate.name.toLocaleLowerCase('zh-CN');
+            if (listNames.has(foldedListName)) continue;
+            if (!Array.isArray(candidate.types) || candidate.types.length < 2
+                || candidate.types.length > TRAVEL_LIMITS.typesPerList) continue;
+            if (!Array.isArray(candidate.items) || candidate.items.length > TRAVEL_LIMITS.itemsPerList) continue;
+
+            const types = salvageTypes(candidate.types);
+            if (!types) continue;
+            const items = salvageItems(candidate.items, types);
+            if (itemTotal + items.length > TRAVEL_LIMITS.itemsTotal) continue;
+
+            listIds.add(candidate.id);
+            listNames.add(foldedListName);
+            itemTotal += items.length;
+            lists.push({ id: candidate.id, name: candidate.name, types: types, items: items });
+        }
+
+        if (lists.length === 0) return null;
+        const activeListId = isValidId(data.activeListId)
+            && lists.some(function(list) { return list.id === data.activeListId; })
+            ? data.activeListId
+            : lists[0].id;
+        return { lists: lists, activeListId: activeListId };
+    }
+
+    /**
+     * 更早期的存储只有单份 items；同样逐项淘汰脏数据，全为脏项时交由上层走备份流程。
+     */
+    function migrateLegacyItems(data) {
+        if (!Array.isArray(data.items) || data.items.length === 0) return null;
+        const types = salvageTypes(data.types) || getDefaultTypes();
+        const items = salvageItems(data.items, types);
+        if (items.length === 0) return null;
 
         const list = {
             id: generateId(),
@@ -240,6 +308,15 @@
             items: items
         };
         return { lists: [list], activeListId: list.id };
+    }
+
+    /**
+     * 将旧版存储迁移为当前 lists 结构，合法数据才保留。
+     */
+    function migrateLegacyData(data) {
+        if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+        if (Array.isArray(data.lists)) return migrateListState(data);
+        return migrateLegacyItems(data);
     }
 
     function readTravelPayload() {
@@ -256,23 +333,52 @@
         return window.CommonUtils.setLocalStorageItem(STORAGE_KEY, payload);
     }
 
-    function loadData() {
-        const raw = readTravelPayload();
-        if (raw && raw.version === DATA_VERSION) {
-            if (isValidStoredState(raw.data)) {
-                state.lists = raw.data.lists;
-                state.activeListId = raw.data.activeListId;
-                return;
-            }
-            const migrated = migrateLegacyData(raw.data);
-            if (migrated && isValidStoredState(migrated)) {
-                state.lists = migrated.lists;
-                state.activeListId = migrated.activeListId;
-                return;
-            }
+    /**
+     * 无法识别的历史数据先原样落到独立备份键，再重置，避免静默丢掉用户清单。
+     */
+    function backupUnrecognizedData(raw) {
+        const key = BACKUP_KEY_PREFIX + Date.now();
+        if (window.StorageService && typeof window.StorageService.setJson === 'function') {
+            window.StorageService.setJson(key, raw);
+        } else if (window.CommonUtils && typeof window.CommonUtils.setLocalStorageItem === 'function') {
+            window.CommonUtils.setLocalStorageItem(key, raw);
         }
-        state.lists = [{ id: generateId(), name: '我的清单', types: getDefaultTypes(), items: buildInitialItems() }];
-        state.activeListId = state.lists[0].id;
+        return key;
+    }
+
+    function loadData() {
+        const resetToDefaultList = function() {
+            state.lists = [{ id: generateId(), name: '我的清单', types: getDefaultTypes(), items: buildInitialItems() }];
+            state.activeListId = state.lists[0].id;
+        };
+
+        const raw = readTravelPayload();
+        if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+            if (raw.version === DATA_VERSION) {
+                if (isValidStoredState(raw.data)) {
+                    state.lists = raw.data.lists;
+                    state.activeListId = raw.data.activeListId;
+                    return;
+                }
+                const migrated = migrateLegacyData(raw.data);
+                if (migrated && isValidStoredState(migrated)) {
+                    state.lists = migrated.lists;
+                    state.activeListId = migrated.activeListId;
+                    return;
+                }
+            }
+            // 校验与迁移都失败：先备份原始 payload 并提示，最后才写默认清单。
+            backupUnrecognizedData(raw);
+            showMessage('检测到无法识别的旧数据，已备份并重置', 'warning');
+            resetToDefaultList();
+            writeTravelPayload({
+                version: DATA_VERSION,
+                data: { lists: state.lists, activeListId: state.activeListId }
+            });
+            return;
+        }
+
+        resetToDefaultList();
     }
 
     /**

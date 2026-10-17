@@ -17,6 +17,38 @@ const REHAB_IMPORT_LIMITS = Object.freeze({
     setRest: 86400
 });
 
+// settings 每个字段的默认值与合法范围，必须与 getData() 的严格校验保持一致。
+const REHAB_SETTINGS_RULES = Object.freeze({
+    voiceRate: Object.freeze({ defaultValue: 1.0, minimum: 0.1, maximum: 10, integer: false }),
+    voiceVolume: Object.freeze({ defaultValue: 1.0, minimum: 0, maximum: 1, integer: false }),
+    prepareTime: Object.freeze({ defaultValue: 10, minimum: 0, maximum: 300, integer: true }),
+    transitionInterval: Object.freeze({ defaultValue: 5, minimum: 0, maximum: 60, integer: true }),
+    countdownStart: Object.freeze({ defaultValue: 10, minimum: 1, maximum: 60, integer: true })
+});
+
+// 校验失败的原始内容写入该前缀的独立键，避免整键被覆盖后无法追查。
+const REHAB_BACKUP_KEY_PREFIX = 'rehabTrainer_backup_';
+
+/**
+ * 归一化单个 settings 字段：非数值退回默认值，越界钳制到边界，整数字段再取整。
+ */
+function normalizeRehabSetting(value, rule) {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return rule.defaultValue;
+    const clamped = Math.min(rule.maximum, Math.max(rule.minimum, value));
+    return rule.integer ? Math.trunc(clamped) : clamped;
+}
+
+/**
+ * 默认数据结构，供首次初始化与无法修复时的重置复用。
+ */
+function createDefaultRehabData() {
+    const settings = {};
+    Object.keys(REHAB_SETTINGS_RULES).forEach(field => {
+        settings[field] = REHAB_SETTINGS_RULES[field].defaultValue;
+    });
+    return { plans: [], activePlanId: null, settings };
+}
+
 class StorageManager {
     constructor() {
         this.STORAGE_KEY = window.StorageKeys.REHAB_TRAINER_PLANS;
@@ -25,6 +57,8 @@ class StorageManager {
 
     /**
      * 初始化存储
+     * 只有键真正不存在时才写入默认结构；键存在但校验不通过属于迁移问题，
+     * 先补齐后校验，仍不合法才备份原始内容并重置，绝不静默丢弃用户数据。
      */
     init() {
         if (!this.isLocalStorageAvailable()) {
@@ -32,22 +66,86 @@ class StorageManager {
             return;
         }
 
-        // 如果没有数据，初始化空结构
-        const existingData = this.getData();
-        if (!existingData) {
-            const initialData = {
-                plans: [],
-                activePlanId: null,
-                settings: {
-                    voiceRate: 1.0,
-                    voiceVolume: 1.0,
-                    prepareTime: 10,
-                    transitionInterval: 5,  // 休息结束到训练开始之间的准备间隔（秒）
-                    countdownStart: 10      // 倒计时开始秒数
-                }
-            };
-            this.saveData(initialData);
+        const rawValue = this.readRawData();
+        if (rawValue === null) {
+            this.saveData(createDefaultRehabData());
+            return;
         }
+
+        if (this.getData()) return;
+
+        const migrated = this.migrateData(rawValue);
+        if (migrated) {
+            // 就地保存修好的结构；写入失败时保留原始内容，不回退成默认值。
+            if (this.saveData(migrated)) {
+                console.warn('训练数据缺少部分设置字段，已按默认值补齐后保存');
+            } else {
+                console.warn('训练数据补齐设置字段后写入失败，已保留原始内容');
+            }
+            return;
+        }
+
+        this.backupRawData(rawValue);
+        this.saveData(createDefaultRehabData());
+    }
+
+    /**
+     * 读取原始存储字符串，用于迁移与备份；键不存在或存储不可用时返回 null。
+     */
+    readRawData() {
+        try {
+            const store = window.localStorage
+                || (typeof localStorage !== 'undefined' ? localStorage : null);
+            if (!store) return null;
+            const raw = store.getItem(this.STORAGE_KEY);
+            return typeof raw === 'string' ? raw : null;
+        } catch (error) {
+            console.warn('读取训练数据原始内容失败', error);
+            return null;
+        }
+    }
+
+    /**
+     * 迁移修复：补齐缺失的 settings 字段并钳制越界值后重新严格校验，
+     * 校验通过返回修好的结构（plans 原样保留），否则返回 null 交给备份逻辑。
+     */
+    migrateData(rawValue) {
+        let parsed;
+        try {
+            parsed = JSON.parse(rawValue);
+        } catch (error) {
+            return null;
+        }
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+        return this.validateData({
+            ...parsed,
+            settings: this.repairSettings(parsed.settings)
+        });
+    }
+
+    /**
+     * 用默认值补齐缺失的 settings 字段并钳制越界数值。
+     */
+    repairSettings(settings) {
+        const source = settings && typeof settings === 'object' && !Array.isArray(settings) ? settings : {};
+        const repaired = {};
+        Object.keys(REHAB_SETTINGS_RULES).forEach(field => {
+            repaired[field] = normalizeRehabSetting(source[field], REHAB_SETTINGS_RULES[field]);
+        });
+        return repaired;
+    }
+
+    /**
+     * 把校验失败的原始内容备份到独立键，备份失败也会留下告警。
+     */
+    backupRawData(rawValue) {
+        const backupKey = REHAB_BACKUP_KEY_PREFIX + Date.now();
+        if (this.writeJson(backupKey, rawValue)) {
+            console.warn(`训练数据校验未通过，原始内容已备份到 ${backupKey}，即将重置为默认结构`);
+        } else {
+            console.warn(`训练数据校验未通过，备份到 ${backupKey} 失败，即将重置为默认结构`);
+        }
+        return backupKey;
     }
 
     /**
@@ -85,8 +183,13 @@ class StorageManager {
      * 获取所有数据（使用公共工具库）
      */
     getData() {
-        const data = this.readJson(this.STORAGE_KEY, null);
+        return this.validateData(this.readJson(this.STORAGE_KEY, null));
+    }
 
+    /**
+     * 严格校验持久化数据，不合法返回 null；其它调用方依赖该语义。
+     */
+    validateData(data) {
         if (!data || typeof data !== 'object' || Array.isArray(data) || !Array.isArray(data.plans)) return null;
 
         const entityIds = new Set();

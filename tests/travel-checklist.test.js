@@ -12,13 +12,18 @@ const transferSource = fs.readFileSync(
     path.resolve(__dirname, '../pages/travel-checklist/travel-import-export.js'),
     'utf8'
 );
+const renderSource = fs.readFileSync(
+    path.resolve(__dirname, '../pages/travel-checklist/travel-render.js'),
+    'utf8'
+);
 
 function clone(value) {
     return value == null ? value : JSON.parse(JSON.stringify(value));
 }
 
 function createTravelHarness(initialPayload) {
-    let saved = clone(initialPayload);
+    const storage = new Map();
+    if (initialPayload != null) storage.set('travel-test', JSON.stringify(initialPayload));
     let failWrites = false;
     let readerCount = 0;
     let renderCount = 0;
@@ -26,13 +31,27 @@ function createTravelHarness(initialPayload) {
     const timers = [];
     const revoked = [];
 
+    function readStored(key, fallback) {
+        if (!storage.has(key)) return fallback;
+        return clone(JSON.parse(storage.get(key)));
+    }
+
+    function writeStored(key, value) {
+        storage.set(key, JSON.stringify(value));
+    }
+
+    // 浏览器 FileReader 是异步的：结果只会在 microtask 之后交付。
     class FakeFileReader {
         constructor() {
             readerCount += 1;
         }
 
         readAsText(file) {
-            this.onload({ target: { result: file.text } });
+            queueMicrotask(() => {
+                if (typeof this.onload === 'function') {
+                    this.onload({ target: { result: file.text } });
+                }
+            });
         }
     }
 
@@ -56,7 +75,10 @@ function createTravelHarness(initialPayload) {
         localStorage: {
             setItem(key, value) {
                 if (failWrites) throw new Error('quota exceeded');
-                saved = JSON.parse(value);
+                storage.set(key, String(value));
+            },
+            getItem(key) {
+                return storage.has(key) ? storage.get(key) : null;
             }
         },
         setTimeout(callback) {
@@ -65,13 +87,23 @@ function createTravelHarness(initialPayload) {
         },
         window: {
             StorageKeys: { TRAVEL_CHECKLIST: 'travel-test' },
+            StorageService: {
+                getJson(key, fallback) {
+                    return readStored(key, fallback);
+                },
+                setJson(key, value) {
+                    if (failWrites) return { ok: false, reason: 'write-failed' };
+                    writeStored(key, value);
+                    return { ok: true };
+                }
+            },
             CommonUtils: {
                 getLocalStorageItem(key, fallback) {
-                    return saved == null ? fallback : clone(saved);
+                    return readStored(key, fallback);
                 },
                 setLocalStorageItem(key, value) {
                     if (failWrites) return false;
-                    saved = clone(value);
+                    writeStored(key, value);
                     return true;
                 }
             },
@@ -103,7 +135,9 @@ function createTravelHarness(initialPayload) {
         timers,
         revoked,
         failWrites(value) { failWrites = value; },
-        getSaved() { return clone(saved); },
+        getSaved() { return readStored('travel-test', null); },
+        getStoredJson(key) { return readStored(key, null); },
+        getStorageKeys() { return Array.from(storage.keys()); },
         getReaderCount() { return readerCount; },
         getRenderCount() { return renderCount; }
     };
@@ -233,13 +267,28 @@ function validImportPayload() {
     };
 }
 
-test('travel import enforces the 2 MiB limit before reading', () => {
+test('travel import rejects the 2 MiB limit synchronously before reading', () => {
     const harness = createTravelHarness(currentPayload());
 
+    // 超限走同步拒绝：不创建 reader，也不进入异步读取。
     assert.equal(harness.transfer.importData({ size: 2 * 1024 * 1024 + 1, text: '{}' }, 'new'), false);
     assert.equal(harness.getReaderCount(), 0);
     assert.equal(harness.messages.at(-1).type, 'error');
     assert.match(harness.messages.at(-1).message, /2 MiB/);
+});
+
+test('travel import resolves false for invalid JSON through the asynchronous reader', async () => {
+    const harness = createTravelHarness(currentPayload());
+    const before = clone(harness.store.state);
+
+    const result = harness.transfer.importData({ size: 512, text: '{ not json' }, 'new');
+    assert.equal(typeof result.then, 'function');
+    assert.equal(await result, false);
+
+    assert.equal(harness.getReaderCount(), 1);
+    assert.deepEqual(clone(harness.store.state), before);
+    assert.equal(harness.messages.at(-1).type, 'error');
+    assert.match(harness.messages.at(-1).message, /导入失败/);
 });
 
 test('travel import strictly validates schema and rejects prototype-pollution keys', () => {
@@ -271,12 +320,12 @@ test('travel import rejects item text duplicates after trimming and case folding
     }, /相同内容/);
 });
 
-test('travel import rebuilds globally unique ids and rolls back when persistence fails', () => {
+test('travel import rebuilds globally unique ids and rolls back when persistence fails', async () => {
     const harness = createTravelHarness(currentPayload());
     const payload = validImportPayload();
     const sourceIds = new Set(['external-list', 'external-type-1', 'external-type-2', 'external-item-1', 'external-item-2']);
 
-    assert.equal(harness.transfer.importData({ size: 1024, text: JSON.stringify(payload) }, 'new'), true);
+    assert.equal(await harness.transfer.importData({ size: 1024, text: JSON.stringify(payload) }, 'new'), true);
     const imported = harness.store.getCurrentList();
     const ids = [imported.id]
         .concat(imported.types.map(function(type) { return type.id; }))
@@ -288,7 +337,7 @@ test('travel import rebuilds globally unique ids and rolls back when persistence
     harness.failWrites(true);
     const secondPayload = validImportPayload();
     secondPayload.data.lists[0].name = '另一个外部清单';
-    assert.equal(harness.transfer.importData({ size: 1024, text: JSON.stringify(secondPayload) }, 'new'), false);
+    assert.equal(await harness.transfer.importData({ size: 1024, text: JSON.stringify(secondPayload) }, 'new'), false);
     assert.deepEqual(clone(harness.store.state), beforeFailure);
 });
 
@@ -300,4 +349,59 @@ test('travel export revokes the blob url on a later task', () => {
     assert.equal(harness.timers.length, 1);
     harness.timers[0]();
     assert.deepEqual(harness.revoked, ['blob:test']);
+});
+
+test('travel keeps legitimate list items when stored data has a duplicate text', () => {
+    // 旧版没有重名校验，完全可能存下同一清单内的重复文案；
+    // 新版校验会拒绝它，但绝不能因此把整份清单重置为默认 5 项。
+    const harness = createTravelHarness({
+        version: 1,
+        data: {
+            lists: [{
+                id: 'list-1',
+                name: '我的清单',
+                types: [{ id: 'item', name: '物品' }, { id: 'task', name: '事项' }, { id: 'other', name: '其他' }],
+                items: [
+                    { id: 'i-1', text: '护照', checked: false, order: 0, type: 'item' },
+                    { id: 'i-2', text: '护照', checked: true, order: 1, type: 'item' },
+                    { id: 'i-3', text: '签证', checked: false, order: 2, type: 'item' }
+                ]
+            }],
+            activeListId: 'list-1'
+        }
+    });
+
+    const saved = harness.getSaved();
+    const texts = saved.data.lists.flatMap(list => list.items.map(item => item.text));
+
+    assert.ok(texts.includes('护照'), `用户数据必须保留，实际：${texts.join('/')}`);
+    assert.ok(texts.includes('签证'), `用户数据必须保留，实际：${texts.join('/')}`);
+    // 默认种子清单是 身份证/手机/充电器/钥匙/证件，出现它说明被整份重置了
+    assert.equal(texts.includes('充电器'), false, '不得重置为默认清单');
+    assert.equal(saved.data.lists[0].name, '我的清单');
+});
+
+test('travel backs up unrecognized stored data before resetting', () => {
+    const harness = createTravelHarness({
+        version: 1,
+        data: { lists: [{ id: 'broken-list' }], activeListId: 'broken-list' }
+    });
+
+    const backupKeys = harness.getStorageKeys()
+        .filter(key => String(key).startsWith('travelChecklist_data_backup_'));
+    assert.ok(backupKeys.length > 0, '原始内容必须先写入备份键');
+    assert.deepEqual(
+        harness.getStoredJson(backupKeys[0]).data,
+        { lists: [{ id: 'broken-list' }], activeListId: 'broken-list' },
+        '备份内容必须与原始 payload 一致'
+    );
+    assert.ok(
+        harness.messages.some(item => String(item.message).includes('已备份')),
+        '必须提示用户数据已备份并重置'
+    );
+
+    // 仍然给出可用的默认清单
+    const saved = harness.getSaved();
+    assert.equal(saved.data.lists.length, 1);
+    assert.ok(saved.data.lists[0].items.length > 0);
 });

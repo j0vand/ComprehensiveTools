@@ -168,3 +168,71 @@ test('理财式草稿：空字符串字段可完整往返', () => {
     applyDraft(cleared, controls);
     assert.equal(controls[0].value, '');
 });
+
+test('normalizeStore 保留更高版本的方案容器，不降级成旧格式草稿', () => {
+    const future = {
+        version: 9,
+        draft: { fields: { age: '30' } },
+        activePresetId: 'p1',
+        presets: [{ id: 'p1', name: '方案一', updatedAt: '2026-01-01T00:00:00.000Z', data: { fields: { age: '30' } } }]
+    };
+
+    const store = FormImportExport.normalizeStore(future);
+
+    assert.equal(store.presets.length, 1);
+    assert.equal(store.presets[0].name, '方案一');
+    assert.equal(store.activePresetId, 'p1');
+    assert.deepEqual(store.draft, { fields: { age: '30' } });
+});
+
+test('readStore 读到更高版本数据时先备份，且后续写入不丢方案', () => {
+    const memory = new Map();
+    const written = [];
+    const storage = {
+        getJson(key, fallback) {
+            return memory.has(key) ? memory.get(key) : fallback;
+        },
+        setJson(key, value) {
+            written.push(key);
+            memory.set(key, value);
+            return { ok: true };
+        }
+    };
+
+    memory.set('demo-v9', {
+        version: 9,
+        draft: null,
+        activePresetId: 'p1',
+        presets: [{ id: 'p1', name: 'A', updatedAt: 't', data: { a: 1 } }]
+    });
+
+    const store = FormImportExport.readStore('demo-v9', storage);
+    assert.equal(store.presets.length, 1, '更高版本的方案列表必须保留');
+    assert.ok(
+        written.some(key => key.startsWith('demo-v9_backup_v9_')),
+        '应写入备份键，避免版本回退时静默覆盖'
+    );
+
+    FormImportExport.writeDraft('demo-v9', { a: 2 }, storage);
+    assert.equal(memory.get('demo-v9').presets.length, 1, '草稿写入不能清掉方案列表');
+    assert.deepEqual(memory.get('demo-v9').draft, { a: 2 });
+});
+
+test('saveAsPreset 同名覆盖时沿用原方案 id，不产生孤儿方案', () => {
+    let store = FormImportExport.normalizeStore(null);
+    store = FormImportExport.saveAsPreset(store, { a: 1 }, '方案A/B', () => 'id-1');
+    assert.equal(store.presets.length, 1);
+    assert.equal(store.presets[0].id, 'id-1');
+
+    store = FormImportExport.saveAsPreset(store, { a: 2 }, '方案A_B', () => 'id-2');
+
+    assert.equal(store.presets.length, 1, '净化后同名应视为同一方案');
+    assert.equal(store.presets[0].id, 'id-1', '必须沿用原 id');
+    assert.equal(store.activePresetId, 'id-1');
+    assert.deepEqual(store.presets[0].data, { a: 2 });
+});
+
+test('sanitizePresetName 截断超长名称', () => {
+    const longName = FormImportExport.sanitizePresetName('长'.repeat(500));
+    assert.equal(longName.length, 50);
+});
