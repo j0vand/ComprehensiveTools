@@ -163,3 +163,43 @@ test('form preset pages load dialog and storage assets before the preset script'
 
     assert.deepEqual(problems, []);
 });
+
+test('fonts are self-hosted and no page blocks on a third-party font CDN', () => {
+    const problems = [];
+
+    // 第三方字体 CDN 会让首屏多一次串行跨域请求，部分网络下还会一直阻塞到超时。
+    walk(rootDir, '.html').forEach(htmlPath => {
+        const html = fs.readFileSync(htmlPath, 'utf8');
+        if (/fonts\.(?:googleapis|gstatic)\.com/.test(html)) {
+            problems.push(`${path.relative(rootDir, htmlPath)}: 不得直接引用第三方字体 CDN`);
+        }
+    });
+
+    walk(path.join(rootDir, 'css'), '.css').forEach(cssPath => {
+        const css = fs.readFileSync(cssPath, 'utf8');
+        if (/fonts\.(?:googleapis|gstatic)\.com/.test(css)) {
+            problems.push(`${path.relative(rootDir, cssPath)}: 不得通过 @import 引用第三方字体 CDN`);
+        }
+    });
+
+    const baseCss = fs.readFileSync(path.join(rootDir, 'css/base.css'), 'utf8');
+    const fontFaceBlocks = baseCss.match(/@font-face\s*\{[^}]*\}/gs) || [];
+    ['Outfit', 'DM Sans'].forEach(family => {
+        const block = fontFaceBlocks.find(item => item.includes(`font-family: '${family}'`));
+        if (!block) {
+            problems.push(`css/base.css: 缺少 ${family} 的 @font-face 声明`);
+            return;
+        }
+        const localFont = block.match(/url\('([^']+\.woff2)'\)/);
+        if (!localFont) {
+            problems.push(`css/base.css: ${family} 必须指向本地字体文件`);
+            return;
+        }
+        const resolved = path.resolve(path.dirname(path.join(rootDir, 'css/base.css')), localFont[1]);
+        if (!fs.existsSync(resolved)) {
+            problems.push(`css/base.css: ${family} 指向的字体文件不存在 ${localFont[1]}`);
+        }
+    });
+
+    assert.deepEqual(problems, []);
+});

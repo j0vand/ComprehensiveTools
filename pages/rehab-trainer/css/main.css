@@ -12,6 +12,10 @@
     
     --primary: #0f9f8f;
     --primary-hover: #0b8176;
+    /* 承载白字的填充色：--primary 上的白字只有 3.29:1，加深后 4.76:1 */
+    --primary-strong: #0b8176;
+    /* 徽标文字色：--accent-neon 作文字只有 2.77:1，加深后 5.37:1 */
+    --accent-neon-ink: #0b6b60;
     --success: #16a34a;
     --light-bg: var(--bg-color);
     --text: var(--text-main);
@@ -356,8 +360,8 @@ body {
 .btn-info:focus,
 .btn-info:active {
     color: #ffffff !important;
-    background-color: var(--primary) !important;
-    border-color: var(--primary) !important;
+    background-color: var(--primary-strong) !important;
+    border-color: var(--primary-strong) !important;
 }
 
 .btn-info:hover {
@@ -366,8 +370,8 @@ body {
 }
 
 .btn-success {
-    background-color: var(--primary);
-    border-color: var(--primary);
+    background-color: var(--primary-strong);
+    border-color: var(--primary-strong);
 }
 
 .btn-success:hover:not(:disabled) {

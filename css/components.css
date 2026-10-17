@@ -90,7 +90,9 @@
 }
 
 .tool-bootstrap-skin .text-danger {
-    color: #0f9f8f !important;
+    /* .text-danger 是危险语义，必须用危险色；
+       原来映射成品牌青绿，会让错误提示看起来像普通品牌文字。 */
+    color: var(--brand-danger-ink, #a83b52) !important;
 }
 
 .tool-bootstrap-skin .form-select:focus,
@@ -118,12 +120,13 @@
 }
 
 .tool-button-primary {
+    /* 白字要过 4.5:1：原来的 #0f9f8f 只有 3.29:1，加深到 #0b8176 = 4.76:1 */
     color: #ffffff;
-    background: var(--brand-primary, #0f9f8f);
+    background: var(--brand-primary-strong, #0b8176);
 }
 
 .tool-button-primary:hover {
-    background: var(--brand-primary-hover, #0b8176);
+    background: var(--brand-primary-strong-hover, #0a6e65);
 }
 
 .tool-button-secondary {

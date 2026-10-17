@@ -22,15 +22,22 @@
     margin-bottom: 0;
 }
 
-/* 签名元素：青绿顶栏条 */
+/* 签名元素：青绿顶栏条
+   渐变起点用加深后的品牌色，保证顶栏内白字达到 4.5:1（原 #0f9f8f 仅 3.29:1） */
 .tool-page-header {
     margin-bottom: 22px;
     padding: 22px 24px;
     color: #ffffff;
-    background: linear-gradient(135deg, #0f9f8f 0%, #0b8176 55%, #0a6e65 100%) !important;
+    background: var(--header-gradient, linear-gradient(135deg, #0b8176 0%, #0a6e65 55%, #085a52 100%)) !important;
     border: none !important;
     border-radius: var(--radius-lg, 16px);
     box-shadow: 0 12px 28px rgba(15, 159, 143, 0.22);
+    /* 计算器页面很长，而「返回主页」只在这个顶栏里：
+       吸顶后用户不必滚回页首才能离开。若外层存在 overflow 容器，
+       sticky 会优雅退化为普通定位，不会破坏布局。 */
+    position: sticky;
+    top: 0;
+    z-index: 40;
 }
 
 .tool-page-header .tool-page-nav {

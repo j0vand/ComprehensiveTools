@@ -96,12 +96,13 @@
 
 .type-duration {
     background-color: var(--accent-neon-dim);
-    color: var(--accent-neon);
+    color: var(--accent-neon-ink, #0b6b60);
 }
 
 .type-reps {
     background-color: rgba(5, 150, 105, 0.2);
-    color: #34d399;
+    /* 原 #34d399 在这个底色上只有 1.51:1，几乎不可读 */
+    color: #065f46;
 }
 
 .exercise-card-details {

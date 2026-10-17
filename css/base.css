@@ -1,11 +1,32 @@
 /* css/base.css — 全站视觉令牌与基础样式 */
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700&family=DM+Sans:ital,wght@0,400;0,500;0,600&display=swap');
+
+/*
+ * 字体自托管：原来用 @import 拉 Google Fonts，浏览器必须先下载并解析本文件
+ * 才能发现该请求（串行瀑布），且该域名在部分网络下不可达会一直阻塞到超时。
+ * 这两个文件是拉丁子集的可变字体，已覆盖全部在用的字重。
+ */
+@font-face {
+    font-family: 'Outfit';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('../static/fonts/outfit-latin.woff2') format('woff2');
+}
+
+@font-face {
+    font-family: 'DM Sans';
+    font-style: normal;
+    font-weight: 100 900;
+    font-display: swap;
+    src: url('../static/fonts/dm-sans-latin.woff2') format('woff2');
+}
 
 :root {
     /* 字体 */
     --font-heading: 'Outfit', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
     --font-body: 'DM Sans', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    --font-mono: 'DM Sans', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    /* 数字与代码：DM Sans 是比例字体，作等宽用会导致数字列不对齐 */
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Courier New', monospace;
 
     /* 圆角与间距 */
     --radius-sm: 8px;
@@ -36,6 +57,22 @@
     --brand-orange: #d97706;
     --brand-rose: #e85d75;
     --brand-sky: #0284c7;
+
+    /*
+     * 文字专用色：作文字时对比度必须 ≥ 4.5:1（WCAG AA 正文）。
+     * 上面的品牌色只用于填充、边框、图标，作正文色只到 3.29:1，不达标。
+     * 实测：primary-ink 4.89:1、warning-ink 5.02:1、danger-ink 6.15:1。
+     */
+    --brand-primary-ink: #0b7f72;
+    --brand-warning-ink: #b45309;
+    --brand-danger-ink: #a83b52;
+
+    /* 填充色：承载白字时使用（#0b8176 白字 4.76:1，#0a6e65 白字 6.12:1） */
+    --brand-primary-strong: #0b8176;
+    --brand-primary-strong-hover: #0a6e65;
+
+    /* 顶栏渐变：起点加深到白字 4.76:1（原 #0f9f8f 仅 3.29:1） */
+    --header-gradient: linear-gradient(135deg, #0b8176 0%, #0a6e65 55%, #085a52 100%);
     --cat-finance: #0f9f8f;
     --cat-finance-soft: #dff7f2;
     --cat-life: #0284c7;
@@ -105,13 +142,13 @@ h1, h2, h3, h4, h5, h6 {
     border-radius: var(--radius-sm);
     transition: background-color var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
     margin-bottom: var(--space-sm);
-    color: var(--brand-primary);
+    color: var(--brand-primary-ink);
     background: rgba(15, 159, 143, 0.10);
     border: 1px solid rgba(15, 159, 143, 0.22);
 }
 
 .back-to-home:hover {
-    color: var(--brand-primary-hover);
+    color: var(--brand-primary-ink);
     background: rgba(15, 159, 143, 0.18);
     border-color: rgba(15, 159, 143, 0.35);
 }

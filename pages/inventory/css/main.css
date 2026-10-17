@@ -8,6 +8,12 @@
     --secondary-dark: #0b8176;
     --text-on-primary: #ffffff;
     --text-on-secondary: #ffffff;
+
+    /* 顶栏渐变与文字色：原来渐变写死成品牌青绿 + 白字，只有 3.29:1；
+       暗色模式下文字变深，压在同一个写死的深色渐变上更糟。改为随主题走。 */
+    --header-from: #0b8176;
+    --header-to: #085a52;
+    --text-on-header: #ffffff;
     
     /* 内容颜色 */
     --text-primary: #14332d;
@@ -64,6 +70,11 @@
     --secondary-dark: #4b636e;
     --text-on-primary: #212121;
     --text-on-secondary: #212121;
+
+    /* 暗色下顶栏改用浅绿渐变 + 深色文字（9.80:1 / 8.00:1） */
+    --header-from: #a5d6a7;
+    --header-to: #81c784;
+    --text-on-header: #212121;
     
     --text-primary: #e0e0e0;
     --text-secondary: #b0b0b0;
@@ -77,6 +88,19 @@
     --warning-color: #ffb74d;
     --error-color: #e57373;
     --info-color: #64b5f6;
+}
+
+/* 暗色顶栏是浅绿底，共享的 --on-dark 链接（白色文字）会看不清，这里改成深色 */
+[data-theme="dark"] .back-to-home--on-dark {
+    color: #1b3a33;
+    background: rgba(27, 58, 51, 0.12);
+    border-color: rgba(27, 58, 51, 0.28);
+}
+
+[data-theme="dark"] .back-to-home--on-dark:hover {
+    color: #1b3a33;
+    background: rgba(27, 58, 51, 0.20);
+    border-color: rgba(27, 58, 51, 0.40);
 }
 
 /* 基础样式 */
@@ -192,8 +216,8 @@ ul, ol {
     min-height: var(--header-height);
     height: auto;
     padding: 14px 0;
-    background: linear-gradient(135deg, #0f9f8f 0%, #0b8176 100%);
-    color: var(--text-on-primary);
+    background: linear-gradient(135deg, var(--header-from) 0%, var(--header-to) 100%);
+    color: var(--text-on-header);
     box-shadow: var(--shadow-medium);
     position: sticky;
     top: 0;
