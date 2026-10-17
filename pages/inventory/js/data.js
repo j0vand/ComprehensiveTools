@@ -919,10 +919,19 @@ class DataManager {
      * 获取历史记录
      * @param {number} limit - 限制数量
      * @param {number} offset - 偏移量
+     * @param {string} [itemId] - 可选：只取某个商品的历史，先过滤全量再截断
      * @returns {Array} 历史记录列表
      */
-    getHistory(limit = 50, offset = 0) {
-        return Utils.deepClone(this.history.slice(offset, offset + limit));
+    getHistory(limit = 50, offset = 0, itemId = null) {
+        let history = this.history;
+
+        // 按商品过滤必须在截断之前，否则老商品的记录会被全局最新记录挤出窗口
+        if (itemId !== undefined && itemId !== null && itemId !== '') {
+            const targetId = String(itemId);
+            history = history.filter(record => record && String(record.itemId) === targetId);
+        }
+
+        return Utils.deepClone(history.slice(offset, offset + limit));
     }
     
     /**
@@ -1462,13 +1471,18 @@ class DataManager {
                     const daysToExpiry = Utils.daysBetween(today, expiryDate);
                     
                     if (daysToExpiry >= 0 && daysToExpiry <= warningDays) {
-                        if (!reminders.expiringSoon.find(r => r.itemId === item.id)) {
+                        // 同一商品可能多个批次同时进入预警窗口，必须保留最近到期的那一批
+                        const existing = reminders.expiringSoon.find(r => r.itemId === item.id);
+                        if (!existing) {
                             reminders.expiringSoon.push({
                                 itemId: item.id,
                                 itemName: item.name,
                                 daysToExpiry: daysToExpiry,
                                 expiryDate: batch.expiryDate
                             });
+                        } else if (daysToExpiry < existing.daysToExpiry) {
+                            existing.daysToExpiry = daysToExpiry;
+                            existing.expiryDate = batch.expiryDate;
                         }
                     }
                 }

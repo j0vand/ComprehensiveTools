@@ -239,6 +239,133 @@ test('saveFormData preserves blank required numeric fields instead of defaults',
     }
 });
 
+/** 保存失败提示的回归用例共用的表单桩：所有字段都有值，聚焦存储失败路径。 */
+function createSaveDocument() {
+    const values = {
+        'current-age': '30',
+        'retire-age': '64',
+        'avg-salary': '8000',
+        'paid-years': '5',
+        'account-balance': '20000',
+        'salary-base': '8000',
+        'past-avg-index': '1',
+        'avg-index': '',
+        'stop-age': '50',
+        'salary-growth': '3',
+        'soc-avg-growth': '3',
+        'interest-rate': '3'
+    };
+    return {
+        getElementById(id) {
+            return Object.hasOwn(values, id) ? { value: values[id] } : null;
+        },
+        querySelectorAll() {
+            return [];
+        }
+    };
+}
+
+function createRadioCommonUtils() {
+    return {
+        getRadioValue(name, defaultValue) {
+            if (name === 'gender') return 'male';
+            if (name === 'base-change-mode') return 'follow_salary';
+            if (name === 'payment-plan') return 'continuous';
+            return defaultValue;
+        }
+    };
+}
+
+test('saveFormData 写入失败时只提示一次，成功后重置提示标志', () => {
+    const toasts = [];
+    let fail = true;
+    const context = loadPensionStorage({
+        document: createSaveDocument(),
+        CommonUtils: createRadioCommonUtils(),
+        StorageService: {
+            getJson() {
+                return null;
+            },
+            setJson() {
+                return fail ? { ok: false, reason: 'quota-exceeded' } : { ok: true };
+            }
+        },
+        DialogService: {
+            showToast(message, type) {
+                toasts.push({ message, type });
+            }
+        }
+    });
+
+    assert.equal(context.PensionCalculatorStorage.saveFormData(), false);
+    assert.deepEqual(toasts, [{ message: '当前设置无法保存，刷新页面后可能丢失', type: 'warning' }]);
+
+    // 持续失败不重复打扰用户
+    context.PensionCalculatorStorage.saveFormData();
+    context.PensionCalculatorStorage.saveFormData();
+    assert.equal(toasts.length, 1);
+
+    // 写入恢复成功后标志重置，下一次失败重新提示
+    fail = false;
+    assert.equal(context.PensionCalculatorStorage.saveFormData(), true);
+    fail = true;
+    assert.equal(context.PensionCalculatorStorage.saveFormData(), false);
+    assert.equal(toasts.length, 2);
+});
+
+test('saveFormData 在缺少 DialogService 时退化为控制台告警且不抛错', () => {
+    const warnings = [];
+    const context = loadPensionStorage({
+        document: createSaveDocument(),
+        CommonUtils: createRadioCommonUtils(),
+        console: { warn: (...args) => warnings.push(args.join(' ')) },
+        StorageService: {
+            getJson() {
+                return null;
+            },
+            setJson() {
+                return { ok: false, reason: 'unavailable' };
+            }
+        }
+    });
+
+    assert.equal(context.PensionCalculatorStorage.saveFormData(), false);
+    assert.deepEqual(warnings, ['当前设置无法保存，刷新页面后可能丢失']);
+});
+
+test('clearFormData 清除失败时提示用户旧设置仍在浏览器存储中', () => {
+    const toasts = [];
+    const context = loadPensionStorage({
+        document: {
+            getElementById() {
+                return null;
+            },
+            querySelectorAll() {
+                return [];
+            }
+        },
+        StorageService: {
+            getJson() {
+                return { version: 1, draft: { currentAge: 42 }, activePresetId: null, presets: [] };
+            },
+            setJson() {
+                return { ok: false, reason: 'quota-exceeded' };
+            }
+        },
+        DialogService: {
+            showToast(message, type) {
+                toasts.push({ message, type });
+            }
+        }
+    });
+
+    assert.equal(context.PensionCalculatorStorage.clearFormData(), false);
+    assert.deepEqual(toasts, [{
+        message: '表单已重置，但旧设置未能从浏览器存储中清除',
+        type: 'warning'
+    }]);
+});
+
 test('clearFormData 只清草稿并保留命名方案', () => {
     const document = {
         getElementById() {

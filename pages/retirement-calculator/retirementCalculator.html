@@ -6,7 +6,11 @@
     <meta name="format-detection" content="telephone=no">
     <meta name="theme-color" content="#0f9f8f">
     <title>FIRE 退休资金规划器 - 提早退休需要多少钱</title>
+    <meta name="description" content="FIRE 退休规划：测算提早退休需要多少钱与最早退休年龄。">
+    <meta property="og:title" content="FIRE 退休资金规划器 - 提早退休需要多少钱">
+    <meta property="og:description" content="FIRE 退休规划：测算提早退休需要多少钱与最早退休年龄。">
     <link rel="icon" href="../../static/logo.png" type="image/png">
+    <link rel="apple-touch-icon" href="../../static/logo.png">
     <link rel="stylesheet" href="../../css/base.css">
     <link rel="stylesheet" href="../../css/components.css">
     <link rel="stylesheet" href="../../css/tool-layout.css">
@@ -75,14 +79,14 @@
                                 <div class="form-group">
                                     <label for="current-assets">当前已有资产</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="current-assets" min="0" max="900719925474" value="50" step="0.1" required>
+                                        <input type="number" id="current-assets" min="0" max="900719925474" value="50" step="any" required>
                                         <span class="unit"><span class="unit-wan">万</span>元</span>
                                     </div>
                                 </div>
                                 <div class="form-group">
                                     <label for="annual-savings">每年可存金额</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="annual-savings" min="0" max="900719925474" value="10" step="0.1" required>
+                                        <input type="number" id="annual-savings" min="0" max="900719925474" value="10" step="any" required>
                                         <span class="unit"><span class="unit-wan">万</span>元/年</span>
                                     </div>
                                 </div>
@@ -106,7 +110,7 @@
                                 <div class="form-group">
                                     <label for="medical-reserve">医疗备用金 (按当前物价)</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="medical-reserve" min="0" max="900719925474" value="50" step="0.1" required>
+                                        <input type="number" id="medical-reserve" min="0" max="900719925474" value="50" step="any" required>
                                         <span class="unit"><span class="unit-wan">万</span>元</span>
                                     </div>
                                     <small class="form-helper">按<span class="unit-wan">万</span>元填写，例：50 表示 50 <span class="unit-wan">万</span>元</small>
@@ -116,7 +120,7 @@
                                 <div class="form-group">
                                     <label for="expected-pension">预计可领社保退休金</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="expected-pension" min="0" max="9007199254740900" value="4000" step="100" required>
+                                        <input type="number" id="expected-pension" min="0" max="9007199254740900" value="4000" step="1" required>
                                         <span class="unit">元/月</span>
                                     </div>
                                     <small class="form-helper">按开始领取年龄当年的名义月金额填写</small>
@@ -133,7 +137,7 @@
                                 <div class="form-group">
                                     <label for="medical-monthly-expense">当前月医疗支出（按当前物价）</label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="medical-monthly-expense" min="0" max="9007199254740900" value="1200" step="100" required>
+                                        <input type="number" id="medical-monthly-expense" min="0" max="9007199254740900" value="1200" step="1" required>
                                         <span class="unit">元/月</span>
                                     </div>
                                     <small class="form-helper">按当前价格输入，未来会像医疗备用金一样按通货膨胀率增长</small>
@@ -179,7 +183,7 @@
                                         <span class="tip-icon" tabindex="0" aria-label="说明：用于将未来支出折现到退休当年的估值。实际收益率约为投资收益率扣除通胀影响" title="用于将未来支出折现到退休当年的估值。实际收益率可近似理解为：(1+投资收益率)/(1+通胀率)-1">?</span>
                                     </label>
                                     <div class="input-wrapper">
-                                        <input type="number" id="investment-return" min="0" max="15" value="1.5" step="0.1" required>
+                                        <input type="number" id="investment-return" min="0" max="15" value="5.0" step="0.1" required>
                                         <span class="unit">%</span>
                                     </div>
                                 </div>
@@ -343,6 +347,7 @@
                                             <th>届时资产余额</th>
                                             <th>理财收益 <span class="tip-icon" tabindex="0" aria-label="说明：以该年龄初资产余额为动态本金，乘以投资年化收益率" title="以该年龄初的资产余额为动态本金 × 投资年化收益率。累积期先计收益，再计入年储蓄。">?</span></th>
                                             <th>退休所需资金 <span class="tip-icon" tabindex="0" aria-label="说明：包含退休后每年净支出的折现值，以及退休当年按通胀调整后的医疗备用金" title="该值包含退休后每年净支出的折现值，以及退休当年按通胀调整后的医疗备用金。">?</span></th>
+                                            <th>差额（资产−所需）</th>
                                             <th>状态</th>
                                         </tr>
                                     </thead>
@@ -355,6 +360,7 @@
                                 <li><strong>届时资产余额</strong> = 上年余额按投资收益率复利增长后，再加年储蓄（动态本金，非固定初始本金）。</li>
                                 <li><strong>理财收益</strong> = 该年龄初资产余额 × 投资年化收益率。</li>
                                 <li><strong>退休所需资金</strong> = 退休后年度净支出的折现值 + 退休时医疗备用金。</li>
+                                <li><strong>差额</strong> = 届时资产余额 − 退休所需资金；差额 ≥ 0 时为可退休（临界年份允许极小的浮点误差），为负数时表示还差多少。</li>
                                 <li>当【资产余额】≥【退休所需资金】时，即可实现 FIRE。</li>
                                 <li>退休后按年初扣除当年净支出，剩余资产再获得当年投资收益。</li>
                                 <li>表格高亮关键拐点：首次可退休年龄、退休金起领年龄。</li>
@@ -417,7 +423,7 @@
             rootSelector: '.input-section',
             inlineAfterSelector: '.back-to-home',
             insertAfterSelector: 'header',
-            collectSnapshot: () => window.retirementCalculatorStorage.collectDraft(),
+            collectSnapshot: () => window.retirementCalculatorStorage.collectValidatedDraft(),
             applySnapshot: (draft) => window.retirementCalculatorStorage.applyDraft(draft)
         });
     </script>

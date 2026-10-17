@@ -20,9 +20,30 @@ const DEFAULT_VALUES = {
 };
 
 // 使用统一的存储键名管理
-const STORAGE_KEY = (typeof window !== 'undefined' && window.StorageKeys) 
-    ? window.StorageKeys.PENSION_CALCULATOR 
+const STORAGE_KEY = (typeof window !== 'undefined' && window.StorageKeys)
+    ? window.StorageKeys.PENSION_CALCULATOR
     : 'pensionCalculator_data';
+
+/**
+ * 写入失败只提示一次：表单每次输入都会保存，反复弹窗会淹没页面。
+ * 写入成功后重置，下一次失败仍会提醒用户。
+ */
+let saveWarningShown = false;
+
+/**
+ * 提示存储写入失败。
+ * 页面正常加载了 dialog.js 时走统一的 toast（与 FIRE 页同文案）；
+ * 缺少对话框模块的环境退化为控制台告警，避免提示本身把保存流程打断。
+ */
+function notifyStorageFailure(message) {
+    if (typeof window !== 'undefined'
+        && window.DialogService
+        && typeof window.DialogService.showToast === 'function') {
+        window.DialogService.showToast(message, 'warning');
+        return;
+    }
+    console.warn(message);
+}
 
 /**
  * 获取输入框当前数值，空白或非法内容保存为null。
@@ -117,7 +138,8 @@ function applyDraft(formData) {
 }
 
 /**
- * 保存表单数据到 localStorage（写入方案容器的草稿）
+ * 保存表单数据到 localStorage（写入方案容器的草稿）。
+ * 失败时告知用户设置不会被记住，而不是静默失败。
  */
 function saveFormData() {
     const result = window.FormImportExport.writeDraft(
@@ -125,9 +147,15 @@ function saveFormData() {
         collectDraft(),
         window.StorageService
     );
-    if (!result.ok) {
-        console.warn('无法保存数据到 localStorage:', result.error || result.reason);
+    if (result.ok) {
+        saveWarningShown = false;
+        return true;
     }
+    if (!saveWarningShown) {
+        saveWarningShown = true;
+        notifyStorageFailure('当前设置无法保存，刷新页面后可能丢失');
+    }
+    return false;
 }
 
 /**
@@ -141,15 +169,17 @@ function restoreFormData() {
 
 /**
  * 清除当前草稿并取消当前方案指针，保留已命名方案列表。
+ * 失败时明确告知刷新后可能恢复旧草稿。
  */
 function clearFormData() {
     const result = window.FormImportExport.clearDraft(
         STORAGE_KEY,
         window.StorageService
     );
-    if (!result.ok) {
-        console.warn('无法清除草稿:', result.error || result.reason);
-    }
+    if (result.ok) return true;
+
+    notifyStorageFailure('表单已重置，但旧设置未能从浏览器存储中清除');
+    return false;
 }
 
 // 导出到全局作用域

@@ -512,10 +512,12 @@ function renderCalculationDetails(result, retirementInfo, inputs) {
     });
 }
 
-/** 年度明细表金额展示：向下取整、不保留小数。 */
-function formatMoneyFloor(num) {
-    if (num === null || num === undefined || !Number.isFinite(Number(num))) return '0';
-    return Math.floor(Number(num)).toLocaleString('zh-CN');
+/**
+ * 年度明细表金额展示：与页面其它金额（汇总卡、计算说明）共用 CommonUtils.formatMoney，
+ * 统一四舍五入到分，避免同一个数字在表里和卡片上出现两种写法。
+ */
+function formatYearTableMoney(value) {
+    return window.CommonUtils.formatMoney(value);
 }
 
 /**
@@ -534,9 +536,11 @@ function syncPlanContributionColumns(tableContainer, yearDetails, hiddenRowsCoun
 
 /**
  * 渲染年度轨迹：待遇和累计年限取年初状态，缴费基数、缴费额及账户余额取按计划年末状态。
+ * 金额统一四舍五入到分，与上方汇总卡同口径。
  */
 function renderYearDetailsTable(yearDetails, futureAvgSalary, currentAvgSalary) {
     const tableContainer = document.getElementById('year-details-table');
+    const formatMoney = formatYearTableMoney;
     const minimumContributionYears = yearDetails.at(-1).minimumContributionYears;
     const firstEligibleIndex = yearDetails.findIndex(detail => detail.eligible);
     const hiddenRowsCount = firstEligibleIndex > 0 ? firstEligibleIndex : 0;
@@ -582,10 +586,10 @@ function renderYearDetailsTable(yearDetails, futureAvgSalary, currentAvgSalary) 
         if (index < hiddenRowsCount) rowClasses.push('hidden-row');
         const rowStyle = index < hiddenRowsCount ? ' style="display: none;"' : '';
         const pensionCell = detail.eligible
-            ? formatMoneyFloor(detail.pensionIfStop)
+            ? formatMoney(detail.pensionIfStop)
             : `<span class="eligibility-gap">差 ${formatYears(detail.eligibilityGap)} 年</span>`;
         const equivalentNowCell = detail.eligible
-            ? formatMoneyFloor(currentAvgSalary * detail.pensionIfStop / futureAvgSalary)
+            ? formatMoney(currentAvgSalary * detail.pensionIfStop / futureAvgSalary)
             : '—';
         let baseCell = '—';
         if (detail.isContributionYear) {
@@ -597,7 +601,7 @@ function renderYearDetailsTable(yearDetails, futureAvgSalary, currentAvgSalary) 
                 : detail.isLoweredByMaxBase
                     ? '原始基数高于300%上限，已按最高基数计算'
                     : '';
-            baseCell = `<span${title ? ` title="${title}"` : ''}>${formatMoneyFloor(detail.yearBase)}</span>${marker}`;
+            baseCell = `<span${title ? ` title="${title}"` : ''}>${formatMoney(detail.yearBase)}</span>${marker}`;
         }
 
         html += `
@@ -606,13 +610,13 @@ function renderYearDetailsTable(yearDetails, futureAvgSalary, currentAvgSalary) 
                 <td>${detail.age}</td>
                 <td>${pensionCell}</td>
                 <td>${equivalentNowCell}</td>
-                <td>${formatMoneyFloor(detail.currentYearAvgSalary)}</td>
-                <td>${formatMoneyFloor(detail.minBase)}</td>
+                <td>${formatMoney(detail.currentYearAvgSalary)}</td>
+                <td>${formatMoney(detail.minBase)}</td>
                 <td class="plan-contribution-col${detail.isRaisedByMinBase || detail.isLoweredByMaxBase ? ' base-limited' : ''}">${baseCell}</td>
-                <td class="plan-contribution-col">${detail.isContributionYear ? formatMoneyFloor(detail.yearContribution) : '—'}</td>
-                <td>${formatMoneyFloor(detail.accumulatedBalance)}</td>
+                <td class="plan-contribution-col">${detail.isContributionYear ? formatMoney(detail.yearContribution) : '—'}</td>
+                <td>${formatMoney(detail.accumulatedBalance)}</td>
                 <td class="${detail.eligible ? '' : 'not-eligible'}" title="退休年份最低缴费年限为${formatYears(detail.minimumContributionYears)}年">${formatYears(detail.accumulatedYears)}</td>
-                <td>${formatMoneyFloor(detail.balanceAtRetirement)}</td>
+                <td>${formatMoney(detail.balanceAtRetirement)}</td>
             </tr>
         `;
     });
@@ -623,6 +627,7 @@ function renderYearDetailsTable(yearDetails, futureAvgSalary, currentAvgSalary) 
         </div>
         <p class="table-note">
             “如现在停止”按该年龄年初的余额、累计年限和缴费指数估算；“按计划”列包含当年利息与年末缴费。<br>
+            表中金额与上方汇总卡同口径，均四舍五入到分（元）。<br>
             退休年份最低缴费年限为 ${formatYears(minimumContributionYears)} 年；未达到门槛时不展示待遇金额，账户余额仍正常估算。<br>
             相当于现在 = 当前社平工资 × 未来养老金替代率，仅用于理解购买力。
         </p>

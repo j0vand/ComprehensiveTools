@@ -353,6 +353,11 @@ body {
     background: #f9fafb;
 }
 
+/* 已渲染过的条目在列表重建时不再重播入场动画。 */
+.checklist-item.item-settled {
+    animation: none;
+}
+
 .checklist-item:last-child {
     border-bottom: none;
 }

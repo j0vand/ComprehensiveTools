@@ -421,6 +421,11 @@ class UIManager {
         if (query.length === 0) {
             // 隐藏搜索结果
             this.elements.searchResults.style.display = 'none';
+            // 清空搜索框后必须同时清掉状态，否则列表仍被旧关键词过滤（如点过「查看全部」）
+            if (this.filters.searchQuery) {
+                this.filters.searchQuery = '';
+                this.pagination.currentPage = 1;
+            }
             this.renderContent();
             return;
         }

@@ -356,12 +356,44 @@ class TrainingTimer {
 
     /**
      * 跳过当前项
+     *
+     * 必须区分状态：nextExercise() 会先把 currentExerciseIndex 加 1 再开始新动作，
+     * 所以阶段间状态（准备开始 / 组间休息 / 准备间隔）无条件调用它会整段跳过当前动作。
+     * - PREPARING：结束准备倒计时，直接开始当前索引的动作（索引不变）；
+     * - SET_REST / TRANSITION：跳过休息/间隔，开始同一动作的下一组（索引不变）；
+     * - TRAINING / WAITING：保持"跳到下一个动作"语义。
+     * 暂停时按暂停前的状态处理，避免同样的越级跳过。
      */
     skip() {
         if (this.state === this.STATE.IDLE || this.state === this.STATE.COMPLETED) return false;
         this.stopTimer();
+        const skippedState = this.state === this.STATE.PAUSED && this.previousState
+            ? this.previousState
+            : this.state;
         this.previousState = null;
-        this.nextExercise();
+
+        switch (skippedState) {
+            case this.STATE.SET_REST:
+            case this.STATE.TRANSITION:
+                // 休息和间隔都在当前动作内部，跳过只提前开始下一组。
+                if (this.hasMoreSets()) {
+                    this.nextSet();
+                } else {
+                    this.nextExercise();
+                }
+                break;
+
+            case this.STATE.PREPARING:
+                // 准备阶段还没开始任何动作，跳过只结束倒计时。
+                this.startExercise();
+                break;
+
+            default:
+                // TRAINING / WAITING：跳到下一个训练项。
+                this.nextExercise();
+                break;
+        }
+
         return true;
     }
 

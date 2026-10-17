@@ -60,6 +60,102 @@ test('target plan returns finite values for a valid zero-rate plan', () => {
     assert.ok(result.periodData.every(row => Object.values(row).every(Number.isFinite)));
 });
 
+/** 定投收益页的逐期累计：本期投入在期初计入，再按周期收益率计息。 */
+function recurringInvestmentFutureValue(amount, periodRate, totalPeriods) {
+    const growth = Math.pow(1 + periodRate, totalPeriods);
+    return amount * (1 + periodRate) * (growth - 1) / periodRate;
+}
+
+test('目标规划与定投收益对同一场景互相自洽（每期期初投入）', () => {
+    // 场景：每年定投 1000 元、年化 12%、共 10 期
+    const amount = 1000;
+    const annualPercent = 12;
+    const recurring = FinanceCalculations.validateRecurringInvestment({
+        amount,
+        annualPercent,
+        years: 10,
+        periodsPerYear: 1
+    });
+    assert.equal(recurring.valid, true);
+
+    const investmentFutureValue = recurringInvestmentFutureValue(
+        amount,
+        recurring.periodRate,
+        recurring.totalPeriods
+    );
+    assert.ok(Math.abs(investmentFutureValue - 19654.58) < 0.01);
+
+    const plan = FinanceCalculations.calculateTargetPlan({
+        target: investmentFutureValue,
+        annualPercent,
+        duration: recurring.totalPeriods,
+        periodsPerYear: 1
+    });
+
+    assert.equal(plan.valid, true);
+    // 同一场景凑同一个目标，每期投入必须回到 1000 元
+    assert.ok(
+        Math.abs(plan.periodRequired - amount) <= 1,
+        `每期投入 ${plan.periodRequired} 应约等于定投金额 ${amount}`
+    );
+    assert.ok(Math.abs(plan.periodData.at(-1).endAmount - investmentFutureValue) < 1e-6);
+    assert.ok(plan.periodData.every(row =>
+        Math.abs(row.endAmount - (row.startAmount + row.investment + row.interest)) < 1e-9));
+});
+
+test('目标规划的期初投入口径在按月周期同样成立', () => {
+    const amount = 1000;
+    const annualPercent = 12;
+    const periodsPerYear = 12;
+    const recurring = FinanceCalculations.validateRecurringInvestment({
+        amount,
+        annualPercent,
+        years: 10,
+        periodsPerYear
+    });
+    assert.equal(recurring.valid, true);
+
+    const investmentFutureValue = recurringInvestmentFutureValue(
+        amount,
+        recurring.periodRate,
+        recurring.totalPeriods
+    );
+    const plan = FinanceCalculations.calculateTargetPlan({
+        target: investmentFutureValue,
+        annualPercent,
+        duration: recurring.totalPeriods,
+        periodsPerYear
+    });
+
+    assert.equal(plan.valid, true);
+    assert.ok(
+        Math.abs(plan.periodRequired - amount) <= 1,
+        `每期投入 ${plan.periodRequired} 应约等于定投金额 ${amount}`
+    );
+    assert.ok(Math.abs(plan.periodData.at(-1).endAmount - investmentFutureValue) < 1e-6);
+});
+
+test('定投收益按期初投入累计，且两处结果表都标注了投入时点', () => {
+    const projectRoot = path.resolve(__dirname, '..');
+    const js = fs.readFileSync(path.join(projectRoot, 'pages/finance/financeCalculator.js'), 'utf8');
+    const html = fs.readFileSync(path.join(projectRoot, 'pages/finance/financeCalculator.html'), 'utf8');
+    const utilSource = fs.readFileSync(path.join(projectRoot, 'utils/finance-calculations.js'), 'utf8');
+
+    // 定投收益：先计入本期投入再计息
+    assert.match(js, /currentAmount = \(currentAmount \+ amount\) \* \(1 \+ periodRate\)/);
+    // 目标规划与定投同口径：本期收益按「期初金额 + 本期投入」计息
+    assert.match(utilSource, /const interest = \(startAmount \+ periodRequired\) \* periodRate/);
+
+    const tableHead = tableId => {
+        const start = html.indexOf(`<table id="${tableId}">`);
+        assert.ok(start >= 0, `缺少 ${tableId} 表格`);
+        const end = html.indexOf('</thead>', start);
+        return html.slice(start, end);
+    };
+    assert.match(tableHead('investmentTable'), /\(每期期初投入\)/);
+    assert.match(tableHead('targetTable'), /\(每期期初投入\)/);
+});
+
 test('recurring investment requires a positive integral source-period count', () => {
     assert.equal(FinanceCalculations.validateRecurringInvestment({
         amount: 1000,

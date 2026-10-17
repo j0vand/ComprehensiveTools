@@ -391,6 +391,71 @@ test('手填未来指数逐年使用，留空时使用已钳制基数对应指�
     assert.equal(automatic.weightedAvgIndex, 3);
 });
 
+/** 年度明细表容器桩：按页面真实的查询路径提供表格与折叠按钮。 */
+function createYearTableContainer() {
+    return {
+        innerHTML: '',
+        classList: {
+            toggle() {},
+            add() {},
+            remove() {}
+        },
+        querySelector(selector) {
+            if (selector === '[data-role="year-details-data-table"]') {
+                return { classList: { toggle() {} } };
+            }
+            if (selector === '#toggle-hidden-rows') {
+                return { addEventListener() {}, textContent: '' };
+            }
+            return null;
+        },
+        querySelectorAll() {
+            return [];
+        }
+    };
+}
+
+test('年度明细表金额与汇总卡同口径，不再出现向下取整的第二种写法', () => {
+    const { context, elements } = createPageContext();
+    const container = createYearTableContainer();
+    elements['year-details-table'] = container;
+
+    const result = PensionCalculatorCore.calculatePension(
+        createData({
+            currentAge: 58,
+            paidYears: 20,
+            accountBalance: 1000,
+            salaryBase: 100,
+            paymentPlan: 'stop_early',
+            stopAge: 59,
+            salaryGrowth: 0,
+            interestRate: 0.1
+        }),
+        retirementInfo(58, 62)
+    );
+    context.__result = result;
+    vm.runInContext(
+        'renderYearDetailsTable(__result.yearDetails, __result.futureAvgSalary, __result.currentAvgSalary)',
+        context
+    );
+
+    const html = container.innerHTML;
+    // 汇总卡展示的正是 window.CommonUtils.formatMoney，表格必须给出完全相同的字符串。
+    const expectedBalance = context.CommonUtils.formatMoney(result.totalAccountBalance);
+    assert.equal(expectedBalance, '1,591.88');
+    assert.ok(html.includes(`<td>${expectedBalance}</td>`), '表格末行余额应与汇总卡同写法');
+    assert.ok(html.includes(`<td>${context.CommonUtils.formatMoney(result.totalPension)}</td>`));
+    // 旧口径 Math.floor 会渲染出整元的 1,591
+    assert.doesNotMatch(html, /<td>1,591<\/td>/);
+    assert.match(html, /四舍五入到分/);
+
+    const source = fs.readFileSync(
+        path.join(__dirname, '../pages/pension-calculator/calculator.js'),
+        'utf8'
+    );
+    assert.doesNotMatch(source, /Math\.floor/);
+});
+
 test('展开明细会展示公式各位置的原始输入代入', () => {
     const { context, elements } = createPageContext();
     const inputs = {

@@ -506,3 +506,156 @@ test('FIRE input validation warns when real return is negative', () => {
     assert.equal(result.warnings.length, 1);
     assert.match(result.warnings[0], /实际收益率为负/);
 });
+
+const RETIREMENT_PAGE_PATH = path.resolve(
+    __dirname,
+    '../pages/retirement-calculator/retirementCalculator.html'
+);
+
+/** 读取页面某个输入框的属性，用于把表单默认值与步进约束纳入回归测试。 */
+function readInputAttributes(html, id) {
+    const match = html.match(new RegExp('<input[^>]*\\bid="' + id + '"[^>]*>'));
+    assert.ok(match, '页面未找到输入框 ' + id);
+    const attributes = {};
+    match[0].replace(/([a-zA-Z0-9-]+)="([^"]*)"/g, (whole, name, value) => {
+        attributes[name] = value;
+        return whole;
+    });
+    return attributes;
+}
+
+/** 模拟 HTML 数字输入框的 stepMismatch：value 必须是 step 的整数倍。 */
+function matchesStep(value, step) {
+    if (step === 'any') return true;
+    const stepValue = step === undefined ? 1 : Number(step);
+    const quotient = value / stepValue;
+    return Math.abs(quotient - Math.round(quotient)) < 1e-9;
+}
+
+test('retirement form step attributes accept realistic amounts', () => {
+    const html = fs.readFileSync(RETIREMENT_PAGE_PATH, 'utf8');
+    const stepOf = (id) => readInputAttributes(html, id).step;
+
+    // 养老金 3271 元/月并非 100 的整数倍，旧的 step="100" 会让测算直接弹原生错误
+    assert.equal(stepOf('expected-pension'), '1');
+    assert.ok(matchesStep(3271, stepOf('expected-pension')), '养老金 3271 元必须能通过表单校验');
+    assert.ok(!matchesStep(3271, '100'), '旧的 step="100" 确实会拦截 3271 元');
+
+    assert.equal(stepOf('medical-monthly-expense'), '1');
+    assert.ok(matchesStep(1367, stepOf('medical-monthly-expense')), '月医疗支出 1367 元必须能通过表单校验');
+    assert.ok(!matchesStep(1367, '100'), '旧的 step="100" 确实会拦截 1367 元');
+
+    // 万元金额允许任意小数（如 50.25 万元 = 502,500 元）
+    ['current-assets', 'annual-savings', 'medical-reserve'].forEach(id => {
+        assert.equal(stepOf(id), 'any', id + ' 应放宽为 step="any"');
+        assert.ok(matchesStep(50.25, stepOf(id)), id + ' 必须接受 50.25 万元');
+    });
+    assert.ok(!matchesStep(50.25, '0.1'), '旧的 step="0.1" 确实会拦截 50.25 万元');
+
+    // 需要整数或年数粒度的字段保持严格步进，与 validateInputs 的整数要求一致
+    assert.equal(stepOf('current-age'), undefined);
+    assert.ok(!matchesStep(30.5, stepOf('current-age')));
+    assert.equal(stepOf('extra-saving-years-after-fire'), '1');
+    assert.ok(!matchesStep(1.5, stepOf('extra-saving-years-after-fire')));
+
+    // 百分比字段保留 0.1 粒度，默认值仍是 0.1 的整数倍
+    ['inflation-rate', 'investment-return', 'pension-growth-rate'].forEach(id => {
+        assert.equal(stepOf(id), '0.1', id + ' 保持 0.1% 步进');
+        assert.ok(matchesStep(Number(readInputAttributes(html, id).value), stepOf(id)), id + ' 默认值需与步进自洽');
+    });
+});
+
+test('retirement form default values no longer contradict each other', () => {
+    const html = fs.readFileSync(RETIREMENT_PAGE_PATH, 'utf8');
+    const valueOf = (id) => Number(readInputAttributes(html, id).value);
+
+    const params = {
+        currentAge: valueOf('current-age'),
+        lifeExpectancy: valueOf('life-expectancy'),
+        currentAssets: valueOf('current-assets') * 10000,
+        annualSavings: valueOf('annual-savings') * 10000,
+        monthlyExpense: valueOf('monthly-expense'),
+        medicalMonthlyExpense: valueOf('medical-monthly-expense'),
+        medicalReserve: valueOf('medical-reserve') * 10000,
+        targetRetireAge: null,
+        extraSavingYearsAfterFire: valueOf('extra-saving-years-after-fire'),
+        expectedPension: valueOf('expected-pension'),
+        pensionAge: valueOf('pension-age'),
+        inflationRate: valueOf('inflation-rate') / 100,
+        investmentReturn: valueOf('investment-return') / 100,
+        pensionGrowthRate: valueOf('pension-growth-rate') / 100
+    };
+
+    assert.ok(
+        params.investmentReturn > params.inflationRate,
+        '默认投资收益率必须高于默认通胀率，否则首次打开即警告「实际收益率为负」'
+    );
+
+    const validation = FireProjection.validateInputs(params);
+    assert.equal(validation.valid, true, validation.error);
+    assert.deepEqual(validation.warnings, [], '全默认输入不应产生任何警告');
+});
+
+test('FIRE boundary equality counts as retirement', () => {
+    // 医疗备用金即所需资金（通胀 0、无净支出），资产与所需资金数学上恰好相等
+    const result = FireProjection.calculateFireTrend({
+        currentAge: 30,
+        lifeExpectancy: 32,
+        currentAssets: 5000,
+        annualSavings: 0,
+        monthlyExpense: 0,
+        medicalMonthlyExpense: 0,
+        medicalReserve: 5000,
+        expectedPension: 0,
+        pensionAge: 65,
+        inflationRate: 0,
+        pensionGrowthRate: 0,
+        investmentReturn: 0.1
+    });
+
+    assert.equal(result.trendData[0].assets, result.trendData[0].required);
+    assert.equal(result.trendData[0].isFire, true);
+    assert.equal(result.firstFireAge, 30);
+});
+
+test('FIRE boundary tolerance absorbs floating point noise', () => {
+    // 所需资金仅比资产高 1e-9（浮点噪声量级），显示口径下两列四舍五入后相等
+    const result = FireProjection.calculateFireTrend({
+        currentAge: 30,
+        lifeExpectancy: 32,
+        currentAssets: 5000,
+        annualSavings: 0,
+        monthlyExpense: 0,
+        medicalMonthlyExpense: 0,
+        medicalReserve: 5000.000000001,
+        expectedPension: 0,
+        pensionAge: 65,
+        inflationRate: 0,
+        pensionGrowthRate: 0,
+        investmentReturn: 0.1
+    });
+
+    const boundary = result.trendData[0];
+    assert.ok(boundary.required > boundary.assets, '构造场景中所需资金应略高于资产');
+    assert.ok(boundary.required - boundary.assets < 1e-6, '差距应落在容差内');
+    assert.equal(
+        Math.round(boundary.assets).toLocaleString(),
+        Math.round(boundary.required).toLocaleString(),
+        '两列显示值应相同，这是状态列必须判为可退休的前提'
+    );
+    assert.equal(boundary.isFire, true);
+    assert.equal(result.firstFireAge, 30);
+});
+
+test('retirement trend table exposes the asset-to-required gap', () => {
+    const html = fs.readFileSync(RETIREMENT_PAGE_PATH, 'utf8');
+    const script = fs.readFileSync(
+        path.resolve(__dirname, '../pages/retirement-calculator/calculator.js'),
+        'utf8'
+    );
+
+    assert.match(html, /<th>差额（资产−所需）<\/th>/);
+    assert.match(html, /<strong>差额<\/strong> = 届时资产余额 − 退休所需资金/);
+    assert.match(script, /formatSignedGap\(data\.assets - data\.required\)/);
+    assert.match(script, /function formatSignedGap/);
+});

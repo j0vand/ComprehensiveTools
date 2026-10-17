@@ -4,6 +4,11 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+    // CDN 依赖可能加载失败，初始化时检查一次并给出可见降级提示
+    if (window.Utils && typeof window.Utils.checkDependencies === 'function') {
+        window.Utils.checkDependencies();
+    }
+
     // 绑定顶部导航按钮事件
     const statsButton = document.getElementById('statsButton');
     const exportButton = document.getElementById('exportButton');

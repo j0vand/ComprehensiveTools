@@ -269,6 +269,7 @@ function renderResults(ctx) {
             '<td>¥ ' + Math.round(data.assets).toLocaleString() + '</td>' +
             '<td>¥ ' + Math.round(data.yearlyInvestmentGain).toLocaleString() + '</td>' +
             '<td>¥ ' + Math.round(data.required).toLocaleString() + '</td>' +
+            '<td>¥ ' + formatSignedGap(data.assets - data.required) + '</td>' +
             '<td>' + tags.join(' / ') + '</td>';
         tbody.appendChild(tr);
     });
@@ -347,6 +348,13 @@ function renderResults(ctx) {
 function formatYuan(value) {
     const amount = Math.round(Number(value) || 0);
     return '¥ ' + amount.toLocaleString('zh-CN');
+}
+
+/** 差额展示：带正负号，避免临界年份出现「两列相等却不可退休」的观感矛盾。 */
+function formatSignedGap(gap) {
+    // `-0 || 0` 归一化为 0，避免展示成「-0」
+    const amount = Math.round(Number(gap) || 0) || 0;
+    return (amount > 0 ? '+' : '') + amount.toLocaleString('zh-CN');
 }
 
 function renderPostRetirementMonthlyTable(trendData, firstFireAge, ctx) {

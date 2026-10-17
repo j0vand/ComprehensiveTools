@@ -342,7 +342,13 @@
                 }).then(function(overwrite) {
                     importFile.value = '';
                     if (overwrite === null) return;
-                    transfer.importData(file, overwrite ? 'overwrite' : 'new', targetListId);
+                    // 读取是异步的，结果由 Promise 交付；用户提示仍由导入模块内部负责。
+                    const pending = transfer.importData(file, overwrite ? 'overwrite' : 'new', targetListId);
+                    if (pending && typeof pending.catch === 'function') {
+                        pending.catch(function(error) {
+                            store.showMessage('导入失败：' + ((error && error.message) || '文件格式错误'), 'error');
+                        });
+                    }
                 });
             });
         }

@@ -5,6 +5,64 @@
     'use strict';
 
     var store = window.TravelChecklistState;
+    // 入场动画只在条目首次出现时播放，重建列表时不再整体重播。
+    const revealedItemIds = new Set();
+
+    function findElement(rootEl, predicate) {
+        const queue = [rootEl];
+        while (queue.length) {
+            const node = queue.shift();
+            const children = node && node.children ? node.children : [];
+            for (let index = 0; index < children.length; index += 1) {
+                const child = children[index];
+                if (predicate(child)) return child;
+                queue.push(child);
+            }
+        }
+        return null;
+    }
+
+    function hasClass(node, className) {
+        return Boolean(node && node.classList && node.classList.contains(className));
+    }
+
+    /**
+     * 重建列表会销毁旧节点，先把用户正在操作的控件记下来，重建后再把焦点还回去。
+     */
+    function captureFocusedControl() {
+        const active = document.activeElement;
+        if (!active || typeof active.closest !== 'function' || !active.classList) return null;
+        const li = active.closest('.checklist-item');
+        const itemId = li && typeof li.getAttribute === 'function' ? li.getAttribute('data-id') : null;
+        if (!itemId) return null;
+        if (active.classList.contains('item-checkbox')) return { itemId: itemId, kind: 'checkbox' };
+        if (active.classList.contains('item-edit-input')) return { itemId: itemId, kind: 'edit' };
+        return null;
+    }
+
+    function restoreFocusedControl(focusInfo, containers) {
+        let li = null;
+        for (let index = 0; index < containers.length && !li; index += 1) {
+            li = findElement(containers[index], function(node) {
+                return hasClass(node, 'checklist-item') && node.getAttribute('data-id') === focusInfo.itemId;
+            });
+        }
+        if (!li) return;
+
+        if (focusInfo.kind === 'edit') {
+            const textSpan = findElement(li, function(node) { return hasClass(node, 'item-text'); });
+            const editInput = findElement(li, function(node) { return hasClass(node, 'item-edit-input'); });
+            if (!textSpan || !editInput || typeof editInput.focus !== 'function') return;
+            textSpan.classList.add('inline-edit');
+            editInput.classList.add('show');
+            editInput.focus();
+            if (typeof editInput.select === 'function') editInput.select();
+            return;
+        }
+
+        const checkbox = findElement(li, function(node) { return hasClass(node, 'item-checkbox'); });
+        if (checkbox && typeof checkbox.focus === 'function') checkbox.focus();
+    }
 
     function renderListSwitcher() {
         const el = document.getElementById('list-switcher');
@@ -63,7 +121,9 @@
 
         function makeItemNode(item, isDone) {
             const li = document.createElement('li');
-            li.className = 'checklist-item' + (isDone ? ' checked' : '');
+            const isFirstReveal = !revealedItemIds.has(item.id);
+            if (isFirstReveal) revealedItemIds.add(item.id);
+            li.className = 'checklist-item' + (isDone ? ' checked' : '') + (isFirstReveal ? '' : ' item-settled');
             li.setAttribute('data-id', item.id);
             li.setAttribute('data-list-id', list.id);
 
@@ -134,8 +194,10 @@
             });
         }
 
+        const focusInfo = captureFocusedControl();
         buildSubsections(pendingContainer, pending, false);
         buildSubsections(doneContainer, done, true);
+        if (focusInfo) restoreFocusedControl(focusInfo, [pendingContainer, doneContainer]);
 
         if (progressText) progressText.textContent = done.length + ' / ' + items.length;
         if (allDoneEl) allDoneEl.classList.toggle('hidden', items.length === 0 || done.length < items.length);

@@ -1047,7 +1047,7 @@ class InventoryModals {
      * 辅助方法：加载商品历史记录
      */
     _loadItemHistory(itemId, container) {
-        const history = InventoryData.getHistory(50).filter(h => h.itemId === itemId);
+        const history = InventoryData.getHistory(50, 0, itemId);
         
         if (history.length === 0) {
             container.innerHTML = '<div class="text-center text-secondary p-3">暂无历史记录</div>';

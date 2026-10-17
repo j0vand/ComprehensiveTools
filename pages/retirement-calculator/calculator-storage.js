@@ -31,6 +31,32 @@ function applyDraft(formData) {
     return true;
 }
 
+/** 生成可读的校验失败提示，尽量指出具体字段。 */
+function describeInvalidField(form) {
+    let fieldLabel = '';
+    if (typeof form.querySelector === 'function') {
+        const invalidControl = form.querySelector(':invalid');
+        const label = invalidControl && invalidControl.labels && invalidControl.labels[0];
+        if (label) fieldLabel = label.textContent.trim();
+    }
+    return fieldLabel
+        ? '「' + fieldLabel + '」未填写或超出范围，请修正后再保存方案'
+        : '表单中有未填写或超出范围的数值，请修正后再保存方案';
+}
+
+/**
+ * 保存方案前先校验表单：加载路径会做严格校验，
+ * 不合法快照一旦写入方案列表，该方案将永久无法加载。
+ * 校验失败时抛出 message 可读的 Error，由保存流程提示用户。
+ */
+function collectValidatedDraft() {
+    const form = getFormRoot();
+    if (form && typeof form.checkValidity === 'function' && !form.checkValidity()) {
+        throw new Error(describeInvalidField(form));
+    }
+    return collectDraft();
+}
+
 /** 保存表单原始展示值，单位换算仅发生在计算入口。 */
 function saveFormData() {
     const result = window.FormImportExport.writeDraft(
@@ -80,6 +106,7 @@ function clearFormData() {
 window.retirementCalculatorStorage = {
     STORAGE_KEY,
     collectDraft,
+    collectValidatedDraft,
     applyDraft,
     saveFormData,
     restoreFormData,

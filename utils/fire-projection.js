@@ -10,6 +10,10 @@
 })(typeof window !== 'undefined' ? window : globalThis, function() {
     'use strict';
 
+    // 临界年份的浮点容差：表格按四舍五入展示两列，若不加容差，
+    // 数学上刚好持平的年份会显示为两列相等却判为「需继续攒钱」。
+    const FIRE_BOUNDARY_EPSILON = 1e-6;
+
     function applyInflation(baseValue, years, rate) {
         return baseValue * Math.pow(1 + rate, Math.max(0, years));
     }
@@ -157,7 +161,7 @@
                 ...params,
                 retireAge
             });
-            const isFire = assetsAtRetire >= requiredCapital;
+            const isFire = assetsAtRetire + FIRE_BOUNDARY_EPSILON >= requiredCapital;
             // 累积期：以该年龄初动态本金计当年理财收益，之后再计入年储蓄
             const yearlyInvestmentGain = assetsAtRetire * params.investmentReturn;
             trendData.push({

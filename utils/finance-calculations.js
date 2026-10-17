@@ -320,7 +320,11 @@
         };
     }
 
-    /** 计算按所选周期投入的目标计划，时长严格表示正整数期数。 */
+    /**
+     * 计算按所选周期投入的目标计划，时长严格表示正整数期数。
+     * 投入时点与「定投收益」统一为每期期初投入（annuity-due）：
+     * 期末金额 = (期初金额 + 本期投入) × (1 + 周期收益率)。
+     */
     function calculateTargetPlan(params) {
         const target = Number(params.target);
         const duration = Number(params.duration);
@@ -344,9 +348,10 @@
         }
 
         const growth = Math.pow(1 + periodRate, duration);
+        // 期初投入比期末投入多赚一期收益，每期投入相应减少 (1 + periodRate) 倍。
         const periodRequired = periodRate === 0
             ? target / duration
-            : target * periodRate / (growth - 1);
+            : target * periodRate / ((growth - 1) * (1 + periodRate));
         if (!Number.isFinite(periodRequired) || periodRequired <= 0) {
             return { valid: false, error: '当前参数无法计算出有限的每期投入' };
         }
@@ -355,8 +360,8 @@
         let currentAmount = 0;
         for (let period = 1; period <= duration; period += 1) {
             const startAmount = currentAmount;
-            const interest = startAmount * periodRate;
-            currentAmount = startAmount + interest + periodRequired;
+            const interest = (startAmount + periodRequired) * periodRate;
+            currentAmount = startAmount + periodRequired + interest;
             periodData.push({
                 startAmount,
                 investment: periodRequired,

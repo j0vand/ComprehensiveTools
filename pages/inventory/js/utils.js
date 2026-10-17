@@ -5,6 +5,7 @@
 
 /**
  * 检查外部依赖是否加载成功
+ * 需在页面初始化路径上调用一次；缺失时给出可见的降级提示。
  * @returns {Object} 依赖加载状态
  */
 function checkDependencies() {
@@ -14,15 +15,18 @@ function checkDependencies() {
         xlsx: typeof window.XLSX !== 'undefined'
     };
 
-    // 向用户提示缺失的功能
-    if (!deps.pinyin) {
-        console.warn('拼音搜索功能不可用（pinyin-pro未加载）');
-    }
-    if (!deps.chart) {
-        console.warn('统计图表功能不可用（Chart.js未加载）');
-    }
-    if (!deps.xlsx) {
-        console.warn('Excel导入导出功能不可用（XLSX未加载）');
+    const missing = [];
+    if (!deps.pinyin) missing.push('拼音搜索功能不可用（拼音库未加载）');
+    if (!deps.chart) missing.push('统计图表功能不可用（图表库未加载）');
+    if (!deps.xlsx) missing.push('Excel导入导出功能不可用（表格库未加载）');
+
+    if (missing.length > 0) {
+        const message = missing.join('；');
+        console.warn(message);
+        // 只在存在可用的提示组件时展示，避免使用 alert 阻塞页面
+        if (window.DialogService && typeof window.DialogService.showToast === 'function') {
+            window.DialogService.showToast(message, 'warning', { duration: 5000 });
+        }
     }
 
     return deps;
@@ -379,6 +383,9 @@ function groupBy(array, key) {
     }, Object.create(null));
 }
 
+// 拼音匹配每次搜索会命中大量字段，异常只记录一次，避免刷屏
+let pinyinMatchErrorLogged = false;
+
 /**
  * 根据拼音首字母搜索
  * @param {string} searchText - 搜索文本
@@ -387,24 +394,31 @@ function groupBy(array, key) {
  */
 function matchByPinyin(searchText, targetText) {
     if (!searchText || !targetText) return false;
-    
+
+    const query = String(searchText).toLowerCase();
+    const target = String(targetText);
+
     // 直接文本匹配
-    if (targetText.toLowerCase().includes(searchText.toLowerCase())) {
+    if (target.toLowerCase().includes(query)) {
         return true;
     }
-    
+
     try {
         // 使用pinyin-pro库进行拼音匹配
         if (typeof pinyinPro !== 'undefined') {
-            // 获取拼音首字母
-            const pinyinInitials = pinyinPro.pinyin(targetText, { toneType: 'none', type: 'first' }).join('');
+            // 获取拼音首字母：pattern/type 才是合法选项组合，返回值需做类型防御
+            const raw = pinyinPro.pinyin(target, { pattern: 'first', toneType: 'none', type: 'array' });
+            const pinyinInitials = Array.isArray(raw) ? raw.join('') : String(raw == null ? '' : raw);
             // 匹配拼音首字母
-            return pinyinInitials.toLowerCase().includes(searchText.toLowerCase());
+            return pinyinInitials.toLowerCase().includes(query);
         }
     } catch (e) {
-        console.error('拼音匹配失败:', e);
+        if (!pinyinMatchErrorLogged) {
+            pinyinMatchErrorLogged = true;
+            console.error('拼音匹配失败:', e);
+        }
     }
-    
+
     return false;
 }
 
@@ -593,6 +607,7 @@ function escapeHtml(str) {
 
 // 导出工具函数
 window.Utils = {
+    checkDependencies,
     formatDate,
     daysBetween,
     formatPrice,

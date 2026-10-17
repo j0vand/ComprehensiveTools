@@ -288,6 +288,10 @@
         return true;
     }
 
+    /**
+     * 读取是异步的：前置校验（含 2 MiB 上限）同步返回 false，
+     * 其余情况返回 Promise<boolean>，由 onload/onerror 交付真实结果。
+     */
     function importData(file, mode, targetListId) {
         if (!file) return false;
         if (Number.isFinite(file.size) && file.size > MAX_IMPORT_BYTES) {
@@ -295,24 +299,30 @@
             return false;
         }
 
-        let importSucceeded = true;
-        const reader = new FileReader();
-        reader.onload = function(event) {
+        return new Promise(function(resolve) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const parsedImport = parseImportedText(event.target && event.target.result);
+                    resolve(applyImport(parsedImport, mode, targetListId));
+                } catch (error) {
+                    console.error('导入失败:', error);
+                    showMessage('导入失败：' + (error.message || '文件格式错误'), 'error');
+                    resolve(false);
+                }
+            };
+            reader.onerror = function() {
+                showMessage('读取文件失败', 'error');
+                resolve(false);
+            };
             try {
-                const parsedImport = parseImportedText(event.target && event.target.result);
-                importSucceeded = applyImport(parsedImport, mode, targetListId);
+                reader.readAsText(file, 'UTF-8');
             } catch (error) {
-                console.error('导入失败:', error);
-                showMessage('导入失败：' + (error.message || '文件格式错误'), 'error');
-                importSucceeded = false;
+                console.error('读取文件失败:', error);
+                showMessage('读取文件失败', 'error');
+                resolve(false);
             }
-        };
-        reader.onerror = function() {
-            showMessage('读取文件失败', 'error');
-            importSucceeded = false;
-        };
-        reader.readAsText(file, 'UTF-8');
-        return importSucceeded;
+        });
     }
 
     window.TravelChecklistImportExport = {

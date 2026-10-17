@@ -4,6 +4,9 @@
  * 依赖 SheetJS (xlsx) 库
  */
 
+// 与 travel-checklist / rehab-trainer 的导入约定保持一致，避免大文件一次性读入卡死页面
+const MAX_IMPORT_BYTES = 2 * 1024 * 1024;
+
 class ExportManager {
     constructor() {
         this.fileInput = document.createElement('input');
@@ -113,36 +116,53 @@ class ExportManager {
      * 处理文件选择
      */
     handleFileSelect(event) {
-        const file = event.target.files[0];
+        const file = event.target.files && event.target.files[0];
         if (!file) return;
 
+        // 成功、失败、超限都要重置，否则重选同一个文件不会触发 change
+        const resetFileInput = () => {
+            this.fileInput.value = '';
+        };
+
+        if (Number.isFinite(file.size) && file.size > MAX_IMPORT_BYTES) {
+            Utils.showNotification('导入文件不能超过 2 MiB', 'error');
+            resetFileInput();
+            return;
+        }
+
         const reader = new FileReader();
-        
+
         reader.onload = (e) => {
             try {
                 const data = new Uint8Array(e.target.result);
                 const workbook = XLSX.read(data, { type: 'array' });
-                
+
                 // 读取第一个工作表
                 const firstSheetName = workbook.SheetNames[0];
                 const worksheet = workbook.Sheets[firstSheetName];
-                
+
                 // 转换为 JSON
                 const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                
+
                 this.processImportData(jsonData, {
                     date1904: Boolean(workbook.Workbook?.WBProps?.date1904)
                 });
-                
-                // 重置 input 以便允许重复选择同一文件
-                this.fileInput.value = '';
-                
+
             } catch (error) {
                 console.error('导入读取失败:', error);
                 Utils.showNotification('文件读取失败: ' + error.message, 'error');
+            } finally {
+                // 重置 input 以便允许重复选择同一文件
+                resetFileInput();
             }
         };
-        
+
+        reader.onerror = () => {
+            console.error('导入读取失败:', reader.error);
+            Utils.showNotification('文件读取失败，请重试', 'error');
+            resetFileInput();
+        };
+
         reader.readAsArrayBuffer(file);
     }
 

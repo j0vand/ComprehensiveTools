@@ -682,7 +682,161 @@ if (!process.env.INVENTORY_TIMEZONE_CHILD) {
                 env: childEnv
             });
             assert.equal(result.status, 0, `${timezone}\n${result.stdout}\n${result.stderr}`);
-            assert.match(result.stdout, /pass 19/);
+            // 断言不依赖用例总数：新增用例不应让这条跨时区校验失效。
+            assert.match(result.stdout, /fail 0/);
+            assert.match(result.stdout, /pass [1-9]\d*/);
         }
     });
 }
+
+// utils.js 的顶层没有 DOM 副作用，可以单独加载以测试真实实现
+// （上面的 inventoryHarness 注入的是简化的 Utils 桩，无法验证拼音逻辑）
+function pinyinUtilsHarness(options = {}) {
+    const initials = { '面膜霜': ['m', 'm', 's'], '精华': ['j', 'h'], '面膜': ['m', 'm'] };
+    const sandbox = {
+        console: { log() {}, warn() {}, error() {} },
+        pinyinPro: {
+            // 忠实模拟 pinyin-pro 3.18.2：type:'array' 返回数组，其它一律返回字符串
+            pinyin(text) {
+                const parts = initials[text] || ['x'];
+                return options.alwaysString ? parts.join(' ') : parts;
+            }
+        }
+    };
+    sandbox.window = sandbox;
+    sandbox.globalThis = sandbox;
+    const context = vm.createContext(sandbox);
+    vm.runInContext(utilsSource, context, { filename: 'utils.js' });
+    return sandbox.Utils;
+}
+
+test('inventory pinyin search matches initials via the array API', () => {
+    const Utils = pinyinUtilsHarness();
+
+    assert.equal(Utils.matchByPinyin('mms', '面膜霜'), true);
+    assert.equal(Utils.matchByPinyin('MMS', '面膜霜'), true);
+    assert.equal(Utils.matchByPinyin('mm', '面膜霜'), true);
+    assert.equal(Utils.matchByPinyin('面膜', '面膜霜'), true);
+    assert.equal(Utils.matchByPinyin('xyz', '面膜霜'), false);
+    assert.equal(Utils.matchByPinyin('', '面膜霜'), false);
+    assert.equal(Utils.matchByPinyin('mms', ''), false);
+});
+
+test('inventory pinyin search tolerates a non-array library return instead of throwing', () => {
+    // 旧实现直接 .join('') 会在库返回字符串时抛 TypeError 并被吞掉，功能静默失效
+    const Utils = pinyinUtilsHarness({ alwaysString: true });
+
+    assert.doesNotThrow(() => Utils.matchByPinyin('mms', '面膜霜'));
+    assert.equal(Utils.matchByPinyin('mms', '面膜霜'), false);
+});
+
+test('inventory uses the array API when type is requested', () => {
+    const seen = [];
+    const sandbox = {
+        console: { log() {}, warn() {}, error() {} },
+        pinyinPro: {
+            pinyin(text, options) {
+                seen.push(options);
+                return ['m', 'm', 's'];
+            }
+        }
+    };
+    sandbox.window = sandbox;
+    sandbox.globalThis = sandbox;
+    const context = vm.createContext(sandbox);
+    vm.runInContext(utilsSource, context, { filename: 'utils.js' });
+    sandbox.Utils.matchByPinyin('mms', '面膜霜');
+
+    assert.equal(seen.length, 1);
+    assert.equal(seen[0].pattern, 'first');
+    assert.equal(seen[0].type, 'array');
+});
+
+test('inventory item history is filtered by item before truncation', () => {
+    // 历史记录按「最新在前」存储（运行时用 unshift），老记录排在数组末尾。
+    const history = [];
+    for (let index = 0; index < 60; index += 1) {
+        history.push({
+            id: `h-other-${index}`,
+            itemId: 'other',
+            itemName: '别的商品',
+            type: 'update',
+            timestamp: `2026-02-${String((index % 28) + 1).padStart(2, '0')}T00:00:00.000Z`
+        });
+    }
+    history.push({
+        id: 'h-target-old',
+        itemId: 'target',
+        itemName: '老商品',
+        type: 'create',
+        timestamp: '2026-01-01T00:00:00.000Z'
+    });
+
+    const { manager } = inventoryHarness({ [storageKeys.history]: history });
+
+    // 目标商品的老记录已被「全局最新 50 条」窗口挤出
+    assert.equal(manager.getHistory(50).some(record => record.itemId === 'target'), false);
+
+    // 按商品过滤必须发生在截断之前，否则该商品的历史永远为空
+    const mine = manager.getHistory(50, 0, 'target');
+    assert.equal(mine.length, 1);
+    assert.equal(mine[0].id, 'h-target-old');
+
+    // 不传 itemId 时保持原有语义
+    assert.equal(manager.getHistory(50, 0, null).length, 50);
+});
+
+test('inventory expiry reminders keep the nearest batch expiry', () => {
+    const today = '2026-07-22T09:00:00.000Z';
+    const { manager } = inventoryHarness({
+        [storageKeys.items]: [{
+            id: 'item-1',
+            name: '面膜',
+            price: 50,
+            batches: [
+                // 较晚过期的一批排在前面，旧实现会取到它并显示错误天数
+                { id: 'b-late', quantity: 1, price: 50, purchaseDate: '2026-07-01', expiryDate: '2026-08-15' },
+                { id: 'b-near', quantity: 1, price: 50, purchaseDate: '2026-07-01', expiryDate: '2026-07-25' }
+            ]
+        }]
+    }, { Date: fixedDateClass(today) });
+
+    const reminders = manager.getReminders();
+    const entry = reminders.expiringSoon.find(item => item.itemId === 'item-1');
+
+    assert.ok(entry, '两个批次都在预警窗口内，应产生一条提醒');
+    assert.equal(entry.daysToExpiry, 3, '应取最近到期批次的天数');
+    assert.equal(entry.expiryDate, '2026-07-25');
+    assert.equal(reminders.expiringSoon.filter(item => item.itemId === 'item-1').length, 1);
+});
+
+function uiHarness() {
+    const sandbox = {
+        console: { log() {}, warn() {}, error() {} },
+        document: { addEventListener() {} },
+        Utils: { initDarkMode() {} }
+    };
+    sandbox.window = sandbox;
+    sandbox.globalThis = sandbox;
+    const context = vm.createContext(sandbox);
+    vm.runInContext(uiSource, context, { filename: 'ui.js' });
+    return vm.runInContext('UIManager', context);
+}
+
+test('inventory clears the search state when the search box is emptied', () => {
+    const UIManager = uiHarness();
+    let rendered = 0;
+    const ui = {
+        elements: { searchInput: { value: '   ' }, searchResults: { style: {} } },
+        filters: { searchQuery: '面膜' },
+        pagination: { currentPage: 4 },
+        renderContent() { rendered += 1; }
+    };
+
+    UIManager.prototype.handleSearch.call(ui);
+
+    assert.equal(ui.filters.searchQuery, '', '清空搜索框必须同时清掉过滤状态');
+    assert.equal(ui.pagination.currentPage, 1);
+    assert.equal(ui.elements.searchResults.style.display, 'none');
+    assert.equal(rendered, 1);
+});

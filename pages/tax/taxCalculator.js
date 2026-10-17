@@ -5,6 +5,15 @@
          * @property {Array} brackets - 综合所得税率表
          * @property {Array} bonusBrackets - 年终奖税率表
          */
+
+        /** 提示文案里的金额格式化：与 formatMoney 相同的千分位口径，缺值按 0 处理。 */
+        function formatWarningAmount(value) {
+            const amount = Number(value);
+            if (!Number.isFinite(amount)) return '0';
+            if (Number.isInteger(amount)) return amount.toLocaleString('zh-CN');
+            return amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
         const TaxCalculator = {
             // 2024年个人所得税税率表（综合所得 - 年度）
             brackets: [
@@ -37,6 +46,10 @@
             OTHER_SOCIAL_PERSONAL_RATE: 0.084,
             // 其他社保合计（养老+失业）：单位 16.6%
             OTHER_SOCIAL_COMPANY_RATE: 0.166,
+            // 公积金比例留空时的默认值（与医保/其他社保比例一致，留空回落默认）。
+            DEFAULT_FUND_RATE: 5,
+            // 基数提示阈值：基数超过月薪该倍数视为「明显偏高」，仅提示不拦截。
+            BASE_TO_SALARY_WARNING_RATIO: 3,
 
             /** 校验个税模型的金额、比例和月份边界，防止非法数值污染全年累计结果。 */
             validateConfig: function(config) {
@@ -71,7 +84,8 @@
                 }
 
                 const rateFields = [
-                    ['fundRate', '公积金比例', false],
+                    // 与医保/其他社保比例一致：公积金比例留空时回落到 DEFAULT_FUND_RATE。
+                    ['fundRate', '公积金比例', true],
                     ['medicalPersonalRate', '医保个人比例', true],
                     ['medicalCompanyRate', '医保单位比例', true],
                     ['otherSocialPersonalRate', '其他社保个人比例', true]
@@ -154,7 +168,9 @@
                 let currentFundBase = config.fundBase != null && config.fundBase !== ''
                     ? roundMoney(config.fundBase)
                     : roundMoney(config.baseSalary);
-                let currentFundRate = config.fundRate;
+                let currentFundRate = (config.fundRate != null && config.fundRate !== '')
+                    ? Number(config.fundRate)
+                    : this.DEFAULT_FUND_RATE;
                 let currentMedicalPersonalRate = (config.medicalPersonalRate != null && config.medicalPersonalRate !== '') ? (config.medicalPersonalRate / 100) : this.MEDICAL_PERSONAL_RATE;
                 let currentMedicalCompanyRate = (config.medicalCompanyRate != null && config.medicalCompanyRate !== '') ? (config.medicalCompanyRate / 100) : this.MEDICAL_COMPANY_RATE;
                 let currentOtherSocialPersonalRate = (config.otherSocialPersonalRate != null && config.otherSocialPersonalRate !== '') ? (config.otherSocialPersonalRate / 100) : this.OTHER_SOCIAL_PERSONAL_RATE;
@@ -313,6 +329,114 @@
                     avgAmount: avg,
                     bracket
                 };
+            },
+
+            /**
+             * 年终奖单独计税的「临界点」检测：多发 1 元反因跨档而净得变少时给出建议金额。
+             * 纯提示，不参与计税计算。
+             * @param {number} bonus - 年终奖总额（单独计税）
+             * @returns {null|{threshold:number, thresholdActual:number, currentActual:number, lost:number, breakEven:number, rate:number}}
+             */
+            getBonusCliffAdvice: function(bonus) {
+                const amount = Number(bonus);
+                if (!Number.isFinite(amount) || amount <= 0) return null;
+
+                const current = this.calculateBonusTax(amount);
+                const bracket = current.bracket;
+                if (!bracket) return null;
+                const bracketIndex = this.bonusBrackets.indexOf(bracket);
+                // 最低档之前（月均 ≤ 3000）不存在临界问题。
+                if (bracketIndex <= 0) return null;
+
+                // 上一档的年化上限金额：发放到该金额时净收入最高。
+                const threshold = this.bonusBrackets[bracketIndex - 1].limit * 12;
+                if (amount <= threshold) return null;
+
+                const atThreshold = this.calculateBonusTax(threshold);
+                // 临界区成立的条件：发到临界点反而净得更多，即多发这一块钱是亏的。
+                if (atThreshold.actual <= current.actual) return null;
+
+                // 净收入回到临界点水平所需的最低金额：金额 × (1 - 税率) + 速算扣除数 ≥ 临界点净收入。
+                const breakEven = (atThreshold.actual - bracket.deduction) / (1 - bracket.rate);
+                return {
+                    threshold,
+                    thresholdActual: atThreshold.actual,
+                    currentActual: current.actual,
+                    lost: Number((atThreshold.actual - current.actual).toFixed(2)),
+                    breakEven: Number((Math.ceil(breakEven * 100) / 100).toFixed(2)),
+                    rate: bracket.rate
+                };
+            },
+
+            /** 年终奖临界点提示文案；未落在临界区时返回 null。 */
+            describeBonusCliff: function(bonus) {
+                const advice = this.getBonusCliffAdvice(bonus);
+                if (!advice) return null;
+                return `年终奖 ${formatWarningAmount(bonus)} 元落在税率临界区：`
+                    + `单独计税后净得 ${formatWarningAmount(advice.currentActual)} 元，`
+                    + `比发放 ${formatWarningAmount(advice.threshold)} 元（净得 ${formatWarningAmount(advice.thresholdActual)} 元）`
+                    + `少 ${formatWarningAmount(advice.lost)} 元。`
+                    + `建议发放 ${formatWarningAmount(advice.threshold)} 元或 ${formatWarningAmount(advice.breakEven)} 元以上。`;
+            },
+
+            /**
+             * 汇总输入侧的提示（不改变任何计税结果）：基数明显高于月薪、某月实际到手为负。
+             * @param {Object} config - 与 calculate 相同的配置
+             * @param {Array<Object>} monthlyResults - calculate 的逐月结果
+             * @returns {Array<{code:string, level:string, message:string}>}
+             */
+            findWarnings: function(config, monthlyResults) {
+                const warnings = [];
+                const results = Array.isArray(monthlyResults) ? monthlyResults : [];
+
+                const negativeMonths = results.filter(item => item.actual < 0);
+                if (negativeMonths.length > 0) {
+                    const first = negativeMonths[0];
+                    const totalActual = results.reduce((sum, item) => sum + item.actual, 0);
+                    warnings.push({
+                        code: 'negative-actual',
+                        level: 'warning',
+                        message: `有 ${negativeMonths.length} 个月的「实际到手」为负数（${negativeMonths.map(item => `${item.month}月`).join('、')}）。`
+                            + `以 ${first.month}月 为例：税前收入 ${formatWarningAmount(first.income)} 元，`
+                            + `个人五险一金 ${formatWarningAmount(first.insurance)} 元，已超过当月收入；`
+                            + `全年实际到手为 ${formatWarningAmount(totalActual)} 元。`
+                            + `请检查社保基数 / 公积金基数与比例是否填写正确。`
+                    });
+                }
+
+                const baseFields = [
+                    { field: 'socialBase', label: '社保基数', salaryField: 'baseSalary' },
+                    { field: 'fundBase', label: '公积金基数', salaryField: 'baseSalary' }
+                ];
+                if (config && config.isJobChange) {
+                    baseFields.push(
+                        { field: 'newSocialBase', label: '新社保基数', salaryField: 'newBaseSalary' },
+                        { field: 'newFundBase', label: '新公积金基数', salaryField: 'newBaseSalary' }
+                    );
+                }
+                const ratio = this.BASE_TO_SALARY_WARNING_RATIO;
+                for (const item of baseFields) {
+                    const rawValue = config ? config[item.field] : undefined;
+                    // 留空表示「与月薪一致」，不构成偏高。
+                    if (rawValue == null || rawValue === '') continue;
+                    const base = Number(rawValue);
+                    const rawSalary = item.salaryField === 'baseSalary'
+                        ? (config ? config.baseSalary : undefined)
+                        : (config && config[item.salaryField] != null && config[item.salaryField] !== ''
+                            ? config[item.salaryField]
+                            : (config ? config.baseSalary : undefined));
+                    const salary = Number(rawSalary);
+                    if (!Number.isFinite(base) || !Number.isFinite(salary) || salary <= 0) continue;
+                    if (base <= salary * ratio) continue;
+                    warnings.push({
+                        code: 'base-above-salary',
+                        level: 'warning',
+                        message: `${item.label} ${formatWarningAmount(base)} 元明显高于对应月薪 ${formatWarningAmount(salary)} 元`
+                            + `（超过 ${ratio} 倍），请确认是否误填；基数偏高会推高个人五险一金扣除。`
+                    });
+                }
+
+                return warnings;
             },
 
             getTax: function(income) {
@@ -850,11 +974,46 @@
                 document.getElementById('insuranceDetailSection').style.display = 'block';
 
                 document.getElementById('resultBody').innerHTML = tableHtml;
-                
+
+                this.renderWarnings(config, monthlyResults);
+
                 const resultSection = document.getElementById('resultSection');
                 resultSection.classList.add('show');
                 
                 resultSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            },
+
+            /**
+             * 渲染输入侧提示：基数明显偏高、某月实际到手为负、年终奖落在跨档临界区。
+             * 纯提示，不参与计税，也不改变已渲染的结果。
+             */
+            renderWarnings: function(config, monthlyResults) {
+                const container = document.getElementById('taxWarnings');
+                if (!container) return;
+
+                const messages = [];
+                // 单独计税的年终奖：落在跨档临界区时给出建议发放金额
+                monthlyResults.forEach(res => {
+                    if (res.bonusSeparate > 0) {
+                        const advice = TaxCalculator.describeBonusCliff(res.bonusSeparate);
+                        if (advice) messages.push(advice);
+                    }
+                });
+                TaxCalculator.findWarnings(config, monthlyResults).forEach(item => {
+                    if (item && item.message) messages.push(item.message);
+                });
+
+                if (messages.length === 0) {
+                    container.innerHTML = '';
+                    container.style.display = 'none';
+                    return;
+                }
+
+                // 文案只由本页生成的数字与固定标签组成，不含用户输入的文本
+                container.innerHTML = messages
+                    .map(message => `<p class="tax-warning-item">${message}</p>`)
+                    .join('');
+                container.style.display = 'grid';
             },
 
             formatMoney: function(num) {

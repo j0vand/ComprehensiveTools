@@ -5,7 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#0f9f8f">
     <title>个税计算器</title>
+    <meta name="description" content="个税计算器：按累计预扣预缴法计算个人所得税，支持年终奖与专项附加扣除。">
+    <meta property="og:title" content="个税计算器">
+    <meta property="og:description" content="个税计算器：按累计预扣预缴法计算个人所得税，支持年终奖与专项附加扣除。">
     <link rel="icon" href="../../static/logo.png" type="image/png">
+    <link rel="apple-touch-icon" href="../../static/logo.png">
     <link rel="stylesheet" href="../../css/base.css">
     <link rel="stylesheet" href="../../css/components.css">
     <link rel="stylesheet" href="../../css/tool-layout.css">
@@ -269,6 +273,25 @@
         
         .result-section.show {
             display: block;
+        }
+
+        /* 输入侧提示：仅告知，不改变计税结果 */
+        .tax-warnings {
+            margin-top: 16px;
+            display: grid;
+            gap: 8px;
+        }
+
+        .tax-warnings .tax-warning-item {
+            margin: 0;
+            padding: 10px 12px;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #7c4a03;
+            background: #fff8ec;
+            border: 1px solid #f0d5a8;
+            border-left: 3px solid var(--warning);
+            border-radius: 8px;
         }
 
         /* 摘要卡片网格 */
@@ -861,6 +884,9 @@
                     <div class="value" id="summaryInsurance">0.00</div>
                 </div>
             </div>
+
+            <!-- 输入侧提示（基数偏高 / 实际到手为负 / 年终奖临界点）：只提示，不参与计税 -->
+            <div id="taxWarnings" class="tax-warnings" role="status" aria-live="polite" style="display:none;"></div>
 
             <!-- 社保公积金明细（单月 + 全年合计；换工作时为原公司/新公司单月 + 全年合计） -->
             <div id="insuranceDetailSection" class="insurance-detail-section" style="display:none;">

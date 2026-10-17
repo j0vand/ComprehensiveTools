@@ -233,3 +233,61 @@ test('FIRE clearFormData 只清草稿并保留命名方案', () => {
     assert.equal(saved.presets.length, 1);
     assert.equal(saved.presets[0].name, '方案一');
 });
+
+test('FIRE 另存为方案前会拒绝不合法表单并给出可读提示', () => {
+    const age = numberControl('current-age', '');
+    const form = createForm([age]);
+    let valid = false;
+    form.checkValidity = () => valid;
+    form.querySelector = () => null;
+
+    const context = loadStorageModule({
+        document: {
+            getElementById(id) {
+                return id === 'fire-form' ? form : null;
+            }
+        },
+        StorageService: {
+            getJson() {
+                return null;
+            }
+        }
+    });
+
+    assert.throws(
+        () => context.retirementCalculatorStorage.collectValidatedDraft(),
+        // 模块在 vm 沙箱里加载，其 Error 与宿主 realm 的 Error 不同源，不能用 instanceof 判断。
+        error => Boolean(error) && /未填写或超出范围/.test(String(error.message))
+    );
+
+    valid = true;
+    const draft = context.retirementCalculatorStorage.collectValidatedDraft();
+    assert.equal(draft.version, 2);
+    assert.equal(draft.fields['current-age'], '');
+});
+
+test('FIRE 另存为方案的错误提示指向具体字段', () => {
+    const pension = numberControl('expected-pension', '');
+    pension.labels = [{ textContent: '预计可领社保退休金' }];
+    const form = createForm([pension]);
+    form.checkValidity = () => false;
+    form.querySelector = (selector) => (selector === ':invalid' ? pension : null);
+
+    const context = loadStorageModule({
+        document: {
+            getElementById(id) {
+                return id === 'fire-form' ? form : null;
+            }
+        },
+        StorageService: {
+            getJson() {
+                return null;
+            }
+        }
+    });
+
+    assert.throws(
+        () => context.retirementCalculatorStorage.collectValidatedDraft(),
+        error => /「预计可领社保退休金」/.test(error.message)
+    );
+});
