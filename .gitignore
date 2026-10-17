@@ -27,6 +27,10 @@ test_ignore/
 test-results/
 playwright-report/
 
+# 工具副产物（浏览器自动化截图/失败现场、SeaHarness 会话文件）
+artifacts/
+.seaharness/
+
 # 备份文件
 *.bak
 * copy.*
